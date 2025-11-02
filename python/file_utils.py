@@ -17,7 +17,7 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 from params import Params_Class
 from tcp_comm import Scp_Com
-from SigProc_Comm.general import General
+from sigcom-toolkit.general import General
 
 
 

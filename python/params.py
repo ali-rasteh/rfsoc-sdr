@@ -371,11 +371,11 @@ class Params_Class_Default(object):
 
 
         if self.files_dwnld_target == 'rfsoc':
-            self.files_to_download = ["*.py", "*.txt", "SigProc_Comm/*.py"]
+            self.files_to_download = ["*.py", "*.txt", "sigcom-toolkit/*.py"]
             # self.files_to_download.extend(["../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
             #                 "../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
         elif self.files_dwnld_target == 'raspi':
-            self.files_to_download = ["*.py", "*.txt", "SigProc_Comm/*.py", "linear_track/*.py", "linear_track/*.txt"]
+            self.files_to_download = ["*.py", "*.txt", "sigcom-toolkit/*.py", "linear_track/*.py", "linear_track/*.txt"]
         
         if self.files_dwnld_target == 'rfsoc':
             self.params_to_modify = {"backend.py": {"import_pynq": True, "import_torch": False,
