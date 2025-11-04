@@ -174,7 +174,11 @@ class Params_Class_Default(object):
         self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
         self.rotation_delay = 0.0                       # Turntable between rotations delay in seconds
 
-
+        # matlab data transfer parameters
+        self.enable_matlab_stream = False          # If True, enables the MATLAB data transfer
+        # self.matlab_stream_ip = '10.20.9.65'     # Roberto IP address for the MATLAB data transfer
+        self.matlab_stream_ip = '10.20.38.213'     # IP address for the MATLAB data transfer
+        self.matlab_stream_port = 50007             # Port for the MATLAB data transfer
         # self.calc_params()
 
 
@@ -419,7 +423,7 @@ class Params_Class(Params_Class_Default):
         self.turntable_port = '/dev/ttyACM0'
         # self.turntable_port = 'COM4'
 
-        self.set_piradio_opt_gains = True
+        # self.set_piradio_opt_gains = True
         self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
@@ -464,6 +468,7 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_ant_calib'
         # self.measurement_type = 'FR3_beamforming'
         # self.measurement_type = 'FR3_cfo'
+        # self.measurement_type = 'stream_to_matlab'
 
         self.mode = 'client'
         # self.mode = 'client_master'
@@ -634,7 +639,7 @@ class Params_Class(Params_Class_Default):
 
             self.save_list = ['signal']
             self.n_save = 32
-            self.measurement_configs = []
+            self.measurement_configs = [6.5]
             # self.measurement_configs.append("tx1_rx1_rx_rotate")
             self.measurement_configs.append("bf_phi_{}".format(self.steer_phi_deg))
 
@@ -748,6 +753,21 @@ class Params_Class(Params_Class_Default):
             self.n_save = 256
             self.measurement_configs = []
             self.measurement_configs.append("{}GHz_{}ppm".format(self.freq_hop_config['list'][0]/1e9, cfo_ppm))
+
+        elif self.measurement_type == 'stream_to_matlab':
+            self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
+            self.rx_chain = ['sync_time', 'channel_est']
+            self.control_piradio = True
+            self.freq_hop_config['list'] = [6.5e9]
+     
+            self.enable_matlab_stream = True
+            self.sig_gen_mode = 'ZadoffChu'
+            self.tx_sig_sim = 'shifted'
+
+            
+            # self.save_list = ['signal']
+            # self.measurement_configs = ["test"]
+            # self.n_save = 256   
 
 
 

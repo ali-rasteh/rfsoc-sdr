@@ -1433,6 +1433,17 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         if channels_save is None:
             while True:
                 (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+
+                if self.enable_matlab_stream:
+                    j = self.fc_id
+                    print(self.freq_hop_list[j])
+                    print("Streaming RX TD data to MATLAB...")
+                    # (txtd_base,txtd) = self.gen_tx_signal()
+                    # self.stream_rx_td_to_matlab(txtd)    
+                    # self.stream_rx_td_to_matlab(self.freq_hop_list[j])
+                    self.stream_rx_td_to_matlab(rxtd,self.freq_hop_list[j])
+                    print("Streaming RX TD data to MATLAB done.")
+
                 H_est_full = fft(h_est_full, axis=-1)
                 if sparse_est_params is not None:
                     (h_tr, dly_est, peaks, npath_est) = sparse_est_params
@@ -1685,6 +1696,31 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
 
+    def stream_rx_td_to_matlab(self,rxtd,freq):
+        import io
+        import socket
+        import scipy.io
+
+        try:
+            #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            #s.connect((self.matlab_stream_ip, self.matlab_stream_port))
+            #print("Connected to MATLAB stream at {}:{}".format(self.matlab_stream_ip, self.matlab_stream_port))
+            #s.close()
+            buf = io.BytesIO()
+            scipy.io.savemat(buf, {'rxtd': rxtd},do_compression=True)
+            scipy.io.savemat(buf, {'freq': freq},do_compression=True)
+            data = buf.getvalue()
+            print(len(data), "bytes of rxtd data to be sent to MATLAB stream")
+
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(.1)
+                sock.connect((self.matlab_stream_ip, self.matlab_stream_port))
+                sock.sendall(len(data).to_bytes(8, byteorder='big'))  # Send the length of the data first
+                sock.sendall(data)
+                self.print("rxtd data sent to MATLAB stream at {}:{}".format(self.matlab_stream_ip, self.matlab_stream_port), thr=1)
+        
+        except Exception as e:
+            self.print("Error in streaming rxtd to MATLAB: {}".format(e), thr=0)
 
 
 
