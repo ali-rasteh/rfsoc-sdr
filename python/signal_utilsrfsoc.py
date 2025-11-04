@@ -1184,11 +1184,15 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         self.kf = Aoa1sKF(dt=0.1, sigma_meas_deg=np.sqrt(5.0), sigma_acc_deg=0.3)
         if len(self.turtlebot_publish_list)>0:
-            from tb4_aoa_viz.aoa_bridge import get_publish_fn
+            from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
+            from tb4_aoa_viz.snr_bridge import get_publish_snr_fn
         if "aoa" in self.turtlebot_publish_list:
-            self.publish_aoa_turtlebot = get_publish_fn("/aoa_angle")
+            self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
+        if "snr" in self.turtlebot_publish_list:
+            self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
         else:
             self.publish_aoa_turtlebot = lambda x: None
+            self.publish_snr_turtlebot = lambda x: None
 
 
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=Run custom script at boot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/startup_script.sh
+# Optional: if your script needs environment vars or logs
+WorkingDirectory=/usr/local/bin
+StandardOutput=journal
+StandardError=journal
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+

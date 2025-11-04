@@ -1,0 +1,19 @@
+# /etc/systemd/system/startup-script.service
+[Unit]
+Description=Startup script (network + RFSoC app)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/xilinx/jupyter_notebooks/sounder_sdr
+# WorkingDirectory=/usr/local/bin
+ExecStart=/usr/local/sbin/startup_script.sh
+# Restart=on-failure
+Restart=no
+StandardOutput=append:/var/log/startup_script.log
+StandardError=append:/var/log/startup_script.log
+
+[Install]
+WantedBy=multi-user.target
