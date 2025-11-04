@@ -292,8 +292,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if os.path.exists(self.calib_params_path):
                 self.rx_phase_offset = np.load(self.calib_params_path)['rx_phase_offset']
                 self.rx_delay_offset = np.load(self.calib_params_path)['rx_delay_offset']
-                # self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
-                self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
+                self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+                # self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
             else:
                 self.print("No saved calibration found, please calibrate the phase offset", thr=0)
                 self.rx_phase_offset = 0
