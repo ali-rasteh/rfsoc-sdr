@@ -30,7 +30,9 @@ sudo resolvectl dns eth0 8.8.8.8
 
 # Start the Python program
 echo "Starting Python app..." >> "$LOGFILE"
-python /home/xilinx/jupyter_notebooks/sounder_sdr/rfsoc_test.py >> "$LOGFILE" 2>&1 &
+echo "Python version: $(python --version)" >> "$LOGFILE"
+cd /home/xilinx/jupyter_notebooks/sounder_sdr
+python ./rfsoc_test.py >> "$LOGFILE" 2>&1 &
 
 
 echo "Startup script finished at $(date)" >> "$LOGFILE"
