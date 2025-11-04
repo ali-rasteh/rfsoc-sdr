@@ -1185,10 +1185,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         self.kf = Aoa1sKF(dt=0.1, sigma_meas_deg=np.sqrt(5.0), sigma_acc_deg=0.3)
         if len(self.turtlebot_publish_list)>0:
             from tb4_aoa_viz.aoa_bridge import get_publish_fn
-            if "aoa" in self.turtlebot_publish_list:
-                self.publish_aoa_turtlebot = get_publish_fn("/aoa_angle")
-            else:
-                self.publish_aoa_turtlebot = lambda x: None
+        if "aoa" in self.turtlebot_publish_list:
+            self.publish_aoa_turtlebot = get_publish_fn("/aoa_angle")
+        else:
+            self.publish_aoa_turtlebot = lambda x: None
 
 
 
@@ -1320,7 +1320,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     ylabel_mode = 'phase'
                 elif signal_name == 'aoa_gauge':
                     # sig = self.aoa_list[-1]
-                    print(len(self.aoa_list))
                     window_deg = np.rad2deg(self.aoa_list[-10:])
                     sig = wrap_angle_deg(self.kf.step(window_deg))
                     sig = np.deg2rad(sig)

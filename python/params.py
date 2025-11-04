@@ -785,6 +785,6 @@ class Params_Class(Params_Class_Default):
             self.sig_gen_mode = 'fft'
             self.sig_modulation = '4qam'
 
-            self.turtlebot_publish_list = ["aoa"]
+            # self.turtlebot_publish_list = ["aoa"]
 
 
