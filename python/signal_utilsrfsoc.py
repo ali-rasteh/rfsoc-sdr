@@ -25,6 +25,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.aoa_list = []
         self.lin_track_dir = 'forward'
         self.tx_rx_distance = 3.0
+        self.last_rxtd_base = None
+        self.last_rxtd = None
 
         self.print("signals object initialization done", thr=1)
         
@@ -705,6 +707,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd_ = rxtd_.squeeze(axis=0)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
+        self.last_rxtd = rxtd.copy()
         return rxtd
 
 
@@ -1013,10 +1016,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             H_est_max = H_est.copy()
         if 'channel_eq' in self.rx_chain and 'channel_est' in self.rx_chain:
             rxtd_base = self.channel_equalize(txtd_base, rxtd_base[plt_frm_id], h_est_full, H_est, sc_range=self.sc_range, sc_range_ch=self.sc_range_ch, null_sc_range=self.null_sc_range, n_rx_ch_eq=self.n_rx_ch_eq)
-            
 
         if len(rxtd_base.shape)==3:
             rxtd_base = rxtd_base[plt_frm_id]
+        self.last_rxtd_base = rxtd_base.copy()
 
         return (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params)
     
@@ -1526,7 +1529,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     line_id+=1
                 elif signal_name == 'aoa_gauge':
                     self.publish_aoa_turtlebot(signal_data)
-                    self.publish_snr_turtlebot(10.0)
+                    snr = self.calculate_snr(sig_td=self.last_rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
+                    snr_dB = self.lin_to_db(snr, mode='pow')
+                    self.publish_snr_turtlebot(snr_dB)
                     self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
                     self.ax[i][j].set_xlim(0, 1)
                     self.ax[i][j].set_ylim(0.5, 1)
