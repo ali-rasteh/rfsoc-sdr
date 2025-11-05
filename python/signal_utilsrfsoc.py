@@ -1326,10 +1326,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     xlabel_mode = 'id'
                     ylabel_mode = 'phase'
                 elif signal_name == 'aoa_gauge':
-                    # sig = self.aoa_list[-1]
-                    window_deg = np.rad2deg(self.aoa_list[-10:])
-                    sig = wrap_angle_deg(self.kf.step(window_deg))
-                    sig = np.deg2rad(sig)
+                    # window_deg = np.rad2deg(self.aoa_list[-10:])
+                    # sig = wrap_angle_deg(self.kf.step(window_deg))
+                    # sig = np.deg2rad(sig)
+                    sig = self.aoa_list[-1]
                     title += "AOA Gauge"
                     xlabel_mode = 'aoa_gauge'
                     ylabel_mode = 'aoa_gauge'

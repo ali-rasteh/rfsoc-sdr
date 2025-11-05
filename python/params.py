@@ -779,6 +779,7 @@ class Params_Class(Params_Class_Default):
 
             self.animate_plot_mode = [[h00, h10], [rxfd00, rxfd10], aoa_gauge]
 
+            self.freq_hop_config['list'] = [10.0e9]
             self.rx_chain = ['sync_time', 'channel_est']
 
             self.tx_sig_sim = 'same'
