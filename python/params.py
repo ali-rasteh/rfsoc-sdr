@@ -784,5 +784,5 @@ class Params_Class(Params_Class_Default):
             self.tx_sig_sim = 'same'
             self.sig_gen_mode = 'ZadoffChu'
 
-            self.turtlebot_publish_list = ["aoa", "snr"]
+            # self.turtlebot_publish_list = ["aoa", "snr"]
 

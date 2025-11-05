@@ -313,8 +313,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.rx_phase_offset = np.mean(phase_diff_list)
             self.rx_delay_offset = np.mean(delay_list)
             np.savez(self.calib_params_path, rx_phase_offset=self.rx_phase_offset, rx_delay_offset=self.rx_delay_offset, fc=self.fc)
-            # self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
-            self.print("Calibrated and saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
+            self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            # self.print("Calibrated and saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
 
 
 
