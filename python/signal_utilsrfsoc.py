@@ -1327,10 +1327,12 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     xlabel_mode = 'id'
                     ylabel_mode = 'phase'
                 elif signal_name == 'aoa_gauge':
-                    # window_deg = np.rad2deg(self.aoa_list[-10:])
-                    # sig = wrap_angle_deg(self.kf.step(window_deg))
-                    # sig = np.deg2rad(sig)
-                    sig = self.signals_obj.aoa_list[-1]
+                    # Use Kalman filter to smooth the AOA gauge signal
+                    window_deg = np.rad2deg(self.signals_obj.aoa_list[-10:])
+                    sig = wrap_angle_deg(self.kf.step(window_deg))
+                    sig = np.deg2rad(sig)
+                    # Return the last AOA gauge value in radians
+                    # sig = self.signals_obj.aoa_list[-1]
                     title += "AOA Gauge"
                     xlabel_mode = 'aoa_gauge'
                     ylabel_mode = 'aoa_gauge'
