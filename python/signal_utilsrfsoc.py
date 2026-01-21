@@ -31,7 +31,19 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.last_rxtd = None
 
         self.print("signals object initialization done", thr=1)
+
+
+    def init_objects(self, client_rfsoc=None, client_lintrack=None, client_turntable=None, client_piradio=None, client_controller=None, txtd_base=None):
         
+        self.client_rfsoc = client_rfsoc
+        self.client_lintrack = client_lintrack
+        self.client_turntable = client_turntable
+        self.client_piradio = client_piradio
+        self.client_controller = client_controller
+        self.txtd_base = txtd_base
+
+        self.print("signals object init done", thr=1)
+
 
     def gen_tx_signal(self):
         txtd_base = []
@@ -58,8 +70,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             bw = (nsc/self.nfft_tx) * self.fs_tx
             self.sig_psd_dbm = self.sig_pow_dbm - self.lin_to_db(bw, mode='pow')
             self.sig_psd_dbm_sc = self.sig_pow_dbm - self.lin_to_db(nsc, mode='pow')
-            print('TX Signal power for antenna {}: {:0.3f} dbm'.format(ant_id, self.sig_pow_dbm))
-            print('TX Signal PSD for antenna {}: {:0.3f} dBm/Hz = {:0.3f} dBm/MHz = {:0.3f} dBm/sc'.format(ant_id, self.sig_psd_dbm, self.sig_psd_dbm+self.lin_to_db(1e6, mode='pow'), self.sig_psd_dbm_sc))
+            self.print('TX Signal power for antenna {}: {:0.3f} dbm'.format(ant_id, self.sig_pow_dbm), thr=4)
+            self.print('TX Signal PSD for antenna {}: {:0.3f} dBm/Hz = {:0.3f} dBm/MHz = {:0.3f} dBm/sc'.format(ant_id, self.sig_psd_dbm, self.sig_psd_dbm+self.lin_to_db(1e6, mode='pow'), self.sig_psd_dbm_sc), thr=4)
 
             title = 'TX signal spectrum in base-band for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
@@ -105,12 +117,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             # txfd = txfd_base.copy()
 
         txtd = np.array(txtd)
-        
+
         if self.beamforming:
             txtd_base = self.beam_form(txtd_base)
             txtd = self.beam_form(txtd)
 
-        print("Dot product of transmitted signals: ", np.abs(np.vdot(txtd_base[1], txtd_base[0])))
+        self.print(f"Dot product of transmitted signals: {np.abs(np.vdot(txtd_base[1], txtd_base[0]))}", thr=4)
         # print("Correlation of transmitted signals: ", np.max(np.abs(np.correlate(txtd_base[0], txtd_base[1], mode='full'))))
         # self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
@@ -829,7 +841,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("Calculated and saved optimal TX/RX gains...", thr=1)
 
         return self.optimal_gains
-    
+
 
 
     def set_optimal_gain_piradio(self, client_piradio, client_controller):
@@ -860,11 +872,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         self.print("Setting optimal LO suppression for TX and RX in Pi-Radio", thr=1)
         
-        lo_supp_lut = {6.5: [-0.026, -0.021], 7.5: [-0.025, -0.016], 8.5: [-0.001, -0.036], 9.5: [0.078, -0.045],
-                        10.5: [0.192, -0.146], 11.5: [0.113, -0.08], 12.5: [0.055, -0.03], 13.5: [0.04, 0.008],
-                        14.5: [0.016, -0.002], 15.5: [-0.002, -0.022], 16.5: [0.004, -0.065], 17.5: [0.034, -0.065],
-                        18.5: [0.049, -0.005], 19.5: [0.075, 0.003], 20.5: [0.116, 0.049], 21.5: [0.07, 0.027], 22.5: [-0.025, -0.027]}
-        
+        lo_supp_lut = { 6.5: [-0.026, -0.021],  7.5: [-0.025, -0.016],  8.5: [-0.001, -0.036],  9.5: [0.078, -0.045],
+                        10.5: [0.192, -0.146],  11.5: [0.113, -0.08],   12.5: [0.055, -0.03],   13.5: [0.04, 0.008],
+                        14.5: [0.016, -0.002],  15.5: [-0.002, -0.022], 16.5: [0.004, -0.065],  17.5: [0.034, -0.065],
+                        18.5: [0.049, -0.005],  19.5: [0.075, 0.003],   20.5: [0.116, 0.049],   21.5: [0.07, 0.027],    22.5: [-0.025, -0.027]}
+
         nearest_fc = min(lo_supp_lut.keys(), key=lambda x: abs(x - fc / 1e9))
         optimal_lo_supp = lo_supp_lut[nearest_fc]
 
@@ -1093,6 +1105,103 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return sig, title
 
 
+    def operator(self):
+        measurement = {}
+        save_id = 1
+
+        def parse_action(spec):
+            spec_list = spec.split("/")
+            action = spec_list[0]
+            rng = spec_list[1]
+
+            if len(spec_list)<=2:
+                param = None
+            else:
+                param = spec_list[2:]
+
+            if rng.count(":")!=2:
+                rng = None
+            else:
+                start, stop, step = map(float, rng.split(":"))
+                rng = np.arange(start, stop, step)
+
+            return (action, rng, param)
+
+        loop_list = [parse_action(item) for item in self.action_loop]
+        actions = [item[0] for item in loop_list]
+        ranges = [item[1] for item in loop_list]
+        params = [item[2] for item in loop_list]
+
+
+        prev = None
+        default_actions = ['capture', 'save', 'wait']
+        for values in itertools.product(*ranges):
+            print(values)
+            if prev is None:
+                changed_idxs = range(len(values))  # first iteration: everything is "changed"
+            else:
+                # indices where the value differs from previous step
+                changed_idxs = [i for i, (a, b) in enumerate(zip(prev, values)) if a != b or actions[i] in default_actions]
+            prev = values
+
+            # process only the actions whose value changed
+            for i in changed_idxs:
+                action = actions[i]
+                value = values[i]
+                param = params[i]
+
+                if action == 'capture':
+                    n_rd_rep = int(value)
+                    rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
+
+                elif action == 'save':
+                    save_dir = param[0]
+                    save_path = os.path.join(save_dir, f'{save_id}.npz')
+                    measurement['id'] = save_id
+                    measurement['rxtd'] = rxtd
+                    measurement['sig_interval'] = self.wb_sc_range
+                    measurement['tx_gain_db'] = tx_gain_db
+                    measurement['rx_gain_db'] = rx_gain_db
+                    np.savez(save_path, **measurement)
+                    save_id += 1
+
+                elif action == 'wait':
+                    wait_time = float(value)
+                    self.print("Waiting for {} seconds...".format(wait_time), thr=2)
+                    time.sleep(wait_time)
+
+                elif action == 'hop_freq':
+                    freq = float(param[0])
+                    self.hop_freq(self.client_piradio, self.client_controller, fc_id=None, freq=freq)
+
+                elif action == 'set_gain_tx':
+                    gain_db = int(value)
+                    tx_gain_db = gain_db
+                    if 'master' in self.mode:
+                        self.client_controller.set_gain_piradio(trx='tx', chan=0, gain_db=gain_db)
+                        self.client_controller.set_gain_piradio(trx='tx', chan=1, gain_db=gain_db)
+                    else:
+                        self.client_piradio.set_gain(trx='tx', chan=0, gain_db=gain_db)
+                        self.client_piradio.set_gain(trx='tx', chan=1, gain_db=gain_db)
+
+                elif action == 'set_gain_rx':
+                    gain_db = int(value)
+                    rx_gain_db = gain_db
+                    self.client_piradio.set_gain(trx='rx', chan=0, gain_db=gain_db)
+                    self.client_piradio.set_gain(trx='rx', chan=1, gain_db=gain_db)
+
+                elif action == 'switch_sig_size':
+                    sig_size = int(value)
+
+                elif action == 'switch_sig_ss':
+                    region = self.generate_random_regions(shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size])
+                    self.wb_sc_range = [region[0][0].start-512, region[0][0].stop-512]
+                    (txtd_base, txtd) = self.gen_tx_signal()
+
+
+
+
+
 
 class Animate_Plot(Signal_Utils_Rfsoc):
     def __init__(self, params, signals_obj, txtd_base):
@@ -1135,6 +1244,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             self.publish_aoa_turtlebot = lambda x: None
             self.publish_snr_turtlebot = lambda x: None
 
+
+        self.start_time = time.time()
 
 
     def process_signals_for_plot(self, txtd_base, rxtd_base, h_est_full, H_est_full, sparse_est_params):
@@ -1426,6 +1537,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
     def update(self, frame):
+        elapsed_time = time.time() - self.start_time
+        fps = 1 / elapsed_time if elapsed_time > 0 else float('inf')
+        self.print("Animation update time: {:.3f} s, FPS: {:.2f}".format(elapsed_time, fps), thr=5)
 
         if self.anim_paused:
             return self.line
@@ -1531,6 +1645,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 except Exception as e:
                     print("Error in autoscale {}".format(e))
 
+        self.start_time = time.time()
 
         return self.line
 

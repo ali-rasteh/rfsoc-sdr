@@ -130,8 +130,8 @@ class Params_Class_Default(object):
         self.sig_dir=os.path.join(os.getcwd(), 'sigs/')                             # Signals directory
         self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')                        # Signal load path
         self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')                    # Signal save path
-        self.measurement_configs = []                                               # List of measurement configurations
         self.channel_dir=os.path.join(os.getcwd(), 'channels/')                     # Channel directory
+        self.measurement_configs = []                                               # List of measurement configurations
         self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')        # Channel save path
         self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')   # System response save path
         self.figs_dir=os.path.join(os.getcwd(), 'figs/')                            # Figures directory
@@ -183,6 +183,9 @@ class Params_Class_Default(object):
 
         # Turtlebot connection parameters
         self.turtlebot_publish_list = []    # List of Turtlebot parameters to publish
+
+        # Action parameters
+        self.action_loop = []
 
 
 
@@ -427,7 +430,7 @@ class Params_Class(Params_Class_Default):
         # self.turntable_port = 'COM4'
 
         # self.set_piradio_opt_gains = True
-        self.set_piradio_opt_losupp = True
+        # self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
         self.piradio_bias_sw_dly_default = 0.1
@@ -464,6 +467,7 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'plot_saved_signal'
         # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
+        self.measurement_type = 'FR3_spectrum_sweep'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
@@ -472,7 +476,7 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_beamforming'
         # self.measurement_type = 'FR3_cfo'
         # self.measurement_type = 'stream_to_matlab'
-        self.measurement_type = 'turtlebot_demo'
+        # self.measurement_type = 'turtlebot_demo'
 
         self.mode = 'client'
         # self.mode = 'client_master'
@@ -488,7 +492,7 @@ class Params_Class(Params_Class_Default):
 
         if self.mode == 'client':
             self.send_signal=True
-            # self.rfsoc_server_ip='192.168.185.4'
+            self.rfsoc_server_ip='192.168.185.4'
         elif self.mode == 'client_master':
             self.send_signal=False
             # self.rfsoc_server_ip='192.168.2.99'
@@ -550,7 +554,6 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
 
 
-
         elif self.measurement_type == 'RFSoC_demo_simple':
             # self.mix_freq=0e6
             # self.do_mixer_settings=True
@@ -570,6 +573,28 @@ class Params_Class(Params_Class_Default):
             self.sig_modulation = '4qam'
 
 
+        elif self.measurement_type == 'FR3_spectrum_sweep':
+            self.animate_plot_mode=[[rxfd00]]
+            self.rx_chain = []
+
+            # self.control_piradio=True
+            self.freq_hop_config['list'] = [10e9]
+            self.tx_sig_sim = 'same'
+            self.sig_gen_mode = 'fft'
+            self.sig_mode = 'wideband'
+            self.sig_modulation = '4qam'
+
+            # self.save_list = ['signal']
+            self.n_save = 32
+            self.measurement_configs = []
+
+            self.action_loop = ['switch_sig_size/10:512:10/',
+                                'switch_sig_ss/1:10:1/',
+                                'set_gain_rx/0:5:1/',
+                                'wait/1:2:1/',
+                                'capture/10:11:1/',
+                                f'save/1:2:1/{self.sig_dir}']
+
 
         elif self.measurement_type == 'FR3_demo_simple':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
@@ -582,7 +607,6 @@ class Params_Class(Params_Class_Default):
             # self.save_list = ['signal']
             # self.measurement_configs = ["test"]
             # self.n_save = 256
-
 
 
         elif self.measurement_type == 'FR3_demo_multi_freq':
@@ -604,11 +628,9 @@ class Params_Class(Params_Class_Default):
             self.rotation_delay = 0.5
 
             self.control_piradio=True
-            # self.freq_hop_config['list'] = [6.5e9, 10e9, 15.0e9, 20.0e9]
             # self.freq_hop_config['list'] = [10e9, 15.0e9]
             self.freq_hop_config['mode'] = 'sweep'
             self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-            # self.freq_hop_config['range'] = [20.0e9, 21.0e9]
             self.freq_hop_config['step'] = 0.5e9
 
             self.tx_sig_sim = 'shifted'
@@ -631,9 +653,6 @@ class Params_Class(Params_Class_Default):
 
             self.control_piradio=True
             self.freq_hop_config['list'] = [10e9]
-            # self.freq_hop_config['mode'] = 'sweep'
-            # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-            # self.freq_hop_config['step'] = 0.5e9
 
             self.sig_gen_mode = 'fft'
             self.tx_sig_sim = 'same'
@@ -645,7 +664,6 @@ class Params_Class(Params_Class_Default):
             self.save_list = ['signal']
             self.n_save = 32
             self.measurement_configs = [6.5]
-            # self.measurement_configs.append("tx1_rx1_rx_rotate")
             self.measurement_configs.append("bf_phi_{}".format(self.steer_phi_deg))
 
 
@@ -660,7 +678,6 @@ class Params_Class(Params_Class_Default):
             self.rotation_delay = 0.5
             self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-            # self.freq_hop_config['list'] = [10.0e9]
             self.tx_sig_sim = 'shifted'
             self.sig_gen_mode = 'ZadoffChu'
 
@@ -702,8 +719,6 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('A_gamma_alpha_n')
             # self.measurement_configs.append('A_gamma_gamma_n')
 
-        
-
 
         elif self.measurement_type == 'FR3_nyu_13state':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
@@ -734,7 +749,6 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('C_alpha_<rxorient>_b')
 
 
-
         elif self.measurement_type == 'FR3_cfo':
             self.animate_plot_mode=[[h10], [rxtd10_r, rxtd10_i], [rxfd00, rxfd10]]
             self.rx_chain = ['sync_time', 'channel_est']
@@ -748,8 +762,6 @@ class Params_Class(Params_Class_Default):
                 self.mix_freq += cfo
                 self.do_mixer_settings=True
 
-            # self.sig_gen_mode = 'ZadoffChu'
-            # self.tx_sig_sim = 'shifted'
             self.sig_gen_mode = 'fft'
             self.tx_sig_sim = 'orthogonal'
             self.sig_modulation = '4qam'
@@ -768,11 +780,6 @@ class Params_Class(Params_Class_Default):
             self.enable_matlab_stream = True
             self.sig_gen_mode = 'ZadoffChu'
             self.tx_sig_sim = 'shifted'
-
-            
-            # self.save_list = ['signal']
-            # self.measurement_configs = ["test"]
-            # self.n_save = 256
 
 
         elif self.measurement_type == 'turtlebot_demo':

@@ -120,7 +120,7 @@ def rfsoc_run(params):
                 client_rfsoc.transmit_data(txtd)
                 pass
 
-            
+
             client_rfsoc.set_frequency_mixer(params.mix_freq_dac, params.mix_freq_adc)
             if params.RFFE=='sivers':
                 client_rfsoc.set_frequency_sivers(params.fc)
@@ -131,12 +131,10 @@ def rfsoc_run(params):
                     client_rfsoc.set_mode('RXen1_TXen0')
                     client_rfsoc.set_rx_gain()
 
-            signals_inst.client_rfsoc = client_rfsoc
-            signals_inst.client_lintrack = client_lintrack
-            signals_inst.client_turntable = client_turntable
-            signals_inst.client_piradio = client_piradio
-            signals_inst.client_controller = client_controller
-            
+            signals_inst.init_objects(client_rfsoc=client_rfsoc, client_lintrack=client_lintrack, 
+                              client_turntable=client_turntable, client_piradio=client_piradio, 
+                              client_controller=client_controller, txtd_base=txtd_base)
+
             signals_inst.calibrate_rx_phase_offset(client_rfsoc)
             if params.control_piradio:
                 if params.set_piradio_opt_gains:
@@ -149,18 +147,18 @@ def rfsoc_run(params):
 
             if 'channel' in params.save_list or 'signal' in params.save_list:
                 signals_inst.save_signal_channel(client_rfsoc, client_turntable, client_piradio, client_controller, txtd_base, save_list=params.save_list)
+            
+            # signals_inst.operator()
         
         
 
     if 'client' in params.mode and not 'slave' in params.mode:
         # signals_inst.animate_plot(txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
         animate_plot_inst = Animate_Plot(params, signals_inst, txtd_base)
-        
-        animate_plot_inst.client_rfsoc = client_rfsoc
-        animate_plot_inst.client_lintrack = client_lintrack
-        animate_plot_inst.client_turntable = client_turntable
-        animate_plot_inst.client_piradio = client_piradio
-        animate_plot_inst.client_controller = client_controller
+
+        animate_plot_inst.init_objects(client_rfsoc=client_rfsoc, client_lintrack=client_lintrack, 
+                        client_turntable=client_turntable, client_piradio=client_piradio, 
+                        client_controller=client_controller, txtd_base=txtd_base)
         
         animate_plot_inst.init_plots()
 
