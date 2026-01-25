@@ -148,7 +148,7 @@ def rfsoc_run(params):
             if 'channel' in params.save_list or 'signal' in params.save_list:
                 signals_inst.save_signal_channel(client_rfsoc, client_turntable, client_piradio, client_controller, txtd_base, save_list=params.save_list)
             
-            # signals_inst.operator()
+            signals_inst.operator()
         
         
 

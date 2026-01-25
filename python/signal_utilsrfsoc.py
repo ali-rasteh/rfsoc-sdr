@@ -42,6 +42,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.client_controller = client_controller
         self.txtd_base = txtd_base
 
+        if len(self.turtlebot_publish_list)>0:
+            from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
+            from tb4_aoa_viz.snr_bridge import get_publish_snr_fn
+        if "aoa" in self.turtlebot_publish_list:
+            self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
+        if "snr" in self.turtlebot_publish_list:
+            self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
+        else:
+            self.publish_aoa_turtlebot = lambda x: None
+            self.publish_snr_turtlebot = lambda x: None
+
         self.print("signals object init done", thr=1)
 
 
@@ -545,173 +556,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # np.savez(output_file_path, **collected_data)
 
 
-    def save_signal_channel(self, client_rfsoc, client_turntable, client_piradio, client_controller, txtd_base, save_list=[]):
-        rx_chain_main = self.rx_chain.copy()
-        if 'sys_res_deconv' in self.rx_chain:
-            self.rx_chain.remove('sys_res_deconv')
-        if 'sparse_est' in self.rx_chain:
-            self.rx_chain.remove('sparse_est')
-
-
-        for config in self.measurement_configs:
-            tx_rx_distance = input('Please change the configuration to: {} and enter the TX to RX distance in meters (empty for default): '.format(config))
-            if tx_rx_distance != '':
-                try:
-                    tx_rx_distance = float(tx_rx_distance)
-                except:
-                    raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
-                self.tx_rx_distance = tx_rx_distance
-            if self.set_piradio_opt_gains:
-                # self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
-                self.set_optimal_gain_piradio(client_piradio, client_controller)
-
-
-            self.print("Starting to save signals for configuration: {}".format(config), thr=0)
-
-            if 'calib' in config:
-                rotation_angles = [0]
-                use_turntable = False
-                rotation_delay = 0
-                mode = 'calib'
-            else:
-                rotation_angles = self.rotation_angles
-                use_turntable = self.use_turntable
-                rotation_delay = client_turntable.rotation_delay if use_turntable else 0
-                mode = 'measurement'
-
-            rotation_time = 1.514 + rotation_delay
-            freq_switch_time = 0.052 + self.piradio_freq_sw_dly_default
-            total_time = len(rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
-            self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
-            
-
-            for angle_id in range(len(rotation_angles)):
-
-                remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
-                self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
-
-                angle = rotation_angles[angle_id]
-                self.print("Rotating to angle: {}".format(angle), thr=0)
-                if use_turntable:
-                    start_time = time.time()
-                    client_turntable.move_to_position(angle)
-                    rotation_time = time.time()-start_time
-                    self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
-
-
-                measurements = {}
-                for freq_id in range(len(self.freq_hop_list)):
-                    frequency = self.freq_hop_list[freq_id]
-                    self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
-
-                    start_time = time.time()
-                    self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
-
-                    # test = np.load(self.sig_save_path)
-                    rxtd_save=[]
-                    h_est_full_save=[]
-                    H_est_save=[]
-                    H_est_max_save=[]
-                        
-                    if 'channel' in save_list:
-                        n_rd_rep = self.n_save
-                    else:
-                        n_rd_rep = self.n_save//self.n_frame_rd
-                    rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
-                    # raise ValueError('Stop')
-                    
-                    if 'channel' in save_list:
-                        for i in range(self.n_save):
-                            self.print("Channel Save Iteration: {}".format(i+1), thr=0)
-                            rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
-
-                            # to handle the dimenstion needed for read repeat
-                            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd[i])
-
-                            rxtd_save.append(rxtd_base)
-                            
-                            h_est_full_save.append(h_est_full)
-                            H_est_save.append(H_est)
-                            H_est_max_save.append(H_est_max)
-
-                        h_est_full_save = np.array(h_est_full_save)
-                        H_est_save = np.array(H_est_save)
-                        H_est_max_save = np.array(H_est_max_save)
-
-                        # h_est_full_avg = np.mean(h_est_full_save, axis=0)
-                        # rxtd_avg = np.mean(rxtd_save, axis=0)
-                        # self.rx_chain = ['channel_est']
-                        # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
-                    else:
-                        rxtd_save = np.empty((self.n_save, self.n_rx_ant, self.n_samples_tx), dtype=rxtd.dtype)
-                        for i in range(self.n_frame_rd):
-                            rxtd_save[i::self.n_frame_rd] = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
-                        # print(rxtd_save.shape)
-
-                        # for i in range(self.n_frame_rd):
-                        #     if rxtd_save is None:
-                        #         rxtd_save = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
-                        #     else:
-                        #         rxtd_save = np.vstack((rxtd_save, rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]))
-                        #     print(rxtd_save.shape)
-
-
-                    txtd_save = np.expand_dims(txtd_base, axis=0)
-                    rxtd_save = np.array(rxtd_save)
-
-                    self.validate_saved_signals(rxtd=rxtd_save)
-
-                    if 'signal' in save_list:
-                        measurements['txtd'] = txtd_save
-                        measurements['rxtd_{}'.format(frequency/1e9)] = rxtd_save.copy()
-                    if 'channel' in save_list:
-                        measurements['h_est_full_{}'.format(frequency/1e9)] = h_est_full_save.copy()
-
-                    freq_switch_time = time.time()-start_time
-                    self.print("Time taken to save signals: {:0.3f} s".format(freq_switch_time), thr=2)
-
-
-                postfix = config
-                if self.measurement_type == 'FR3_nyu_3state':
-                    if mode != 'calib':
-                        angles_dict = {0: 'alpha', 45: 'beta', -45: 'gamma'}
-                        postfix = postfix.replace('<rxorient>', angles_dict[angle])
-                        # save_name = f'{frequency/1e9}' + postfix + '.' + self.save_format
-                    save_name = postfix + '.' + self.save_format
-                elif self.measurement_type == 'FR3_nyu_13state':
-                    if mode != 'calib':
-                        postfix = postfix.replace('<rxorient>', str(angle))
-                        # save_name = f'{frequency/1e9}' + postfix + '.' + self.save_format
-                    save_name = postfix + '.' + self.save_format
-                elif self.measurement_type == 'FR3_ant_calib' or self.measurement_type == 'FR3_beamforming':
-                    if mode != 'calib':
-                        save_name = '{}_'.format(angle) + postfix + '.' + self.save_format
-                    else:
-                        save_name = postfix + '.' + self.save_format
-                else:
-                    save_name = postfix + '.' + self.save_format
-                        
-                        
-                if 'signal' in save_list:
-                    sig_save_path=os.path.join(self.sig_dir, save_name)
-                    if self.save_format == 'npz':
-                        # np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
-                        np.savez(sig_save_path, **measurements)
-                    elif self.save_format == 'mat':
-                        scipy.io.savemat(sig_save_path, measurements)
-                if 'channel' in save_list:
-                    channel_save_path=os.path.join(self.channel_dir, save_name)
-                    if self.save_format == 'npz':
-                        # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
-                        # np.savez(channel_save_path, h_est_full=h_est_full_save)
-                        np.savez(channel_save_path, **measurements)
-                    elif self.save_format == 'mat':
-                        scipy.io.savemat(channel_save_path, measurements)
-
-
-        self.rx_chain = rx_chain_main.copy()
-    
-
     def receive_data(self, client_rfsoc, n_rd_rep=1, mode='once', verbose=False):
         rxtd=[]
         for i in range(n_rd_rep):
@@ -1108,6 +952,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def operator(self):
         measurement = {}
         save_id = 1
+        phys_config = None
+        angle_id = 0
+        freq_id = 0
 
         def parse_action(spec):
             spec_list = spec.split("/")
@@ -1119,12 +966,23 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             else:
                 param = spec_list[2:]
 
-            if rng.count(":")!=2:
-                rng = None
-            else:
-                start, stop, step = map(float, rng.split(":"))
-                rng = np.arange(start, stop, step)
+            try:
+                rng = eval(rng)
+                if not isinstance(rng, (int, float, np.integer, np.floating)):
+                    rng = np.array(rng) if hasattr(rng, '__len__') else np.array([float(rng)])
+                else:
+                    rng = np.array([rng])
+            except:
+                if rng.count(":")<2:
+                    rng = None
+                else:
+                    start, stop, count = map(float, rng.split(":")[:3])
+                    if 'log' in rng:
+                        rng = np.logspace(np.log10(start), np.log10(stop), int(count))
+                    else:
+                        rng = np.linspace(start, stop, int(count))
 
+            print(action, rng, param)
             return (action, rng, param)
 
         loop_list = [parse_action(item) for item in self.action_loop]
@@ -1150,31 +1008,149 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 value = values[i]
                 param = params[i]
 
-                if action == 'capture':
-                    n_rd_rep = int(value)
-                    rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
+                if action == 'change_phys_config':
+                    if phys_config is not None:
+                        phys_config_id = 0    
+                    phys_config = self.measurement_configs[phys_config_id]
+                    self.print(f'Please change the physical configuration to: {phys_config}', thr=0)
+                    phys_config_id += 1
+                
+                if action == 'change_tx_rx_distance':
+                    tx_rx_distance = input('Please enter the TX to RX distance in meters (empty for default): ')
+                    if tx_rx_distance != '':
+                        try:
+                            tx_rx_distance = float(tx_rx_distance)
+                        except:
+                            raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
+                        self.tx_rx_distance = tx_rx_distance
 
-                elif action == 'save':
-                    save_dir = param[0]
-                    save_path = os.path.join(save_dir, f'{save_id}.npz')
+                if action == 'capture':
+                    process_signal = (param[0] == 'process') if len(param)>0 else False
+
+                    rxtd_save=[]
+                    h_est_full_save=[]
+                    H_est_save=[]
+                    H_est_max_save=[]
+
+                    if process_signal:
+                        # n_rd_rep = self.n_save
+                        n_rd_rep = int(value)
+                    else:
+                        # n_rd_rep = self.n_save//self.n_frame_rd
+                        n_rd_rep = int(value)//self.n_frame_rd
+                    rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
+                    # raise ValueError('Stop')
+
+                    if process_signal:
+                        for i in range(self.n_save):
+                            self.print("Channel Save Iteration: {}".format(i+1), thr=0)
+                            rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+
+                            # to handle the dimenstion needed for read repeat
+                            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(self.txtd_base, rxtd[i])
+
+                            rxtd_save.append(rxtd_base)
+                            
+                            h_est_full_save.append(h_est_full)
+                            H_est_save.append(H_est)
+                            H_est_max_save.append(H_est_max)
+
+                        h_est_full_save = np.array(h_est_full_save)
+                        H_est_save = np.array(H_est_save)
+                        H_est_max_save = np.array(H_est_max_save)
+
+                    else:
+                        rxtd_save = np.empty((self.n_save, self.n_rx_ant, self.n_samples_tx), dtype=rxtd.dtype)
+                        for i in range(self.n_frame_rd):
+                            rxtd_save[i::self.n_frame_rd] = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
+
+                    txtd_save = np.expand_dims(self.txtd_base, axis=0)
+                    rxtd_save = np.array(rxtd_save)
+
+                    self.validate_saved_signals(rxtd=rxtd_save)
+
+
+                if action == 'save':
+                    # self.print("Starting to save signals for configuration: {}".format(phys_config), thr=0)
+                    save_list = eval(param[0])  # e.g., ['signal', 'channel']
+
+                    save_prefix = param[1]
+                    save_postfix = phys_config if phys_config is not None else ''
+                    save_name = f'{save_prefix}_{save_postfix}_{save_id}.{self.save_format}'
+                    
                     measurement['id'] = save_id
-                    measurement['rxtd'] = rxtd
-                    measurement['sig_interval'] = self.wb_sc_range
-                    measurement['tx_gain_db'] = tx_gain_db
-                    measurement['rx_gain_db'] = rx_gain_db
-                    np.savez(save_path, **measurement)
+                    if 'signal' in save_list:
+                        measurement['txtd'] = txtd_save.copy()
+                        measurement['rxtd_{}'.format(self.fc/1e9)] = rxtd_save.copy()
+                    if 'channel' in save_list:
+                        measurement['h_est_full_{}'.format(self.fc/1e9)] = h_est_full_save.copy()
+                    
+                    measurement['sig_interval'] = [self.wb_sc_range[0]+(self.nfft_tx >> 1), self.wb_sc_range[1]+(self.nfft_tx >> 1)]
+                    # measurement['tx_gain_db'] = tx_gain_db
+                    # measurement['rx_gain_db'] = rx_gain_db
+
+                    if 'signal' in save_list:
+                        sig_save_path=os.path.join(self.sig_dir, save_name)
+                        if self.save_format == 'npz':
+                            np.savez(sig_save_path, **measurement)
+                        elif self.save_format == 'mat':
+                            scipy.io.savemat(sig_save_path, measurement)
+                    if 'channel' in save_list:
+                        channel_save_path=os.path.join(self.channel_dir, save_name)
+                        if self.save_format == 'npz':
+                            np.savez(channel_save_path, **measurement)
+                        elif self.save_format == 'mat':
+                            scipy.io.savemat(channel_save_path, measurement)
+
                     save_id += 1
 
-                elif action == 'wait':
+                if action == 'wait':
                     wait_time = float(value)
                     self.print("Waiting for {} seconds...".format(wait_time), thr=2)
                     time.sleep(wait_time)
+                
+                if action == 'report_time':
+                    # rotation_time = 1.514 + rotation_delay
+                    # rotation_delay = self.client_turntable.rotation_delay if self.use_turntable else 0
+                    freq_switch_time = 0.052 + self.piradio_freq_sw_dly_default
+                    remaining_time = (len(self.rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
+                    self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
+                    angle_id += 1
 
-                elif action == 'hop_freq':
-                    freq = float(param[0])
-                    self.hop_freq(self.client_piradio, self.client_controller, fc_id=None, freq=freq)
+                if action == 'rotate_table':
+                    angle = float(value)
+                    self.print("Rotating to angle: {}".format(angle), thr=0)
+                    if self.use_turntable:
+                        start_time = time.time()
+                        self.client_turntable.move_to_position(angle)
+                        rotation_time = time.time()-start_time
+                        self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
 
-                elif action == 'set_gain_tx':
+                if action == 'move_lin_track':
+                    distance = float(value)
+                    self.client_lintrack.move(lin_track_id=0, distance=distance)
+
+                if action == 'return_lin_track_home':
+                    self.client_lintrack.return2home(lin_track_id=0)
+
+                if action == 'publish_aoa_ros2':
+                    aoa = self.aoa_list[-1] if len(self.aoa_list)>0 else 0
+                    self.publish_aoa_turtlebot(aoa)
+
+                if action == 'publish_snr_ros2':
+                    snr = self.calculate_snr(sig_td=self.last_rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
+                    snr_dB = self.lin_to_db(snr, mode='pow')
+                    self.publish_snr_turtlebot(snr_dB)
+
+                if action == 'hop_freq':
+                    try:
+                        frequency = float(param[0])
+                        self.hop_freq(self.client_piradio, self.client_controller, freq=frequency)
+                    except:
+                        self.hop_freq(self.client_piradio, self.client_controller)
+                    self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
+
+                if action == 'set_gain_db_tx':
                     gain_db = int(value)
                     tx_gain_db = gain_db
                     if 'master' in self.mode:
@@ -1184,19 +1160,29 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         self.client_piradio.set_gain(trx='tx', chan=0, gain_db=gain_db)
                         self.client_piradio.set_gain(trx='tx', chan=1, gain_db=gain_db)
 
-                elif action == 'set_gain_rx':
+                if action == 'set_gain_db_rx':
                     gain_db = int(value)
                     rx_gain_db = gain_db
-                    self.client_piradio.set_gain(trx='rx', chan=0, gain_db=gain_db)
-                    self.client_piradio.set_gain(trx='rx', chan=1, gain_db=gain_db)
+                    # self.client_piradio.set_gain(trx='rx', chan=0, gain_db=gain_db)
+                    # self.client_piradio.set_gain(trx='rx', chan=1, gain_db=gain_db)
 
-                elif action == 'switch_sig_size':
+                if action == 'find_optimal_gain_piradio':
+                    self.find_optimal_gain_piradio(self.client_rfsoc, self.client_piradio, self.client_controller)
+
+                if action == 'set_optimal_gain_piradio':
+                    self.set_optimal_gain_piradio(self.client_piradio, self.client_controller)
+
+                if action == 'switch_sig_size':
                     sig_size = int(value)
 
-                elif action == 'switch_sig_ss':
+                if action == 'switch_sig_ss':
                     region = self.generate_random_regions(shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size])
-                    self.wb_sc_range = [region[0][0].start-512, region[0][0].stop-512]
-                    (txtd_base, txtd) = self.gen_tx_signal()
+                    self.wb_sc_range = [region[0][0].start-(self.nfft_tx >> 1), region[0][0].stop-1-(self.nfft_tx >> 1)]
+                    (self.txtd_base, self.txtd) = self.gen_tx_signal()
+                    if 'master' in self.mode:
+                        self.client_controller.transmit_data_rfsoc(self.txtd)
+                    else:
+                        self.client_rfsoc.transmit_data(self.txtd)
 
 
 
@@ -1230,20 +1216,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         self.plt_n_samples_rx = self.n_samples_trx
         self.n_samp_ch_sp = self.n_samples_ch // 2
-
-        # TODO: Move it to the signal utils
-
-        if len(self.turtlebot_publish_list)>0:
-            from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
-            from tb4_aoa_viz.snr_bridge import get_publish_snr_fn
-        if "aoa" in self.turtlebot_publish_list:
-            self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
-        if "snr" in self.turtlebot_publish_list:
-            self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
-        else:
-            self.publish_aoa_turtlebot = lambda x: None
-            self.publish_snr_turtlebot = lambda x: None
-
 
         self.start_time = time.time()
 
@@ -1578,10 +1550,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
                     line_id+=1
                 elif signal_name == 'aoa_gauge':
-                    self.publish_aoa_turtlebot(signal_data)
+                    self.signals_obj.publish_aoa_turtlebot(signal_data)
                     snr = self.calculate_snr(sig_td=self.signals_obj.last_rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
                     snr_dB = self.lin_to_db(snr, mode='pow')
-                    self.publish_snr_turtlebot(snr_dB)
+                    self.signals_obj.publish_snr_turtlebot(snr_dB)
                     self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
                     self.ax[i][j].set_xlim(0, 1)
                     self.ax[i][j].set_ylim(0.5, 1)

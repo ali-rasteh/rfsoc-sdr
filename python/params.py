@@ -50,6 +50,17 @@ class Params_Class_Default(object):
         self.ant_dy_m = 0.02                # Antenna y axis spacing in meters
 
         # Connections parameters
+        self.network_topology = {
+            'rfsoc_tx': {'ip': '192.168.3.1', 'protocol': 'tcp'},
+            'rfsoc_rx': {'ip': '192.168.3.1', 'protocol': 'tcp'},
+            'lintrack': {'ip': '192.168.137.100', 'protocol': 'tcp'},
+            'turntable': {'port': '/dev/ttyACM0', 'baudrate': 115200, 'protocol': 'tcp'},
+            'piradio_tx': {'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+            'piradio_rx': {'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+            'controller_slave': {'ip': '192.168.1.1', 'protocol': 'tcp'},
+            'host': {'ip': '192.168.3.100', 'protocol': 'ssh'},
+        }
+        self.network_objects = {}           # Dictionary to hold network communication objects
         self.control_rfsoc=True             # If True, controls the RFSoC board
         self.control_piradio=False          # If True, controls the PIRadio board
         self.set_piradio_opt_gains = False  # If True, finds and sets the optimal gains for the PIRadio board
@@ -588,12 +599,16 @@ class Params_Class(Params_Class_Default):
             self.n_save = 32
             self.measurement_configs = []
 
-            self.action_loop = ['switch_sig_size/10:512:10/',
-                                'switch_sig_ss/1:10:1/',
-                                'set_gain_rx/0:5:1/',
-                                'wait/1:2:1/',
-                                'capture/10:11:1/',
-                                f'save/1:2:1/{self.sig_dir}']
+            self.action_loop = [
+                                'set_gain_db_rx/-3:20:20/',
+                                'switch_sig_size/[8,16,32,128]/',
+                                # 'set_gain_db_rx/[3,7,10,17]/',
+                                # 'switch_sig_size/1:256:20:log/',
+                                'switch_sig_ss/1:10:10/',
+                                # 'wait/[1]/',
+                                'capture/[10]/',
+                                f'save/[1]/["signal"]/m'
+                                ]
 
 
         elif self.measurement_type == 'FR3_demo_simple':

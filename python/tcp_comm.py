@@ -511,7 +511,21 @@ class Tcp_Comm_Controller(Tcp_Comm):
         data = self.radio_control.recv(1024)
         self.print("Result of set_bias_piradio: {}".format(data), thr=3)
         return data
-    
+
+    def transmit_data_rfsoc(self, txtd):
+        txtd = txtd.copy()
+        txtd = np.array(txtd).flatten()
+        txtd = txtd * (2 ** (self.dac_bits + 1) - 1)
+        re = txtd.real.astype(np.int16)
+        im = txtd.imag.astype(np.int16)
+        txtd = np.concatenate((re, im))
+
+        self.radio_control.sendall(b"transmitSamplesRfsoc")
+        self.radio_data.sendall(txtd.tobytes())
+        data = self.radio_control.recv(1024)
+        self.print("Result of transmit_data_rfsoc: {}".format(data),thr=3)
+        return data
+
     def parse_and_execute(self, receivedCMD):
         clientMsg = receivedCMD.decode()
         clientMsgParsed = clientMsg.split()
@@ -540,6 +554,24 @@ class Tcp_Comm_Controller(Tcp_Comm):
                 bias_voltage = float(clientMsgParsed[3])
                 result, response = self.obj_piradio.set_bias(chan=chan, iq=iq, bias_voltage=bias_voltage)
                 responseToCMD = self.successMessage
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "transmitSamplesRfsoc":
+            if len(clientMsgParsed) == 1:
+                nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
+                nbytes = self.nbytes * nread * 2
+                buf = bytearray()
+
+                while len(buf) < nbytes:
+                    data = self.connectionData.recv(nbytes)
+                    buf.extend(data)
+                data = np.frombuffer(buf, dtype=np.int16)
+                data = data/(2 ** (self.obj_rfsoc.dac_bits + 1) - 1)
+                txtd = data[:nread] + 1j*data[nread:]
+                txtd = txtd.reshape(self.obj_rfsoc.n_tx_ant, nread//self.obj_rfsoc.n_tx_ant)
+
+                self.obj_rfsoc.send_frame(txtd=txtd)
+                responseToCMD = 'Success'
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage
         else:
