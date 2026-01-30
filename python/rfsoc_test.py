@@ -50,6 +50,9 @@ def rfsoc_run(params):
 
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
+    # TODO
+    signals_inst.txtd_base = txtd_base
+    signals_inst.txtd = txtd
 
 
     if params.mode=='server':
@@ -57,112 +60,33 @@ def rfsoc_run(params):
         rfsoc_inst.txtd = txtd
         if params.send_signal:
             rfsoc_inst.send_frame(txtd)
-        if params.recv_signal:
-            rfsoc_inst.recv_frame_one(n_frame=params.n_frame_rd)
-            signals_inst.rx_operations(txtd_base, rfsoc_inst.rxtd)
+
+        rfsoc_inst.recv_frame_one(n_frame=params.n_frame_rd)
+        signals_inst.rx_operations(txtd_base, rfsoc_inst.rxtd)
         if params.run_tcp_server:
             rfsoc_inst.run_tcp()
 
 
-
-    client_rfsoc = None
-    client_lintrack = None
-    client_turntable = None
-    client_piradio = None
-    client_controller = None
-    
     params.show_saved_sigs=len(params.saved_sig_plot)>0
     if 'client' in params.mode and not params.show_saved_sigs:
 
-        if params.use_linear_track:
-            client_lintrack = Tcp_Comm_LinTrack(params)
-            client_lintrack.init_tcp_client()
-            # client_lintrack.return2home()
-            # client_lintrack.go2end()
+        if 'channel' in params.save_list or 'signal' in params.save_list:
+            signals_inst.save_signal_channel(txtd_base, save_list=params.save_list)
 
-        if params.use_turntable:
-            client_turntable = Serial_Comm_TurnTable(params)
-            try:
-                client_turntable.connect()
-                client_turntable.move_to_position(0)
-                if params.calibrate_turntable:
-                    client_turntable.calibrate()
-                client_turntable.interactive_move()
-            except:
-                client_turntable.list_ports()
-                raise Exception("Turntable not connected or wrong port, please check the port list")
-
-        if params.control_piradio:
-            # client_piradio = ssh_Com_Piradio(params)
-            # client_piradio.init_ssh_client()
-            # client_piradio.initialize()
-            client_piradio = REST_Com_Piradio(params)
-            client_piradio.set_frequency(fc=params.fc)
-
-        if 'master' in params.mode:
-            client_controller = Tcp_Comm_Controller(params)
-            client_controller.init_tcp_client()
-            client_controller.set_frequency_piradio(params.fc)
-        elif 'slave' in params.mode:
-            controller = Tcp_Comm_Controller(params)
-            controller.init_tcp_server()
-            controller.obj_piradio = client_piradio
-            controller.obj_rfsoc = client_rfsoc
-            controller.run_tcp_server(controller.parse_and_execute)
+        signals_inst.operator()
 
 
-        if params.control_rfsoc:
-            client_rfsoc=Tcp_Comm_RFSoC(params)
-            client_rfsoc.init_tcp_client()
-
-            if params.send_signal:
-                # client_rfsoc.transmit_data_default()
-                client_rfsoc.transmit_data(txtd)
-                pass
-
-
-            client_rfsoc.set_frequency_mixer(params.mix_freq_dac, params.mix_freq_adc)
-            if params.RFFE=='sivers':
-                client_rfsoc.set_frequency_sivers(params.fc)
-                if params.send_signal:
-                    client_rfsoc.set_mode('RXen0_TXen1')
-                    client_rfsoc.set_tx_gain()
-                elif params.recv_signal:
-                    client_rfsoc.set_mode('RXen1_TXen0')
-                    client_rfsoc.set_rx_gain()
-
-            signals_inst.init_objects(client_rfsoc=client_rfsoc, client_lintrack=client_lintrack, 
-                              client_turntable=client_turntable, client_piradio=client_piradio, 
-                              client_controller=client_controller, txtd_base=txtd_base)
-
-            signals_inst.calibrate_rx_phase_offset(client_rfsoc)
-            if params.control_piradio:
-                if params.set_piradio_opt_gains:
-                    signals_inst.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
-                    signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
-                if params.set_piradio_opt_losupp:
-                    signals_inst.set_optimal_losupp_piradio(client_piradio, client_controller)
-            if params.nf_param_estimate:
-                signals_inst.create_near_field_model()
-
-            if 'channel' in params.save_list or 'signal' in params.save_list:
-                signals_inst.save_signal_channel(client_rfsoc, client_turntable, client_piradio, client_controller, txtd_base, save_list=params.save_list)
-            
-            signals_inst.operator()
-        
-        
 
     if 'client' in params.mode and not 'slave' in params.mode:
         # signals_inst.animate_plot(txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
         animate_plot_inst = Animate_Plot(params, signals_inst, txtd_base)
-
-        animate_plot_inst.init_objects(client_rfsoc=client_rfsoc, client_lintrack=client_lintrack, 
-                        client_turntable=client_turntable, client_piradio=client_piradio, 
-                        client_controller=client_controller, txtd_base=txtd_base)
-        
+        animate_plot_inst.init_objects(txtd_base=txtd_base)
         animate_plot_inst.init_plots()
 
 
+def create_objects(params):
+    signals_inst = Signal_Utils_Rfsoc(params)
+    return signals_inst
 
 
 if __name__ == '__main__':

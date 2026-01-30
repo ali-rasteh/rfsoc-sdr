@@ -2,6 +2,8 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 import matplotlib as mpl
 from cycler import cycler
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, REST_Com_Piradio, Tcp_Comm_Controller
+from serial_comm import Serial_Comm_TurnTable
 from sigcom_toolkit.signal_utils import Signal_Utils, AoAKalmanFilter
 from sigcom_toolkit.general import General
 try:
@@ -10,12 +12,12 @@ except:
     pass
 
 
-
 class Signal_Utils_Rfsoc(Signal_Utils):
     def __init__(self, params):
         super().__init__(params)
 
         self.import_attributes(params)
+        self._network_topology = params.network_topology
 
         self.rx_phase_offset = 0
         self.rx_delay_offset = 0
@@ -33,23 +35,160 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("signals object initialization done", thr=1)
 
 
-    def init_objects(self, client_rfsoc=None, client_lintrack=None, client_turntable=None, client_piradio=None, client_controller=None, txtd_base=None):
+    @property
+    def network_topology(self):
+        return self._network_topology
+
+    @property
+    def network_objects(self):
+        return self._network_objects
+
+    @property
+    def rfsoc_tx_list(self):
+        rfsoc_tx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item['type'] in ['rfsoc', 'controller'] and item['role']=='tx':
+                rfsoc_tx_list.append(name)
+        return rfsoc_tx_list
+
+    @property
+    def piradio_tx_list(self):
+        piradio_tx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item['type'] in ['piradio', 'controller'] and item['role']=='tx':
+                piradio_tx_list.append(name)
+        return piradio_tx_list
+
+    @property
+    def rfsoc_rx_list(self):
+        rfsoc_rx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item['type'] in ['rfsoc', 'controller'] and item['role']=='rx':
+                rfsoc_rx_list.append(name)
+        return rfsoc_rx_list
+
+    @property
+    def piradio_rx_list(self):
+        piradio_rx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item['type'] in ['piradio', 'controller'] and item['role']=='rx':
+                piradio_rx_list.append(name)
+        return piradio_rx_list
+
+
+    def init_objects(self, txtd_base=None):
         
-        self.client_rfsoc = client_rfsoc
-        self.client_lintrack = client_lintrack
-        self.client_turntable = client_turntable
-        self.client_piradio = client_piradio
-        self.client_controller = client_controller
+        # client_rfsoc
+        # client_lintrack
+        # client_turntable
+        # client_piradio
+        # client_controller
+
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item['type']=='rfsoc':
+                ip_address = item['ip']
+                self._network_objects[name] = Tcp_Comm_RFSoC(params, ip_address=ip_address)
+                self._network_objects[name].init_tcp_client()
+
+            elif item['type']=='lintrack':
+                ip_address = item['ip']
+                self._network_objects[name] = Tcp_Comm_LinTrack(params, ip_address=ip_address)
+                self._network_objects[name].init_tcp_client()
+                # self.network_objects[name].return2home()
+                # self.network_objects[name].go2end()
+            
+            elif item['type']=='turntable':
+                port = item.get('port', 'COM6')
+                baudrate = item.get('baudrate', 115200)
+                rotation_delay = item.get('rotation_delay', 0.0)
+                self._network_objects[name] = Serial_Comm_TurnTable(params, port=port, baudrate=baudrate, rotation_delay=rotation_delay)
+                try:
+                    self._network_objects[name].connect()
+                    self._network_objects[name].move_to_position(0)
+                    if 'calibrate' in item and item['calibrate']:
+                        self._network_objects[name].calibrate()
+                    self._network_objects[name].interactive_move()
+                except:
+                    self._network_objects[name].list_ports()
+                    raise Exception("Turntable not connected or wrong port, please check the port list")
+
+            elif item['type']=='piradio':
+                ip_address = item['ip']
+                # self._network_objects[name] = ssh_Com_Piradio(params)
+                # self._network_objects[name].init_ssh_client()
+                # self._network_objects[name].initialize()
+                self._network_objects[name] = REST_Com_Piradio(params, ip_address=ip_address)
+                self._network_objects[name].set_frequency(fc=params.fc)
+            
+            
+            elif item['type']=='controller':
+                ip_address = item['ip']
+                self._network_objects[name] = Tcp_Comm_Controller(params, ip_address=ip_address)
+                self._network_objects[name].init_tcp_client()
+                self._network_objects[name].set_frequency_piradio(params.fc)
+
+            if 'slave' in params.mode:
+                self._network_objects['self'] = Tcp_Comm_Controller(params)
+                self._network_objects['self'].init_tcp_server()
+                self._network_objects['self'].obj_piradio = self._network_objects['piradio']
+                self._network_objects['self'].obj_rfsoc = self._network_objects['rfsoc']
+                self._network_objects['self'].run_tcp_server(self._network_objects['self'].parse_and_execute)
+
+
+        for item in self.rfsoc_tx_list:
+            client_rfsoc = self.network_objects[item]
+            # client_rfsoc.transmit_data_default()
+            client_rfsoc.transmit_data(self.txtd)
+
+
+        for item in self.rfsoc_rx_list:
+            client_rfsoc = self.network_objects[item]
+            client_rfsoc.set_frequency_mixer(params.mix_freq_dac, params.mix_freq_adc)
+            if params.RFFE=='sivers':
+                client_rfsoc.set_frequency_sivers(params.fc)
+                client_rfsoc.set_mode('RXen1_TXen0')
+                client_rfsoc.set_rx_gain()
+            signals_inst.calibrate_rx_phase_offset(client_rfsoc)
+
+
+        for item in self.rfsoc_tx_list:
+            client_rfsoc = self._network_objects[item]
+            client_rfsoc.set_frequency_mixer(params.mix_freq_dac, params.mix_freq_adc)
+            if params.RFFE=='sivers':
+                client_rfsoc.set_frequency_sivers(params.fc)
+                client_rfsoc.set_mode('RXen0_TXen1')
+                client_rfsoc.set_tx_gain()
+
+        for item in zip(self.piradio_tx_list, self.piradio_rx_list, self.rfsoc_rx_list):
+            client_piradio_tx = self.network_objects[item[0]]
+            client_piradio_rx = self.network_objects[item[1]]
+            client_rfsoc_rx = self._network_objects[item[2]]
+
+            if params.set_piradio_opt_gains:
+                signals_inst.find_optimal_gain_piradio(client_rfsoc_rx, client_piradio_rx, client_piradio_tx)
+                signals_inst.set_optimal_gain_piradio(client_piradio_rx, client_piradio_tx)
+            if params.set_piradio_opt_losupp:
+                signals_inst.set_optimal_losupp_piradio(client_piradio_rx)
+                signals_inst.set_optimal_losupp_piradio(client_piradio_tx)
+
+        if params.nf_param_estimate:
+            signals_inst.create_near_field_model()
+
         self.txtd_base = txtd_base
 
-        if len(self.turtlebot_publish_list)>0:
+
+        try:
             from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
             from tb4_aoa_viz.snr_bridge import get_publish_snr_fn
-        if "aoa" in self.turtlebot_publish_list:
             self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
-        if "snr" in self.turtlebot_publish_list:
             self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
-        else:
+        except ImportError:
+            self.print("tb4_aoa_viz package not found, turtlebot publishing disabled", thr=0)
             self.publish_aoa_turtlebot = lambda x: None
             self.publish_snr_turtlebot = lambda x: None
 
@@ -113,9 +252,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             # print(np.sort(dot_prod)[:20])
 
 
-        if self.mixer_mode=='digital' and self.mix_freq!=0:
+        if self.rfsoc_mixer_mode=='digital' and self.rfsoc_mix_freq!=0:
             for ant_id in range(self.n_tx_ant):
-                txtd_s = self.freq_shift(txtd_base[ant_id], shift=self.mix_freq, fs=self.fs_tx)
+                txtd_s = self.freq_shift(txtd_base[ant_id], shift=self.rfsoc_mix_freq, fs=self.fs_tx)
                 txtd.append(txtd_s)
             
                 # txfd = np.abs(fftshift(fft(txtd)))
@@ -175,15 +314,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     
 
 
-    def handle_nf(self, h_est_full, sparse_est_params):
+    def handle_nf(self, h_est_full, sparse_est_params, client_lintrack):
+        use_linear_track = True
+
         if self.nf_param_estimate:
             # h_index = self.animate_plot_mode.index('h')
             if self.nf_loc_idx==0:
                 self.nf_sep_idx = 0
 
-                if self.use_linear_track:
-                    self.client_lintrack.return2home(lin_track_id=0)
-                    self.client_lintrack.return2home(lin_track_id=1)
+                if use_linear_track:
+                    client_lintrack.return2home(lin_track_id=0)
+                    client_lintrack.return2home(lin_track_id=1)
                     time.sleep(0.5)
                     # distance = -1000*(len(self.nf_rx_loc)-1)
                     # distance = np.round(distance, 2)
@@ -207,18 +348,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             else:
 
                 if self.nf_sep_idx==0:
-                    if self.use_linear_track:
+                    if use_linear_track:
                         distance = 1000*(self.nf_rx_ant_sep[0]*self.wl - self.nf_rx_ant_sep[-1]*self.wl)
                         distance = np.round(distance, 2)
-                        self.client_lintrack.move(lin_track_id=1, distance=distance)
+                        client_lintrack.move(lin_track_id=1, distance=distance)
                         time.sleep(0.5)
                         self.ant_dx = self.nf_rx_ant_sep[0]
 
                         if self.nf_loc_idx < len(self.nf_rx_loc):
                             distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
                             distance = np.round(distance, 2)
-                            self.client_lintrack.move(lin_track_id=1, distance=distance)
-                            self.client_lintrack.move(lin_track_id=0, distance=distance)
+                            client_lintrack.move(lin_track_id=1, distance=distance)
+                            client_lintrack.move(lin_track_id=0, distance=distance)
                             time.sleep(0.5)
                             
                     self.nf_sep_idx+=1
@@ -232,11 +373,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.peaks_nf.append(peaks)
                     self.npaths_nf.append(npath_est)
 
-                    if self.use_linear_track:
+                    if use_linear_track:
                         if self.nf_sep_idx < len(self.nf_rx_ant_sep):
                             distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
                             distance = np.round(distance, 2)
-                            self.client_lintrack.move(lin_track_id=1, distance=distance)
+                            client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(0.5)
                             self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
                     
@@ -569,35 +710,35 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return rxtd
 
 
-    def hop_freq(self, client_piradio, client_controller, fc_id=None, freq=None):
-            if fc_id is not None:
-                fc_id = fc_id
-            else:
-                fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-            if freq is not None:
-                fc = freq
-            else:
-                fc = self.freq_hop_list[int(fc_id)]
-            if self.fc != fc:
-                if self.control_piradio:
-                    client_piradio.set_frequency(fc=fc)
-                    if 'master' in self.mode:
-                        client_controller.set_frequency_piradio(fc=fc)
+    def hop_freq(self, clients=[], fc_id=None, freq=None):
+        if fc_id is not None:
+            fc_id = fc_id
+        else:
+            fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
+        if freq is not None:
+            fc = freq
+        else:
+            fc = self.freq_hop_list[int(fc_id)]
+        if self.fc != fc:
+            for client in clients:
+                client.set_frequency(fc=fc)
+                if 'master' in self.mode:
+                    client.set_frequency_piradio(fc=fc)
 
-                    if self.set_piradio_opt_losupp:
-                        self.set_optimal_losupp_piradio(client_piradio, client_controller, fc=fc)
+                if self.set_piradio_opt_losupp:
+                    self.set_optimal_losupp_piradio(client, fc=fc)
 
-                    # if client_piradio.freq_sw_dly == 0:
-                    #     sleep_time = max(self.piradio_bias_sw_dly, self.piradio_freq_sw_dly)
-                    #     time.sleep(self.piradio_freq_sw_dly)
+                # if client.freq_sw_dly == 0:
+                #     sleep_time = max(self.piradio_bias_sw_dly, self.piradio_freq_sw_dly)
+                #     time.sleep(self.piradio_freq_sw_dly)
 
-                self.fc_id = fc_id
-                self.fc = fc
-                self.wl = self.c / self.fc
+            self.fc_id = fc_id
+            self.fc = fc
+            self.wl = constants.c / self.fc
 
 
 
-    def find_optimal_gain_piradio(self, client_rfsoc, client_piradio, client_controller):
+    def find_optimal_gain_piradio(self, client_rfsoc_rx, client_piradio_rx, client_piradio_tx):
 
         if os.path.exists(self.optimal_gains_path):
             self.optimal_gains = self.load_dict_from_json(self.optimal_gains_path, convert_values=True)
@@ -632,11 +773,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         rx_gain_dB_list = np.arange(min_rx_gain_dB, max_rx_gain_dB+gain_step_dB, gain_step_dB)
 
         # freq_step = 0.5
-        # freq_list = np.arange(client_piradio.freq_range[0], client_piradio.freq_range[1]+freq_step, freq_step)
+        # freq_list = np.arange(client_piradio_rx.freq_range[0], client_piradio_rx.freq_range[1]+freq_step, freq_step)
         freq_list = [self.stable_fc_piradio]
         for frequency in freq_list:
             self.print("Finding gains for frequency: {} GHz".format(frequency), thr=1)
-            self.hop_freq(client_piradio, client_controller, freq=frequency)
+            self.hop_freq(clients=[client_piradio_rx, client_piradio_tx], freq=frequency)
 
             self.optimal_gains[self.tx_rx_distance][frequency] = {}
         
@@ -649,8 +790,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     continue
                 self.print("Setting TX gain to {} dB".format(tx_gain_dB), thr=1)
                 if 'master' in self.mode:
-                    client_controller.set_gain_piradio(trx='tx', chan=0, gain_db=tx_gain_dB)
-                    client_controller.set_gain_piradio(trx='tx', chan=1, gain_db=tx_gain_dB)
+                    client_piradio_tx.set_gain_piradio(trx='tx', chan=0, gain_db=tx_gain_dB)
+                    client_piradio_tx.set_gain_piradio(trx='tx', chan=1, gain_db=tx_gain_dB)
 
                 for rx_gain_dB in rx_gain_dB_list:
                     if rx_gain_dB < min_rx_gain_dB or rx_gain_dB > max_rx_gain_dB:
@@ -659,12 +800,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         continue
 
                     self.print("Setting RX gain to {} dB".format(rx_gain_dB), thr=1)
-                    client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain_dB)
-                    client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain_dB)
-                    if client_piradio.gain_sw_dly == 0:
+                    client_piradio_rx.set_gain(trx='rx', chan=0, gain_db=rx_gain_dB)
+                    client_piradio_rx.set_gain(trx='rx', chan=1, gain_db=rx_gain_dB)
+                    if client_piradio_rx.gain_sw_dly == 0:
                         time.sleep(2*self.piradio_gain_sw_dly_default)
 
-                    rxtd = self.receive_data(client_rfsoc, mode='once')
+                    rxtd = self.receive_data(client_rfsoc_rx, mode='once')
                     snr = self.calculate_snr(sig_td=rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
                     snr_dB = self.lin_to_db(snr, mode='pow')
                     self.print("SNR for TX gain {} dB and RX gain {} dB: {:.3f} dB".format(tx_gain_dB, rx_gain_dB, snr_dB), thr=1)
@@ -688,7 +829,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
 
-    def set_optimal_gain_piradio(self, client_piradio, client_controller):
+    def set_optimal_gain_piradio(self, client_piradio_rx, client_piradio_tx):
         self.print("Setting optimal TX/RX gains in Pi-Radio", thr=0)
 
         freq_list = list(self.optimal_gains[self.tx_rx_distance].keys())
@@ -697,20 +838,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         rx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['rx_gain']
         tx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['tx_gain']
 
-        client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain_optimal)
-        client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain_optimal)
-        client_piradio.set_gain(trx='tx', chan=0, gain_db=tx_gain_optimal)
-        client_piradio.set_gain(trx='tx', chan=1, gain_db=tx_gain_optimal)
-        if 'master' in self.mode:
-            client_controller.set_gain_piradio(trx='tx', chan=0, gain_db=tx_gain_optimal)
-            client_controller.set_gain_piradio(trx='tx', chan=1, gain_db=tx_gain_optimal)
+        client_piradio_rx.set_gain(trx='rx', chan=0, gain_db=rx_gain_optimal)
+        client_piradio_rx.set_gain(trx='rx', chan=1, gain_db=rx_gain_optimal)
+        client_piradio_tx.set_gain(trx='tx', chan=0, gain_db=tx_gain_optimal)
+        client_piradio_tx.set_gain(trx='tx', chan=1, gain_db=tx_gain_optimal)
 
-        # if client_piradio.gain_sw_dly == 0:
+        # if client_piradio_rx.gain_sw_dly == 0:
         #     time.sleep(self.piradio_gain_sw_dly)
 
 
-
-    def set_optimal_losupp_piradio(self, client_piradio, client_controller, fc=None):
+    def set_optimal_losupp_piradio(self, client_piradio, fc=None):
         if fc is None:
             fc = self.fc
 
@@ -729,11 +866,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         client_piradio.set_bias(chan=0, iq='Q', bias_voltage=optimal_lo_supp[1])
         client_piradio.set_bias(chan=1, iq='I', bias_voltage=optimal_lo_supp[0])
         client_piradio.set_bias(chan=1, iq='Q', bias_voltage=optimal_lo_supp[1])
-        if 'master' in self.mode:
-            client_controller.set_bias_piradio(chan=0, iq='I', bias_voltage=optimal_lo_supp[0])
-            client_controller.set_bias_piradio(chan=0, iq='Q', bias_voltage=optimal_lo_supp[1])
-            client_controller.set_bias_piradio(chan=1, iq='I', bias_voltage=optimal_lo_supp[0])
-            client_controller.set_bias_piradio(chan=1, iq='Q', bias_voltage=optimal_lo_supp[1])
 
 
 
@@ -757,11 +889,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             n = 4*int(np.round(self.fs_rx/self.f_max))
             self.plot_signal(x=self.t_rx[:n], sigs=rxtd[plt_frm_id, ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=4)
 
-        if self.mixer_mode == 'digital' and self.mix_freq!=0:
+        if self.rfsoc_mixer_mode == 'digital' and self.rfsoc_mix_freq!=0:
             rxtd_base = np.zeros_like(rxtd)
             for ant_id in range(self.n_rx_ant):
                 for frm_id in range(n_rd_rep):
-                    rxtd_base[frm_id, ant_id,:] = self.freq_shift(rxtd[frm_id, ant_id], shift=-1*self.mix_freq, fs=self.fs_rx)
+                    rxtd_base[frm_id, ant_id,:] = self.freq_shift(rxtd[frm_id, ant_id], shift=-1*self.rfsoc_mix_freq, fs=self.fs_rx)
 
                 title = 'RX signal spectrum after downconversion for antenna {}'.format(ant_id)
                 xlabel = 'Frequency (MHz)'
@@ -958,13 +1090,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         def parse_action(spec):
             spec_list = spec.split("/")
-            action = spec_list[0]
-            rng = spec_list[1]
+            target = spec_list[0]
+            action = spec_list[1]
+            rng = spec_list[2]
 
-            if len(spec_list)<=2:
+            if len(spec_list)<=3:
                 param = None
             else:
-                param = spec_list[2:]
+                param = spec_list[3:]
 
             try:
                 rng = eval(rng)
@@ -982,13 +1115,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     else:
                         rng = np.linspace(start, stop, int(count))
 
-            print(action, rng, param)
+            print(target, action, rng, param)
             return (action, rng, param)
 
         loop_list = [parse_action(item) for item in self.action_loop]
-        actions = [item[0] for item in loop_list]
-        ranges = [item[1] for item in loop_list]
-        params = [item[2] for item in loop_list]
+        targets = [item[0] for item in loop_list]
+        actions = [item[1] for item in loop_list]
+        ranges = [item[2] for item in loop_list]
+        params = [item[3] for item in loop_list]
 
 
         prev = None
@@ -1004,9 +1138,21 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             # process only the actions whose value changed
             for i in changed_idxs:
+                targets = targets[i]
                 action = actions[i]
                 value = values[i]
                 param = params[i]
+
+                targets = eval(targets)
+                target_objects = []
+                if type(targets) is not list:
+                    targets = [targets]
+                for target in targets:
+                    target_object = self.network_objects[target] if target in self.network_objects else None
+                    if target_object is None and not target in ['self']:
+                        raise ValueError("Invalid target object: {}".format(target))
+                    target_objects.append(target_object)
+
 
                 if action == 'change_phys_config':
                     if phys_config is not None:
@@ -1025,6 +1171,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         self.tx_rx_distance = tx_rx_distance
 
                 if action == 'capture':
+                    client_rfsoc = target_objects[0]
                     process_signal = (param[0] == 'process') if len(param)>0 else False
 
                     rxtd_save=[]
@@ -1038,13 +1185,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     else:
                         # n_rd_rep = self.n_save//self.n_frame_rd
                         n_rd_rep = int(value)//self.n_frame_rd
-                    rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
+                    rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
                     # raise ValueError('Stop')
 
                     if process_signal:
                         for i in range(self.n_save):
                             self.print("Channel Save Iteration: {}".format(i+1), thr=0)
-                            rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+                            rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
 
                             # to handle the dimenstion needed for read repeat
                             (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(self.txtd_base, rxtd[i])
@@ -1110,28 +1257,28 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     time.sleep(wait_time)
                 
                 if action == 'report_time':
-                    # rotation_time = 1.514 + rotation_delay
-                    # rotation_delay = self.client_turntable.rotation_delay if self.use_turntable else 0
                     freq_switch_time = 0.052 + self.piradio_freq_sw_dly_default
                     remaining_time = (len(self.rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
                     self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
                     angle_id += 1
 
                 if action == 'rotate_table':
+                    client_turntable = target_objects[0]
                     angle = float(value)
                     self.print("Rotating to angle: {}".format(angle), thr=0)
-                    if self.use_turntable:
-                        start_time = time.time()
-                        self.client_turntable.move_to_position(angle)
-                        rotation_time = time.time()-start_time
-                        self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
+
+                    start_time = time.time()
+                    client_turntable.move_to_position(angle)
+                    rotation_time = time.time()-start_time
+                    self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
 
                 if action == 'move_lin_track':
+                    client_lintrack = target_objects[0]
                     distance = float(value)
-                    self.client_lintrack.move(lin_track_id=0, distance=distance)
+                    client_lintrack.move(lin_track_id=0, distance=distance)
 
                 if action == 'return_lin_track_home':
-                    self.client_lintrack.return2home(lin_track_id=0)
+                    client_lintrack.return2home(lin_track_id=0)
 
                 if action == 'publish_aoa_ros2':
                     aoa = self.aoa_list[-1] if len(self.aoa_list)>0 else 0
@@ -1143,46 +1290,50 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.publish_snr_turtlebot(snr_dB)
 
                 if action == 'hop_freq':
+                    clients = []
+                    client_piradio_rx = target_objects[0]
+                    clients.append(client_piradio_rx)
+                    if len(target_objects)>1:
+                        client_piradio_tx = target_objects[1]
+                        clients.append(client_piradio_tx)
                     try:
                         frequency = float(param[0])
-                        self.hop_freq(self.client_piradio, self.client_controller, freq=frequency)
+                        self.hop_freq(clients, freq=frequency)
                     except:
-                        self.hop_freq(self.client_piradio, self.client_controller)
+                        self.hop_freq(clients)
                     self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
 
                 if action == 'set_gain_db_tx':
+                    client_piradio = target_objects[0]
                     gain_db = int(value)
                     tx_gain_db = gain_db
-                    if 'master' in self.mode:
-                        self.client_controller.set_gain_piradio(trx='tx', chan=0, gain_db=gain_db)
-                        self.client_controller.set_gain_piradio(trx='tx', chan=1, gain_db=gain_db)
-                    else:
-                        self.client_piradio.set_gain(trx='tx', chan=0, gain_db=gain_db)
-                        self.client_piradio.set_gain(trx='tx', chan=1, gain_db=gain_db)
+                    client_piradio.set_gain(trx='tx', chan=0, gain_db=gain_db)
+                    client_piradio.set_gain(trx='tx', chan=1, gain_db=gain_db)
 
                 if action == 'set_gain_db_rx':
+                    client_piradio = target_objects[0]
                     gain_db = int(value)
                     rx_gain_db = gain_db
-                    # self.client_piradio.set_gain(trx='rx', chan=0, gain_db=gain_db)
-                    # self.client_piradio.set_gain(trx='rx', chan=1, gain_db=gain_db)
+                    client_piradio.set_gain(trx='rx', chan=0, gain_db=gain_db)
+                    client_piradio.set_gain(trx='rx', chan=1, gain_db=gain_db)
 
                 if action == 'find_optimal_gain_piradio':
-                    self.find_optimal_gain_piradio(self.client_rfsoc, self.client_piradio, self.client_controller)
+                    client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
+                    self.find_optimal_gain_piradio(client_rfsoc_rx, client_piradio_rx, client_piradio_tx)
 
                 if action == 'set_optimal_gain_piradio':
-                    self.set_optimal_gain_piradio(self.client_piradio, self.client_controller)
+                    client_piradio_rx, client_piradio_tx = target_objects
+                    self.set_optimal_gain_piradio(client_piradio_rx, client_piradio_tx)
 
                 if action == 'switch_sig_size':
                     sig_size = int(value)
 
                 if action == 'switch_sig_ss':
+                    client_rfsoc = target_objects[0]
                     region = self.generate_random_regions(shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size])
                     self.wb_sc_range = [region[0][0].start-(self.nfft_tx >> 1), region[0][0].stop-1-(self.nfft_tx >> 1)]
                     (self.txtd_base, self.txtd) = self.gen_tx_signal()
-                    if 'master' in self.mode:
-                        self.client_controller.transmit_data_rfsoc(self.txtd)
-                    else:
-                        self.client_rfsoc.transmit_data(self.txtd)
+                    client_rfsoc.transmit_data(self.txtd)
 
 
 
@@ -1194,7 +1345,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         super().__init__(params)
 
         self.animate_plot_mode = getattr(params, 'animate_plot_mode', [])
-        self.plot_fonts_dict = getattr(params, 'plot_fonts_dict', None)
+        self.plot_configs = getattr(params, 'plot_configs', None)
         self.signals_obj = signals_obj
         self.txtd_base = txtd_base
 
@@ -1518,14 +1669,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         
         signals, h_est_full, sparse_est_params = self.receive_data_anim(self.txtd_base)
 
-        self.signals_obj.hop_freq(self.client_piradio, self.client_controller)
+        self.signals_obj.hop_freq(clients=[self.client_piradio, self.client_controller])
 
-        # if self.use_turntable:
-        #     angle = self.rotation_angles[self.rot_angle_id]
-        #     client_turntable.move_to_position(angle)
-        #     self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
-
-        self.signals_obj.handle_nf(h_est_full, sparse_est_params)
+        self.signals_obj.handle_nf(h_est_full, sparse_est_params, client_lintrack)
 
 
         line_id = 0
@@ -1691,7 +1837,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
                 # Truncate the title to a maximum of 30 characters
-                title = (signals[i]['title'][:self.plot_fonts_dict['title_max_chars']] + '...') if len(signals[i]['title']) > self.plot_fonts_dict['title_max_chars'] else signals[i]['title']
+                title = (signals[i]['title'][:self.plot_configs['title_max_chars']] + '...') if len(signals[i]['title']) > self.plot_configs['title_max_chars'] else signals[i]['title']
                 title = title + "\n Carrier Frequency: {} GHz".format(self.freq_hop_list[j]/1e9)
                 x_label = signals[i]['x_label']
                 y_label = signals[i]['y_label']
@@ -1699,11 +1845,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 self.ax[i][j].set_xlabel(x_label)
                 self.ax[i][j].set_ylabel(y_label)
 
-                self.ax[i][j].title.set_fontsize(self.plot_fonts_dict['title_size'])
-                self.ax[i][j].xaxis.label.set_fontsize(self.plot_fonts_dict['xaxis_size'])
-                self.ax[i][j].yaxis.label.set_fontsize(self.plot_fonts_dict['yaxis_size'])
-                self.ax[i][j].tick_params(axis='both', which='major', labelsize=self.plot_fonts_dict['ticks_size'])  # For major ticks
-                self.ax[i][j].legend(fontsize=self.plot_fonts_dict['legend_size'])
+                self.ax[i][j].title.set_fontsize(self.plot_configs['title_size'])
+                self.ax[i][j].xaxis.label.set_fontsize(self.plot_configs['xaxis_size'])
+                self.ax[i][j].yaxis.label.set_fontsize(self.plot_configs['yaxis_size'])
+                self.ax[i][j].tick_params(axis='both', which='major', labelsize=self.plot_configs['ticks_size'])  # For major ticks
+                self.ax[i][j].legend(fontsize=self.plot_configs['legend_size'])
 
                 self.ax[i][j].grid(True)
                 if not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
@@ -1715,11 +1861,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             for i in range(len(self.line)):
                 if self.line[i][j] is not None:
                     # self.line[i][j].set_linewidth(3.0-0.5*self.n_plots_row-0.3*self.n_plots_col)
-                    self.line[i][j].set_linewidth(self.plot_fonts_dict['line_width'])
+                    self.line[i][j].set_linewidth(self.plot_configs['line_width'])
 
         # Create the animation
         plt.tight_layout()
-        plt.subplots_adjust(hspace=self.plot_fonts_dict['hspace'], wspace=self.plot_fonts_dict['wspace'])
+        plt.subplots_adjust(hspace=self.plot_configs['hspace'], wspace=self.plot_configs['wspace'])
         anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
         self.fig.savefig(self.figs_save_path, dpi=300)

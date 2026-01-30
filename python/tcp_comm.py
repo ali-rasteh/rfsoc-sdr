@@ -109,9 +109,9 @@ class Tcp_Comm(General):
 
 
 class Tcp_Comm_RFSoC(Tcp_Comm):
-    def __init__(self, params):
+    def __init__(self, params, ip_address=None):
         params = params.copy()
-        params.server_ip = params.rfsoc_server_ip
+        params.server_ip = ip_address
         super().__init__(params)
 
         self.obj_rfsoc = None
@@ -385,8 +385,8 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
 
                 f_mixer_dac = float(clientMsgParsed[1])
                 f_mixer_adc = float(clientMsgParsed[2])
-                success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_mixer_settings=True)
-                success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_mixer_settings=True)
+                success = self.obj_rfsoc.set_dac_mixer(rfsoc_mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
+                success &= self.obj_rfsoc.set_adc_mixer(rfsoc_mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
                 if success == True:
                     responseToCMD = self.successMessage 
                 else:
@@ -404,9 +404,9 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
 
 
 class Tcp_Comm_LinTrack(Tcp_Comm):
-    def __init__(self, params):
+    def __init__(self, params, ip_address=None):
         params = params.copy()
-        params.server_ip = params.lintrack_server_ip
+        params.server_ip = ip_address
         super().__init__(params)
         self.obj_lintrack = None
 
@@ -481,9 +481,9 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
 
 
 class Tcp_Comm_Controller(Tcp_Comm):
-    def __init__(self, params):
+    def __init__(self, params, ip_address=None):
         params = params.copy()
-        params.server_ip = params.controller_slave_ip
+        params.server_ip = ip_address
         super().__init__(params)
 
         self.obj_rfsoc = None
@@ -764,9 +764,9 @@ class REST_Com(General):
 
 
 class REST_Com_Piradio(REST_Com):
-    def __init__(self, params):
+    def __init__(self, params, ip_address=None):
         params = params.copy()
-        params.host_ip = params.piradio_host
+        params.host_ip = ip_address
         params.port = params.piradio_rest_port
         params.protocol = getattr(params, 'piradio_rest_protocol', 'http')
         super().__init__(params)

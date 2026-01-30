@@ -8,7 +8,6 @@ from backend import be_np as np, be_scp as scipy
 class Params_Class_Default(object):
     def __init__(self):
         # Constant parameters
-        self.c = constants.c
         self.seed=100
 
         # Board and RFSoC FPGA project parameters
@@ -17,10 +16,10 @@ class Params_Class_Default(object):
         self.board='rfsoc_4x2'              # Type of the RFSoC board, rfsoc_4x2 or rfsoc_2x2
         self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Path to the bit file for the RFSoC (Without DAC MTS)
         # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')     # Path to the bit file for the RFSoC (With DAC MTS)
+        # TODO remove the mode
         self.mode='client'                  # Mode of operation, server or client or client_master or client_slave
         self.run_tcp_server=True            # If True, runs the TCP server
         self.send_signal=False               # If True, sends TX signal
-        self.recv_signal=True               # If True, receives and plots RX signal
 
         # Plots and logs parameters
         self.plt_frame_id = 0               # Frame ID to plot
@@ -28,18 +27,18 @@ class Params_Class_Default(object):
         self.plot_level=0                   # Level of plotting outputs
         self.verbose_level=0                # Level of printing output
         self.anim_interval=500              # Animation interval in ms
-        self.animate_plot_mode=['h', 'rxfd']        # List of plots to animate
+        self.animate_plot_mode=[]        # List of plots to animate
         # dictionary of plot fonts configurations
-        self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
+        self.plot_configs = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
 
         # Mixer parameters
-        self.mixer_mode='analog'            # Mixer mode, analog or digital
-        self.mix_freq=1000e6                # Mixer carrier frequency
-        self.mix_phase_off=0.0              # Mixer's phase offset
-        self.do_mixer_settings=False        # If True, performs mixer settings
-        self.do_pll_settings=False          # If True, performs PLL settings
-        self.lmk_freq_mhz=122.88            # LMK frequency in MHz
-        self.lmx_freq_mhz=3932.16           # LMX frequency in MHz
+        self.rfsoc_mixer_mode='analog'            # Mixer mode, analog or digital
+        self.rfsoc_mix_freq=1000e6                # Mixer carrier frequency
+        self.rfsoc_mix_phase_off=0.0              # Mixer's phase offset
+        self.do_rfsoc_mixer_settings=False        # If True, performs mixer settings
+        self.do_rfsoc_pll_settings=False          # If True, performs PLL settings
+        self.rfsoc_lmk_freq_mhz=122.88            # LMK frequency in MHz
+        self.rfsoc_lmx_freq_mhz=3932.16           # LMX frequency in MHz
 
         # RFFE and antennas parameters
         self.RFFE='piradio'                 # RF front end to use, piradio or sivers
@@ -51,38 +50,26 @@ class Params_Class_Default(object):
 
         # Connections parameters
         self.network_topology = {
-            'rfsoc_tx': {'ip': '192.168.3.1', 'protocol': 'tcp'},
-            'rfsoc_rx': {'ip': '192.168.3.1', 'protocol': 'tcp'},
-            'lintrack': {'ip': '192.168.137.100', 'protocol': 'tcp'},
-            'turntable': {'port': '/dev/ttyACM0', 'baudrate': 115200, 'protocol': 'tcp'},
-            'piradio_tx': {'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
-            'piradio_rx': {'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
-            'controller_slave': {'ip': '192.168.1.1', 'protocol': 'tcp'},
-            'host': {'ip': '192.168.3.100', 'protocol': 'ssh'},
+            'rfsoc_tx': {'type': 'rfsoc', 'role': 'tx', 'ip': '192.168.3.1', 'protocol': 'tcp'},
+            'rfsoc_rx': {'type': 'rfsoc', 'role': 'rx', 'ip': '192.168.3.1', 'protocol': 'tcp'},
+            'lintrack': {'type': 'lintrack', 'role': 'rx', 'ip': '192.168.137.100', 'protocol': 'tcp'},
+            'turntable': {'type': 'turntable', 'role': 'rx', 'port': '/dev/ttyACM0', 'baudrate': 115200, 'protocol': 'serial'},
+            'piradio_tx': {'type': 'piradio', 'role': 'tx', 'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+            'piradio_rx': {'type': 'piradio', 'role': 'rx', 'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+            'controller_slave': {'type': 'controller', 'role': 'tx', 'ip': '192.168.1.1', 'protocol': 'tcp'},
+            'host': {'type': 'host', 'role': 'rx', 'ip': '192.168.3.100', 'protocol': 'ssh'},
         }
         self.network_objects = {}           # Dictionary to hold network communication objects
-        self.control_rfsoc=True             # If True, controls the RFSoC board
-        self.control_piradio=False          # If True, controls the PIRadio board
+        # TODO replace these parameters with dictionary parameters
         self.set_piradio_opt_gains = False  # If True, finds and sets the optimal gains for the PIRadio board
         self.set_piradio_opt_losupp = False   # If True, finds and sets the optimal LO suppression bias for the PIRadio board
         self.tcp_localIP = "0.0.0.0"        # Local IP address
         self.tcp_bufferSize=2**10           # TCP buffer size
         self.TCP_port_Cmd=8080              # TCP port for commands
         self.TCP_port_Data=8081             # TCP port for data
-        self.rfsoc_server_ip='192.168.3.1'  # RFSoC board IP as the server
-        self.lintrack_server_ip='192.168.137.100'   # Linear track controller board IP as the server ('10.18.242.48')
-        self.turntable_port = '/dev/ttyACM0'                # Turntable serial port
-        self.turntable_baudrate = 115200            # Turntable baudrate
-        self.piradio_host = '192.168.137.51'        # PIRadio host IP
-        self.piradio_ssh_port = '22'                # PIRadio SSH port
         self.piradio_rest_port = '5111'             # PIRadio REST port
-        self.piradio_username = 'ubuntu'            # PIRadio username
-        self.piradio_password = 'temppwd'           # PIRadio password
         self.piradio_rest_protocol = 'http'         # PIRadio REST protocol
-        self.host_ip = '192.168.3.100'              # Host IP
-        self.host_username = 'wirelesslab914'       # Host username
-        self.host_password = ''                     # Host password
-        self.controller_slave_ip = '192.168.1.1'    # Controller slave IP
+        # TODO make a piradio class and transfer these parameters to that class
         self.piradio_freq_sw_dly_default = 0.1       # PIRadio frequency switch delay (default)
         self.piradio_gain_sw_dly_default = 0.1      # PIRadio gain change delay (default)
         self.piradio_bias_sw_dly_default = 0.1      # PIRadio LO Suppression change delay (default)
@@ -97,11 +84,12 @@ class Params_Class_Default(object):
         self.modify_rfsoc_files = True                      # If True, modifies the RFSoC files to be true for the server mode
         self.files_dwnld_target = 'rfsoc'                   # Target for file download, rfsoc or raspi
         self.host_files_base_addr = '~/RFSoC_SDR/python/'   # Base address for the host files
+        # TODO remove host information
         self.host_ip = '192.168.3.100'                      # Host IP address
         self.host_username = 'root'                         # Host username
         self.host_password = 'root'                         # Host password
         self.local_base_addr = "./"                         # Local base address for the files
-        
+
         # Signals information
         self.freq_hop_config = {'mode': 'discrete', 'list': [10.0e9], 'range': [10.0e9, 10.0e9], 'step': 1.0e9}    # Frequency hopping configuration, modes: discrete or sweep
         self.fs=245.76e6 * 4                        # Sampling frequency in RFSoC
@@ -167,7 +155,6 @@ class Params_Class_Default(object):
 
         # Near field measurements parameters
         self.nf_param_estimate = False                  # If True, performs near field parameter estimation
-        self.use_linear_track = False                   # If True, uses the linear track for near field measurements
         self.nf_walls = np.array([[-5,4], [-1,6]])      # Near field walls coordinates in meters
         self.nf_rx_sep_dir = np.array([1,0])            # Direction of the RX antenna separation
         self.nf_tx_sep_dir = np.array([1,0])            # Direction of the TX antenna separation
@@ -178,13 +165,6 @@ class Params_Class_Default(object):
         self.nf_tx_ant_sep = 0.5                        # TX antenna separation in meters
         self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])    # RX antenna separation in meters
 
-        # Antenna calibration parameters
-        self.use_turntable = False                      # If True, uses the turntable for calibration
-        self.calibrate_turntable = False                # If True, calibrates the turntable
-        self.rotation_range_deg = [-90,90]              # Turntable Rotation range in degrees
-        self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
-        self.rotation_delay = 0.0                       # Turntable between rotations delay in seconds
-
         # matlab data transfer parameters
         self.enable_matlab_stream = False          # If True, enables the MATLAB data transfer
         # self.matlab_stream_ip = '10.20.9.65'     # Roberto IP address for the MATLAB data transfer
@@ -192,18 +172,12 @@ class Params_Class_Default(object):
         self.matlab_stream_port = 50007             # Port for the MATLAB data transfer
         # self.calc_params()
 
-        # Turtlebot connection parameters
-        self.turtlebot_publish_list = []    # List of Turtlebot parameters to publish
-
         # Action parameters
         self.action_loop = []
 
 
 
     def calc_params(self):
-
-        if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
-            self.rx_chain.append('sparse_est')
 
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
@@ -224,10 +198,6 @@ class Params_Class_Default(object):
 
         if self.mode == 'server':
             self.nf_param_estimate=False
-            self.control_rfsoc=False
-            self.control_piradio=False
-            self.use_linear_track=False
-            self.use_turntable=False
         elif self.mode == 'client':
             pass
         elif self.mode == 'client_master':
@@ -237,31 +207,28 @@ class Params_Class_Default(object):
             # self.send_signal=False
             pass
         elif self.mode == 'client_slave':
-            self.control_rfsoc=False
-            self.use_linear_track=False
-            self.use_turntable=False
             # self.piradio_freq_sw_dly = 0.0
             # self.piradio_gain_sw_dly = 0.0
             # self.piradio_bias_sw_dly = 0.0
 
 
-        if self.mixer_mode=='digital' and self.mix_freq!=0:
+        if self.rfsoc_mixer_mode=='digital' and self.rfsoc_mix_freq!=0:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
-        elif self.mixer_mode == 'analog':
-            self.mix_freq_dac = self.mix_freq
-            self.mix_freq_adc = self.mix_freq
+        elif self.rfsoc_mixer_mode == 'analog':
+            self.mix_freq_dac = self.rfsoc_mix_freq
+            self.mix_freq_adc = self.rfsoc_mix_freq
         else:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
             
         if 'sounder_bbf' in self.project:
-            self.do_mixer_settings=False
-            self.do_pll_settings=False
+            self.do_rfsoc_mixer_settings=False
+            self.do_rfsoc_pll_settings=False
             self.n_tx_ant=1
             self.n_rx_ant=1
         if self.board == "rfsoc_4x2":
-            self.do_pll_settings=False
+            self.do_rfsoc_pll_settings=False
 
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
@@ -282,7 +249,7 @@ class Params_Class_Default(object):
         
 
         self.fc = self.freq_hop_list[0]
-        self.wl = self.c / self.fc
+        self.wl = constants.c / self.fc
         self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
         self.ant_dy = self.ant_dy_m/self.wl
 
@@ -315,7 +282,7 @@ class Params_Class_Default(object):
         self.freq_trx = np.linspace(-0.5, 0.5, self.nfft_trx, endpoint=True) * self.fs_trx / 1e6
 
         self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
-        self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
+        self.DynamicPLLConfig = (0, self.rfsoc_lmk_freq_mhz, self.rfsoc_lmx_freq_mhz)
 
         if self.tone_f_mode=='sc':
             self.f_tone = self.sc_tone * self.fs_tx/self.nfft_tx
@@ -381,10 +348,7 @@ class Params_Class_Default(object):
                 t = self.ant_dx_m * np.arange(self.n_tx_ant)
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
 
-        if self.use_turntable:
-            self.rotation_angles = np.arange(self.rotation_range_deg[0], self.rotation_range_deg[1]+self.rotation_step_deg, self.rotation_step_deg)
-        else:
-            self.rotation_angles = [0]
+        self.rotation_angles = np.arange(self.rotation_range_deg[0], self.rotation_range_deg[1]+self.rotation_step_deg, self.rotation_step_deg)
 
         for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir, self.params_dir]:
             if not os.path.exists(f):
@@ -436,10 +400,6 @@ class Params_Class(Params_Class_Default):
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
-        self.controller_slave_ip = '10.18.251.169'
-        self.turntable_port = '/dev/ttyACM0'
-        # self.turntable_port = 'COM4'
-
         # self.set_piradio_opt_gains = True
         # self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
@@ -456,9 +416,7 @@ class Params_Class(Params_Class_Default):
         self.anim_interval = 100
         self.save_parameters=True
         # self.load_parameters=True
-        # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
-        self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
-        # self.calibrate_turntable = True
+        self.plot_configs = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
 
         # self.overwrite_level=False
         # self.plot_level=0
@@ -503,13 +461,10 @@ class Params_Class(Params_Class_Default):
 
         if self.mode == 'client':
             self.send_signal=True
-            self.rfsoc_server_ip='192.168.185.4'
         elif self.mode == 'client_master':
             self.send_signal=False
-            # self.rfsoc_server_ip='192.168.2.99'
         elif self.mode == 'client_slave':
             self.send_signal=True
-            # self.rfsoc_server_ip='192.168.2.99'
 
 
         h00 = "h|0|0|circshift|mag|dbmag"
@@ -544,7 +499,6 @@ class Params_Class(Params_Class_Default):
             self.wb_sc_range=[-260,260]
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
-            self.control_rfsoc=False
             self.freq_hop_config['list'] = [6.5e9, 10e9, 15.0e9, 20.0e9]
 
             self.tx_sig_sim = 'shifted'
@@ -556,7 +510,6 @@ class Params_Class(Params_Class_Default):
             self.RFFE='sivers'
             self.wb_sc_range=[-300,-100]
             self.send_signal=False
-            self.recv_signal=True
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -566,8 +519,8 @@ class Params_Class(Params_Class_Default):
 
 
         elif self.measurement_type == 'RFSoC_demo_simple':
-            # self.mix_freq=0e6
-            # self.do_mixer_settings=True
+            # self.rfsoc_mix_freq=0e6
+            # self.do_rfsoc_mixer_settings=True
             # self.wb_sc_range = [0,300]
 
             # self.animate_plot_mode = [[h00], [rxtd00_r, rxtd00_i], [rxfd00, rxfd10]]
@@ -588,7 +541,6 @@ class Params_Class(Params_Class_Default):
             self.animate_plot_mode=[[rxfd00]]
             self.rx_chain = []
 
-            # self.control_piradio=True
             self.freq_hop_config['list'] = [10e9]
             self.tx_sig_sim = 'same'
             self.sig_gen_mode = 'fft'
@@ -599,22 +551,32 @@ class Params_Class(Params_Class_Default):
             self.n_save = 32
             self.measurement_configs = []
 
+            self.network_topology = {
+                'rfsoc_tx': {'type': 'rfsoc', 'role': 'tx', 'ip': '192.168.3.1', 'protocol': 'tcp'},
+                'rfsoc_rx': {'type': 'rfsoc', 'role': 'rx', 'ip': '192.168.3.1', 'protocol': 'tcp'},
+                'lintrack': {'type': 'lintrack', 'role': 'rx', 'ip': '192.168.137.100', 'protocol': 'tcp'},
+                'turntable': {'type': 'turntable', 'role': 'rx', 'port': '/dev/ttyACM0', 'baudrate': 115200, 'protocol': 'tcp'},
+                'piradio_tx': {'type': 'piradio', 'role': 'tx', 'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+                'piradio_rx': {'type': 'piradio', 'role': 'rx', 'ip': '192.168.137.51', 'protocol': 'http', 'username': 'ubuntu', 'password': 'temppwd'},
+                'controller_slave': {'type': 'controller', 'role': 'tx', 'ip': '192.168.1.1', 'protocol': 'tcp'},
+                'host': {'type': 'host', 'role': 'rx', 'ip': '192.168.3.100', 'protocol': 'ssh'},
+            }
+
             self.action_loop = [
-                                'set_gain_db_rx/-3:20:20/',
-                                'switch_sig_size/[8,16,32,128]/',
-                                # 'set_gain_db_rx/[3,7,10,17]/',
-                                # 'switch_sig_size/1:256:20:log/',
-                                'switch_sig_ss/1:10:10/',
-                                # 'wait/[1]/',
-                                'capture/[10]/',
-                                f'save/[1]/["signal"]/m'
+                                f'piradio_rx/set_gain_db_rx/-3:20:20/',
+                                f'self/switch_sig_size/[8,16,32,128]/',
+                                # f'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
+                                # f'self/switch_sig_size/1:256:20:log/',
+                                f'self/switch_sig_ss/1:10:10/',
+                                # f'self/wait/[1]/',
+                                f'rfsoc_rx/capture/[10]/',
+                                f'self/save/[1]/["signal"]/m'
                                 ]
 
 
         elif self.measurement_type == 'FR3_demo_simple':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
-            self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9]
             self.tx_sig_sim = 'orthogonal'
             # self.sig_gen_mode = 'ZadoffChu'
@@ -627,7 +589,6 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'FR3_demo_multi_freq':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
-            self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9]
             self.tx_sig_sim = 'orthogonal'
             # self.sig_gen_mode = 'ZadoffChu'
@@ -642,7 +603,6 @@ class Params_Class(Params_Class_Default):
             self.rotation_step_deg = 1
             self.rotation_delay = 0.5
 
-            self.control_piradio=True
             # self.freq_hop_config['list'] = [10e9, 15.0e9]
             self.freq_hop_config['mode'] = 'sweep'
             self.freq_hop_config['range'] = [6.0e9, 22.5e9]
@@ -666,7 +626,6 @@ class Params_Class(Params_Class_Default):
             self.rotation_step_deg = 2
             self.rotation_delay = 0.5
 
-            self.control_piradio=True
             self.freq_hop_config['list'] = [10e9]
 
             self.sig_gen_mode = 'fft'
@@ -691,7 +650,6 @@ class Params_Class(Params_Class_Default):
             self.rotation_range_deg = [-45,45]
             self.rotation_step_deg = 45
             self.rotation_delay = 0.5
-            self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
             self.tx_sig_sim = 'shifted'
             self.sig_gen_mode = 'ZadoffChu'
@@ -744,7 +702,6 @@ class Params_Class(Params_Class_Default):
             self.rotation_step_deg = 10
             self.rotation_delay = 0.5
 
-            self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
 
             self.tx_sig_sim = 'shifted'
@@ -767,15 +724,14 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'FR3_cfo':
             self.animate_plot_mode=[[h10], [rxtd10_r, rxtd10_i], [rxfd00, rxfd10]]
             self.rx_chain = ['sync_time', 'channel_est']
-            self.control_piradio=True
             
             self.freq_hop_config['list'] = [10.0e9]
             cfo_ppm = -100
 
             if self.mode == 'client_master':
                 cfo = cfo_ppm * self.freq_hop_config['list'][0] / 1e6
-                self.mix_freq += cfo
-                self.do_mixer_settings=True
+                self.rfsoc_mix_freq += cfo
+                self.do_rfsoc_mixer_settings=True
 
             self.sig_gen_mode = 'fft'
             self.tx_sig_sim = 'orthogonal'
@@ -789,7 +745,6 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'stream_to_matlab':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
-            self.control_piradio = True
             self.freq_hop_config['list'] = [6.5e9]
      
             self.enable_matlab_stream = True
@@ -806,6 +761,4 @@ class Params_Class(Params_Class_Default):
 
             self.tx_sig_sim = 'same'
             self.sig_gen_mode = 'ZadoffChu'
-
-            # self.turtlebot_publish_list = ["aoa", "snr"]
 

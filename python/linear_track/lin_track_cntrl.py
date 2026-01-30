@@ -8,7 +8,6 @@ class Params_Class(object):
     def __init__(self):
         # parser = argparse.ArgumentParser()
         # parser.add_argument("--output_mode", type=str, default="dc", help="Type of the Raspberry Pi hat output to use")
-        # parser.add_argument("--lintrack_server_ip", type=str, default="0.0.0.0", help="TCP server IP")
         # parser.add_argument("--dis_per_rev", type=int, default=8, help="Distance on the linear track per stepper motor revolution")
         # parser.add_argument("--pulse_per_rev", type=int, default=400, help="Pulse needed on the logic for each revolution of the stepper motor")
         # parser.add_argument("--pulse_freq", type=float, default=1600, help="Pulse frequency of the logic circuit")
@@ -30,7 +29,6 @@ class Params_Class(object):
             self.position_file_path = os.path.join(os.getcwd(), 'position.txt')
             self.dis_coeff = 0.972
             self.overhead_time = 0.0018+0.0061+0.0001
-            self.lintrack_server_ip = '0.0.0.0'
             self.n_motors = 2
             
             self.dis_per_rev = 8

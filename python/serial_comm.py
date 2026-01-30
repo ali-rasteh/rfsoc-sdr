@@ -95,7 +95,7 @@ class Serial_Comm(General):
 
 
 class Serial_Comm_TurnTable(Serial_Comm):
-    def __init__(self, params):
+    def __init__(self, params, port='COM6', baudrate=115200, timeout=1, rotation_delay=0.0, **kwargs):
         """
         Initialize the connection to the Arduino.
 
@@ -104,12 +104,12 @@ class Serial_Comm_TurnTable(Serial_Comm):
         :param timeout: Read timeout in seconds (default: 1).
         """
         params = params.copy()
-        params.port = getattr(params, 'turntable_port', 'COM6')
-        params.baudrate = getattr(params, 'turntable_baudrate', 115200)
-        params.timeout = getattr(params, 'turntable_timeout', 1)
+        params.port = port
+        params.baudrate = baudrate
+        params.timeout = timeout
         super().__init__(params)
 
-        self.rotation_delay = getattr(params, 'rotation_delay', 0.0)
+        self.rotation_delay = rotation_delay
         self.position = 0.0
         self.print("Serial_Comm_TurnTable Client object created", thr=1)
 
