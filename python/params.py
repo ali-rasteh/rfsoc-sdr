@@ -207,9 +207,7 @@ class Params_Class_Default(object):
             # self.send_signal=False
             pass
         elif self.mode == 'client_slave':
-            # self.piradio_freq_sw_dly = 0.0
-            # self.piradio_gain_sw_dly = 0.0
-            # self.piradio_bias_sw_dly = 0.0
+            pass
 
 
         if self.rfsoc_mixer_mode=='digital' and self.rfsoc_mix_freq!=0:

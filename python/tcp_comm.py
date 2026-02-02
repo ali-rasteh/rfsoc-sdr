@@ -1,29 +1,31 @@
 from backend import *
 from backend import be_np as np, be_scp as scipy
-from sigcom_toolkit.general import General
+from sigcom_toolkit.general import General, GeneralConfig
+from dataclasses import dataclass, fields, replace
 
 
+
+@dataclass
+class TCPComConfig(GeneralConfig):
+    server_ip : str = '0.0.0.0'
+    TCP_port_Cmd : int = 8080
+    TCP_port_Data : int = 8081
+    tcp_localIP : str = '0.0.0.0'
+    tcp_bufferSize : int = 2**10
+    after_idle_sec : int = 1
+    interval_sec : int = 3
+    max_fails : int = 5
+    nbytes : int = 2
+    
+    invalidCommandMessage : str = "ERROR: Invalid command"
+    invalidNumberOfArgumentsMessage : str = "ERROR: Invalid number of arguments"
+    successMessage : str = "Successully executed"
+    droppedMessage : str = "Connection dropped?"
 
 
 class Tcp_Comm(General):
-    def __init__(self, params):
-        super().__init__(params)
-
-        self.server_ip = getattr(params, 'server_ip', '0.0.0.0')
-        self.TCP_port_Cmd = getattr(params, 'TCP_port_Cmd', 8080)
-        self.TCP_port_Data = getattr(params, 'TCP_port_Data', 8081)
-        self.tcp_localIP = getattr(params, 'tcp_localIP', '0.0.0.0')
-        self.tcp_bufferSize = getattr(params, 'tcp_bufferSize', 2**10)
-        self.after_idle_sec = 1
-        self.interval_sec = 3
-        self.max_fails = 5
-
-        self.nbytes = 2
-
-        self.invalidCommandMessage = "ERROR: Invalid command"
-        self.invalidNumberOfArgumentsMessage = "ERROR: Invalid number of arguments"
-        self.successMessage = "Successully executed"
-        self.droppedMessage = "Connection dropped?"
+    def __init__(self, config: TCPComConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.print("Tcp_Comm object init done", thr=5)
 
@@ -43,12 +45,12 @@ class Tcp_Comm(General):
         ## Command
         self.TCPServerSocketCmd = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)# Create a datagram socket
         self.TCPServerSocketCmd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketCmd.bind((self.tcp_localIP, self.TCP_port_Cmd)) # Bind to address and ip
+        self.TCPServerSocketCmd.bind((self.config.tcp_localIP, self.config.TCP_port_Cmd)) # Bind to address and ip
         
         ## Data
         self.TCPServerSocketData = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)         # Create a datagram socket
         self.TCPServerSocketData.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketData.bind((self.tcp_localIP, self.TCP_port_Data))                # Bind to address and ip
+        self.TCPServerSocketData.bind((self.config.tcp_localIP, self.config.TCP_port_Data))                # Bind to address and ip
 
         bufsize = self.TCPServerSocketData.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF) 
         # self.print ("Buffer size [Before]:%d" %bufsize, thr=2)
@@ -68,19 +70,19 @@ class Tcp_Comm(General):
             
             
             self.connectionData.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.after_idle_sec)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.interval_sec)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.max_fails)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.config.after_idle_sec)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.config.interval_sec)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.config.max_fails)
             
             self.connectionCMD.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.after_idle_sec)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.interval_sec)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.max_fails)            
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.config.after_idle_sec)
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.config.interval_sec)
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.config.max_fails)            
             
             try:
                 while True:
                     try:
-                        receivedCMD = self.connectionCMD.recv(self.tcp_bufferSize)
+                        receivedCMD = self.connectionCMD.recv(self.config.tcp_bufferSize)
                         if receivedCMD:
                             self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=5)
                             responseToCMDinBytes = call_back_func(receivedCMD)
@@ -98,35 +100,36 @@ class Tcp_Comm(General):
     def init_tcp_client(self):
         self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_control.connect((self.server_ip, self.TCP_port_Cmd))
+        self.radio_control.connect((self.config.server_ip, self.config.TCP_port_Cmd))
 
         self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_data.connect((self.server_ip, self.TCP_port_Data))
+        self.radio_data.connect((self.config.server_ip, self.config.TCP_port_Data))
 
         self.print("Client succesfully connected to the server", thr=1)
 
 
 
+@dataclass
+class TCPComRFSoCConfig(TCPComConfig):
+    fc : float = 6.0e9
+    beam_test : list = None
+    adc_bits : int = 14
+    dac_bits : int = 14
+    RFFE : str = None
+    n_frame_rd : int = 2
+    n_samples : int = 1024
+    n_tx_ant : int = 2
+    n_rx_ant : int = 2
+
+
 class Tcp_Comm_RFSoC(Tcp_Comm):
-    def __init__(self, params, ip_address=None):
-        params = params.copy()
-        params.server_ip = ip_address
-        super().__init__(params)
+    def __init__(self, config: TCPComRFSoCConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.obj_rfsoc = None
 
-        self.fc = params.fc
-        self.beam_test = params.beam_test
-        self.adc_bits = params.adc_bits
-        self.dac_bits = params.dac_bits
-        self.RFFE = params.RFFE
-        self.n_frame_rd = params.n_frame_rd
-        self.n_samples = params.n_samples
-        self.n_tx_ant = params.n_tx_ant
-        self.n_rx_ant = params.n_rx_ant
-
-        if self.RFFE=='sivers':
+        if self.config.RFFE=='sivers':
             self.tx_bb_gain = 0x3
             self.tx_bb_phase = 0x0
             self.tx_bb_iq_gain = 0x77
@@ -136,15 +139,15 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
             self.rx_gain_ctrl_bb3 = 0x33
             self.rx_gain_ctrl_bfrf = 0x7F
 
-        self.nread = self.n_rx_ant * self.n_frame_rd * self.n_samples
+        self.nread = self.config.n_rx_ant * self.config.n_frame_rd * self.config.n_samples
 
         self.print("Tcp_Comm_RFSoC object init done", thr=1)
 
-    def set_mode(self, mode):
+    def set_mode_sivers(self, mode):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
             self.radio_control.sendall(b"setModeSiver "+str.encode(str(mode)))
             data = self.radio_control.recv(1024)
-            self.print("Result of set_mode: {}".format(data),thr=3)
+            self.print("Result of set_mode_sivers: {}".format(data),thr=3)
             return data
         
     def set_frequency_sivers(self, fc):
@@ -153,40 +156,40 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         self.print("Result of set_frequency_sivers: {}".format(data),thr=3)
         return data
     
-    def set_frequency_mixer(self, f_mixer_dac, f_mixer_adc):
+    def set_frequency_mixer_rfsoc(self, f_mixer_dac, f_mixer_adc):
         self.radio_control.sendall(b"setFrequencyMixer "+str.encode(str(f_mixer_dac) + " ") + str.encode(str(f_mixer_adc)))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_frequency_mixer: {}".format(data),thr=3)
+        self.print("Result of set_frequency_mixer_rfsoc: {}".format(data),thr=3)
         return data
 
-    def set_tx_gain(self):
+    def set_tx_gain_sivers(self):
         self.radio_control.sendall(b"setGainTXSivers " + str.encode(str(int(self.tx_bb_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bb_phase)) + " ") \
                                                     + str.encode(str(int(self.tx_bb_iq_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bfrf_gain))))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_tx_gain: {}".format(data),thr=3)
+        self.print("Result of set_tx_gain_sivers: {}".format(data),thr=3)
         return data
 
-    def set_rx_gain(self):
+    def set_rx_gain_sivers(self):
         self.radio_control.sendall(b"setGainRXSivers " + str.encode(str(int(self.rx_gain_ctrl_bb1)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb2)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bfrf))))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_rx_gain: {}".format(data),thr=3)
+        self.print("Result of set_rx_gain_sivers: {}".format(data),thr=3)
         return data
 
-    def transmit_data_default(self):
+    def transmit_data_default_rfsoc(self):
         self.radio_control.sendall(b"transmitSamplesDefault")
         data = self.radio_control.recv(1024)
-        self.print("Result of transmit_data_default: {}".format(data),thr=3)
+        self.print("Result of transmit_data_default_rfsoc: {}".format(data),thr=3)
         return data
     
-    def transmit_data(self, txtd):
+    def transmit_data_rfsoc(self, txtd):
         txtd = txtd.copy()
         txtd = np.array(txtd).flatten()
-        txtd = txtd * (2 ** (self.dac_bits + 1) - 1)
+        txtd = txtd * (2 ** (self.config.dac_bits + 1) - 1)
         re = txtd.real.astype(np.int16)
         im = txtd.imag.astype(np.int16)
         txtd = np.concatenate((re, im))
@@ -194,26 +197,26 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         self.radio_control.sendall(b"transmitSamples")
         self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
-        self.print("Result of transmit_data: {}".format(data),thr=3)
+        self.print("Result of transmit_data_rfsoc: {}".format(data),thr=3)
         return data
 
-    def receive_data(self, mode='once'):
+    def receive_data_rfsoc(self, mode='once'):
         if mode=='once':
             nbeams = 1
             self.radio_control.sendall(b"receiveSamplesOnce")
         elif mode=='beams':
-            nbeams = len(self.beam_test)
+            nbeams = len(self.config.beam_test)
             self.radio_control.sendall(b"receiveSamples")
-        nbytes = nbeams * self.nbytes * self.nread * 2
+        nbytes = nbeams * self.config.nbytes * self.nread * 2
         buf = bytearray()
 
         while len(buf) < nbytes:
             data = self.radio_data.recv(nbytes)
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
-        data = data/(2 ** (self.adc_bits + 1) - 1)
+        data = data/(2 ** (self.config.adc_bits + 1) - 1)
         rxtd = data[:self.nread*nbeams] + 1j*data[self.nread*nbeams:]
-        rxtd = rxtd.reshape(nbeams, self.n_rx_ant, self.nread//self.n_rx_ant)
+        rxtd = rxtd.reshape(nbeams, self.config.n_rx_ant, self.nread//self.config.n_rx_ant)
         return rxtd
     
 
@@ -232,7 +235,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 self.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
                 iq_data = self.obj_rfsoc.recv_frame(n_frame=self.obj_rfsoc.n_frame_rd)
@@ -242,17 +245,17 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 self.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "transmitSamplesDefault":
             if len(clientMsgParsed) == 1:
                 self.obj_rfsoc.send_frame(txtd=self.obj_rfsoc.txtd)
                 responseToCMD = 'Success'
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "transmitSamples":
             if len(clientMsgParsed) == 1:
                 nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
-                nbytes = self.nbytes * nread * 2
+                nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 
                 while len(buf) < nbytes:
@@ -266,52 +269,52 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = 'Success'
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "getBeamIndexTXSivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexTX())
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setBeamIndexTXSivers":
             if len(clientMsgParsed) == 2:
                 beamIndex = int(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexTX(beamIndex)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage  
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage  
         elif clientMsgParsed[0] == "getBeamIndexRXSivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexRX())
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setBeamIndexRXSivers":
             if len(clientMsgParsed) == 2:
                 beamIndex = int(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexRX(beamIndex)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "getModeSiver":
             if len(clientMsgParsed) == 1:
                 responseToCMD = self.obj_rfsoc.siversControllerObj.getMode()
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setModeSiver":
             if len(clientMsgParsed) == 2:
                 mode = clientMsgParsed[1]
                 success,status = self.obj_rfsoc.siversControllerObj.setMode(mode)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status                  
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage    
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage    
         elif clientMsgParsed[0] == "getGainRXSivers":
             if len(clientMsgParsed) == 1:
                 rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf,agc_int_bfrf_gain_lvl, agc_int_bb3_gain_lvl = self.obj_rfsoc.siversControllerObj.getGainRX()
@@ -322,7 +325,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                 ', agc_int_bfrf_gain_lvl:' +   str(hex(agc_int_bfrf_gain_lvl)) +\
                                 ', agc_int_bb3_gain_lvl:' +   str(hex(agc_int_bb3_gain_lvl))
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setGainRXSivers":
             if len(clientMsgParsed) == 5:
                 rx_gain_ctrl_bb1 = int(clientMsgParsed[1])
@@ -332,11 +335,11 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 
                 success,status = self.obj_rfsoc.siversControllerObj.setGainRX(rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status                  
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage      
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage      
         elif clientMsgParsed[0] == "getGainTXSivers":
             if len(clientMsgParsed) == 1:
                 tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl = self.obj_rfsoc.siversControllerObj.getGainTX()
@@ -346,7 +349,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                 ', tx_bfrf_gain:' +   str(hex(tx_bfrf_gain)) + \
                                 ', tx_ctrl:' +   str(hex(tx_ctrl))
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setGainTXSivers":
             if len(clientMsgParsed) == 5:
                 self.print(clientMsgParsed[1], thr=2)
@@ -358,27 +361,27 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 
                 success,status = self.obj_rfsoc.siversControllerObj.setGainTX(tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status                  
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage   
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage   
         elif clientMsgParsed[0] == "getCarrierFrequencySivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getFrequency())
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage 
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setCarrierFrequencySivers":
             if len(clientMsgParsed) == 2:
                 self.print(clientMsgParsed[1], thr=2)
                 fc = float(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setFrequency(fc)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "setFrequencyMixer":
             if len(clientMsgParsed) == 3:
                 self.print(clientMsgParsed[1], thr=2)
@@ -388,26 +391,28 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 success = self.obj_rfsoc.set_dac_mixer(rfsoc_mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
                 success &= self.obj_rfsoc.set_adc_mixer(rfsoc_mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
                 
         #######################
         else:
-            responseToCMD = self.invalidCommandMessage
+            responseToCMD = self.config.invalidCommandMessage
         
         responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
         return responseToCMDInBytes
     
 
 
+@dataclass
+class TCPComLinTrackConfig(TCPComConfig):
+    pass
+
 class Tcp_Comm_LinTrack(Tcp_Comm):
-    def __init__(self, params, ip_address=None):
-        params = params.copy()
-        params.server_ip = ip_address
-        super().__init__(params)
+    def __init__(self, config: TCPComLinTrackConfig, **overrides):
+        super().__init__(config, **overrides)
         self.obj_lintrack = None
 
         self.print("Tcp_Comm_LinTrack object init done", thr=1)
@@ -445,46 +450,47 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
                 distance = float(clientMsgParsed[2])
                 success, status = self.obj_lintrack.displace(motor_id=motor_id, dis=distance)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
 
         elif clientMsgParsed[0] == "Return2home":
             if len(clientMsgParsed) == 2:
                 motor_id = int(clientMsgParsed[1])
                 success, status = self.obj_lintrack.return2home(motor_id=motor_id)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
 
         elif clientMsgParsed[0] == "Go2end":
             if len(clientMsgParsed) == 2:
                 motor_id = int(clientMsgParsed[1])
                 success, status = self.obj_lintrack.go2end(motor_id=motor_id)
                 if success == True:
-                    responseToCMD = self.successMessage 
+                    responseToCMD = self.config.successMessage 
                 else:
                     responseToCMD = status 
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
-
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         else:
-            responseToCMD = self.invalidCommandMessage
+            responseToCMD = self.config.invalidCommandMessage
         
         responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
         return responseToCMDInBytes
 
 
+@dataclass
+class TCPComControllerConfig(TCPComConfig):
+    pass
+
 class Tcp_Comm_Controller(Tcp_Comm):
-    def __init__(self, params, ip_address=None):
-        params = params.copy()
-        params.server_ip = ip_address
-        super().__init__(params)
+    def __init__(self, config: TCPComControllerConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.obj_rfsoc = None
         self.obj_piradio = None
@@ -515,7 +521,7 @@ class Tcp_Comm_Controller(Tcp_Comm):
     def transmit_data_rfsoc(self, txtd):
         txtd = txtd.copy()
         txtd = np.array(txtd).flatten()
-        txtd = txtd * (2 ** (self.dac_bits + 1) - 1)
+        txtd = txtd * (2 ** (self.config.dac_bits + 1) - 1)
         re = txtd.real.astype(np.int16)
         im = txtd.imag.astype(np.int16)
         txtd = np.concatenate((re, im))
@@ -534,32 +540,32 @@ class Tcp_Comm_Controller(Tcp_Comm):
             if len(clientMsgParsed) == 3:
                 freq = float(clientMsgParsed[1])
                 lo = clientMsgParsed[2]
-                result, response = self.obj_piradio.set_frequency(freq, lo=lo)
-                responseToCMD = self.successMessage
+                result, response = self.obj_piradio.set_frequency_piradio(freq, lo=lo)
+                responseToCMD = self.config.successMessage
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "setGainPiradio":
             if len(clientMsgParsed) == 4:
                 trx = clientMsgParsed[1]
                 chan = int(clientMsgParsed[2])
                 gain_db = float(clientMsgParsed[3])
-                result, response = self.obj_piradio.set_gain(trx=trx, chan=chan, gain_db=gain_db)
-                responseToCMD = self.successMessage
+                result, response = self.obj_piradio.set_gain_piradio(trx=trx, chan=chan, gain_db=gain_db)
+                responseToCMD = self.config.successMessage
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "setBiasPiradio":
             if len(clientMsgParsed) == 4:
                 chan = int(clientMsgParsed[1])
                 iq = clientMsgParsed[2]
                 bias_voltage = float(clientMsgParsed[3])
-                result, response = self.obj_piradio.set_bias(chan=chan, iq=iq, bias_voltage=bias_voltage)
-                responseToCMD = self.successMessage
+                result, response = self.obj_piradio.set_bias_piradio(chan=chan, iq=iq, bias_voltage=bias_voltage)
+                responseToCMD = self.config.successMessage
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         elif clientMsgParsed[0] == "transmitSamplesRfsoc":
             if len(clientMsgParsed) == 1:
                 nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
-                nbytes = self.nbytes * nread * 2
+                nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 
                 while len(buf) < nbytes:
@@ -573,23 +579,25 @@ class Tcp_Comm_Controller(Tcp_Comm):
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = 'Success'
             else:
-                responseToCMD = self.invalidNumberOfArgumentsMessage
+                responseToCMD = self.config.invalidNumberOfArgumentsMessage
         else:
-            responseToCMD = self.invalidCommandMessage
+            responseToCMD = self.config.invalidCommandMessage
         
         responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
         return responseToCMDInBytes
 
 
 
-class ssh_Com(General):
-    def __init__(self, params):
-        super().__init__(params)
+@dataclass
+class SshComConfig(GeneralConfig):
+    host_ip: str = '0.0.0.0'
+    port: int = 22
+    username: str = 'root'
+    password: str = ' root'
 
-        self.host_ip = getattr(params, 'host_ip', '0.0.0.0')
-        self.port = getattr(params, 'port', 22)
-        self.username = getattr(params, 'username', 'root')
-        self.password = getattr(params, 'password', ' root')
+class ssh_Com(General):
+    def __init__(self, config: SshComConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.print("ssh_Com object init done", thr=1)
 
@@ -601,7 +609,7 @@ class ssh_Com(General):
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             # Connect to the remote server
-            self.client.connect(hostname=self.host_ip, port=self.port, username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
+            self.client.connect(hostname=self.config.host_ip, port=self.config.port, username=self.config.username, password=self.config.password, look_for_keys=False, allow_agent=False)
 
         except paramiko.AuthenticationException:
             print("Authentication failed. Please check your credentials.")
@@ -648,12 +656,13 @@ class ssh_Com(General):
         return result
 
 
-
-
+@dataclass
+class ScpComConfig(SshComConfig):
+    pass
 
 class Scp_Com(ssh_Com):
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, config: ScpComConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.init_ssh_client()
         self.scp_clinet = SCPClient(self.client.get_transport())
@@ -698,18 +707,19 @@ class Scp_Com(ssh_Com):
         self.print("SCP Client object closed", thr=1)
 
 
+@dataclass
+class RestComConfig(GeneralConfig):
+    ip_address: str = '0.0.0.0'
+    port: int = 5000
+    protocol: str = 'http'
+    timeout: float = 5.0
 
 class REST_Com(General):
-    def __init__(self, params):
-        super().__init__(params)
-
-        self.host_ip = getattr(params, 'host_ip', '0.0.0.0')
-        self.port = getattr(params, 'port', 5000)
-        self.protocol = getattr(params, 'protocol', 'http')
-        self.timeout = getattr(params, 'timeout', 5)
+    def __init__(self, config: RestComConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self._s = requests.Session()
-        self.url_base = f"{self.protocol}://{self.host_ip}:{self.port}/"
+        self.url_base = f"{self.config.protocol}://{self.config.ip_address}:{self.config.port}/"
 
         self.print("REST_Com object init done", thr=1)
 
@@ -728,14 +738,12 @@ class REST_Com(General):
 
 
     def call_rest_api(self, url, params=None, verif_keyword=None):
-        # url = f"{self.protocol}://{self.host_ip}:{self.port}/{command}"
-
         try:
-            # response = requests.get(url, timeout=self.timeout)
+            # response = requests.get(url, timeout=self.config.timeout)
             if params is None:
-                response = self._s.get(url, timeout=self.timeout)
+                response = self._s.get(url, timeout=self.config.timeout)
             else:
-                response = self._s.get(url, params=params, timeout=self.timeout)
+                response = self._s.get(url, params=params, timeout=self.config.timeout)
 
             response.raise_for_status()  # Raise an HTTPError for bad responses
             self.print("Successfully called the REST API:{}".format(response.json()), thr=3)
@@ -762,19 +770,16 @@ class REST_Com(General):
         return result, response
     
 
+@dataclass
+class PiradioRestComConfig(RestComConfig):
+    freq_sw_dly: float = 1.0
+    gain_sw_dly: float = 1.0
+    bias_sw_dly: float = 1.0
+    freq_range: list = [6.0, 22.5]
 
 class REST_Com_Piradio(REST_Com):
-    def __init__(self, params, ip_address=None):
-        params = params.copy()
-        params.host_ip = ip_address
-        params.port = params.piradio_rest_port
-        params.protocol = getattr(params, 'piradio_rest_protocol', 'http')
-        super().__init__(params)
-
-        self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
-        self.gain_sw_dly = getattr(params, 'piradio_gain_sw_dly', 1.0)
-        self.bias_sw_dly = getattr(params, 'piradio_bias_sw_dly', 1.0)
-        self.freq_range = getattr(params, 'piradio_freq_range', [6.0, 22.5])
+    def __init__(self, config: RestComConfig, **overrides):
+        super().__init__(config, **overrides)
 
         self.print("REST_Com_Piradio object init done", thr=1)
 
@@ -783,7 +788,7 @@ class REST_Com_Piradio(REST_Com):
         self.print("Pi-Radio REST Comm Initialization done", thr=3)
 
 
-    def set_frequency(self, fc=6.0e9, lo='high', verif_keyword=None):
+    def set_frequency_piradio(self, fc=6.0e9, lo='high', verif_keyword=None):
         # command = f'high_lo?freq={fc}'
         url = f'{self.url_base}{lo}_lo'
         params = {'freq': fc}
@@ -793,14 +798,14 @@ class REST_Com_Piradio(REST_Com):
         else:
             result = (float(response['frequency']) == fc)
         if result:
-            time.sleep(self.freq_sw_dly)
+            time.sleep(self.config.freq_sw_dly)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
         return result, response
     
 
-    def set_gain(self, trx='tx', chan=0, gain_db=0, verif_keyword=None):
+    def set_gain_piradio(self, trx='tx', chan=0, gain_db=0, verif_keyword=None):
         chan = str(chan)
         url = self.url_base + 'gain'
         params={'trx': trx, 'chan': chan, 'v': gain_db}
@@ -810,14 +815,14 @@ class REST_Com_Piradio(REST_Com):
         else:
             result = (float(response[trx][chan]) == gain_db)
         if result:
-            time.sleep(self.gain_sw_dly)
+            time.sleep(self.config.gain_sw_dly)
             self.print(f"Gain set to {gain_db} dB", thr=3)
         else:
             self.print(f"Failed to set gain to {gain_db} dB", thr=0)
         return result, response
     
 
-    def set_bias(self, chan=0, iq='I', bias_voltage=0, verif_keyword=None):
+    def set_bias_piradio(self, chan=0, iq='I', bias_voltage=0, verif_keyword=None):
         chan = str(chan)
         url = self.url_base + "bias"
         params={'iq': iq, 'chan': chan, 'v': bias_voltage}
@@ -827,7 +832,7 @@ class REST_Com_Piradio(REST_Com):
         else:
             result = (float(response[chan][iq]) == bias_voltage)
         if result:
-            time.sleep(self.bias_sw_dly)
+            time.sleep(self.config.bias_sw_dly)
             self.print(f"Bias voltage set to {bias_voltage} V", thr=3)
         else:
             self.print(f"Failed to set bias voltage to {bias_voltage} V", thr=0)

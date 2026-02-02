@@ -1,13 +1,19 @@
+from dataclasses import dataclass, fields, replace
 from backend import *
 from backend import be_np as np, be_scp as scipy
-from sigcom_toolkit.general import General
+from sigcom_toolkit.general import General, GeneralConfig
 
 
 
+@dataclass
+class SerialComConfig(GeneralConfig):
+    port : str = 'COM6'
+    baudrate : int = 115200
+    timeout : float = 1.0
 
 
 class Serial_Comm(General):
-    def __init__(self, params):
+    def __init__(self, config: SerialComConfig, **overrides):
         """
         Initialize the connection to the Target.
 
@@ -16,13 +22,9 @@ class Serial_Comm(General):
         :param timeout: Read timeout in seconds (default: 1).
         """
 
-        super().__init__(params)
+        super().__init__(config, **overrides)
 
-        self.port = getattr(params, 'port', 'COM6')
-        self.baudrate = getattr(params, 'baudrate', 115200)
-        self.timeout = getattr(params, 'timeout', 1)
         self.client = None
-
         self.print("Serial_Comm Client object created", thr=1)
 
 
@@ -37,7 +39,7 @@ class Serial_Comm(General):
 
     def connect(self):
         """Establish a connection to the target."""
-        self.client = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
+        self.client = serial.Serial(port=self.config.port, baudrate=self.config.baudrate, timeout=self.config.timeout)
         time.sleep(1)  # Wait for target to reset
         if self.client.is_open:
             self.print("Client serial connected!", thr=1)
@@ -94,8 +96,12 @@ class Serial_Comm(General):
 
 
 
+@dataclass
+class SerialComTurnTableConfig(SerialComConfig):
+    rotation_delay : float = 0.0
+    
 class Serial_Comm_TurnTable(Serial_Comm):
-    def __init__(self, params, port='COM6', baudrate=115200, timeout=1, rotation_delay=0.0, **kwargs):
+    def __init__(self, config: SerialComTurnTableConfig, **overrides):
         """
         Initialize the connection to the Arduino.
 
@@ -103,13 +109,8 @@ class Serial_Comm_TurnTable(Serial_Comm):
         :param baudrate: The communication baud rate (default: 115200).
         :param timeout: Read timeout in seconds (default: 1).
         """
-        params = params.copy()
-        params.port = port
-        params.baudrate = baudrate
-        params.timeout = timeout
-        super().__init__(params)
+        super().__init__(config, **overrides)
 
-        self.rotation_delay = rotation_delay
         self.position = 0.0
         self.print("Serial_Comm_TurnTable Client object created", thr=1)
 
@@ -137,8 +138,8 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 time.sleep(0.1)
                 responses = self.read_lines(max_lines=1)
         self.position = position
-        if self.rotation_delay > 0.0:
-            time.sleep(self.rotation_delay)
+        if self.config.rotation_delay > 0.0:
+            time.sleep(self.config.rotation_delay)
         self.print(f"Turn-table moved to position: {position}", thr=3)
 
 
