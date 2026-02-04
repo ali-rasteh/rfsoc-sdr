@@ -1,8 +1,19 @@
-from backend import *
+import os
+import time
+from types import SimpleNamespace
+import atexit
+
+import board
+from adafruit_motorkit import MotorKit
+from adafruit_motor import stepper
+
 from tcp_comm import Tcp_Comm_LinTrack
 from general import General
 
 
+
+
+# TODO add config class and transfer all parameters
 
 class Params_Class(object):
     def __init__(self):

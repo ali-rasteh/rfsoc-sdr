@@ -13,39 +13,41 @@ Usage:
         python copy_files.py
 """
 
-from backend import *
-from backend import be_np as np, be_scp as scipy
+import os
+from dataclasses import dataclass
+
 from params import Params_Class
-from tcp_comm import Scp_Com
-from sigcom_toolkit.general import General
+from tcp_comm import Scp_Com, ScpComConfig
+from sigcom_toolkit.general import General, GeneralConfig
 
 
 
+@dataclass
+class FileUtilsConfig(GeneralConfig):
+    scp_connect: bool = False
+    host_ip: str = '192.168.3.100'
+    username: str = 'root'
+    password: str = 'root'
+    host_files_base_addr: str = '~/RFSoC_SDR/python/'
+    local_base_addr: str = './'
+    files_to_download: list = None
+    params_to_modify: dict = None
+    files_to_convert: dict = None
 
 
 class File_Utils(General):
 
-    def __init__(self, params, scp_connect=False):
+    def __init__(self, config: FileUtilsConfig, **overrides):
+        super().__init__(config, **overrides)
 
-        super().__init__(params)
-
-
-        if scp_connect:
-            params = params.copy()
-            params.username = getattr(params, 'host_username', 'root')
-            params.password = getattr(params, 'host_password', 'root')
-            # params.host_ip = getattr(params, 'host_ip', '192.168.3.100')
-            self.scp_client = Scp_Com(params)
+        if self.config.scp_connect:
+            self.scp_client = Scp_Com(config=ScpComConfig(
+                host_ip=self.config.host_ip,
+                username=self.config.username,
+                password=self.config.password
+            ))
         else:
             self.scp_client = None
-
-
-        self.host_files_base_addr = getattr(params, 'host_files_base_addr', '~/RFSoC_SDR/python/')
-        self.local_base_addr = getattr(params, 'local_base_addr', './')
-
-        self.files_to_download = getattr(params, 'files_to_download', None)
-        self.params_to_modify = getattr(params, 'params_to_modify', None)
-        self.files_to_convert = getattr(params, 'files_to_convert', None)
 
 
 
@@ -58,32 +60,6 @@ class File_Utils(General):
 
         # self.files_to_download_ = [os.path.join(host_files_base_addr, file) for file in files_to_download]
         self.files_to_download_ = self.files_to_download.copy()
-
-
-        # for pattern in self.files_to_download:
-        #     local_files = glob.glob(os.path.join(self.local_base_addr, pattern))
-        #     # file = file.split('/')[-1]
-        #     for file in local_files:
-        #         if os.path.exists(file):
-        #             os.remove(file)
-        #             self.print(f"Deleted: {file}", thr=1)
-
-        # for item in os.listdir(self.local_base_addr):
-        #     item_path = os.path.join(self.local_base_addr, item)
-        #     try:
-        #         # Remove directories
-        #         if os.path.isdir(item_path):
-        #             shutil.rmtree(item_path)
-        #         # Remove files
-        #         elif os.path.isfile(item_path):
-        #             continue
-        #             # os.remove(item_path)
-        #         elif os.path.islink(item_path):
-        #             os.unlink(item_path)
-        #         self.print(f"Deleted: {item_path}", thr=1)
-        #     except Exception as e:
-        #         self.print(f"Error deleting {item_path}: {e}", thr=0)
-
 
         # self.download_files(files_to_download_, local_base_addr)
         temp_dir = "/tmp/rfsoc/"
@@ -99,7 +75,6 @@ class File_Utils(General):
         return changed
 
 
-
     def modify_files(self, base_dir=None):
         if base_dir is None:
             base_dir = self.local_base_addr
@@ -110,9 +85,7 @@ class File_Utils(General):
                 result = self.modify_text_file(local_script_path, param, self.params_to_modify[file][param])
                 if result:
                     changed = True
-
         return changed
-
 
 
     def convert_files(self):
@@ -123,10 +96,7 @@ class File_Utils(General):
             if file_1 in self.changed_files:
                 self.convert_file_format(file_1, file_2)
                 changed = True
-
         return changed
-
-
 
 
 
@@ -136,7 +106,5 @@ if __name__ == "__main__":
     file_utils = File_Utils(params)
     file_utils.download_files()
     file_utils.modify_files()
-
-
 
 

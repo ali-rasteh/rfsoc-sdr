@@ -1,4 +1,6 @@
-from backend import *
+from math import ceil, log
+
+
 
 ### int -> list ###
 def int2intlist(x, intmax=256, num_ints=0):
@@ -28,3 +30,4 @@ def intlist2int(intlist):
 def fhex(data, size):
     """Return a sized hex-string of value"""
     return '0x{:0{}X}'.format(data,size)
+

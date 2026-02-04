@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
-class siversDocClass(object):
+class siversDocClass:
         
     chip_id_help = 'Chip Identification / Chip Identifcation Shadow\n(Big-endian, i.e MSB first).\nThis register doubles as Read-only (RO) Chip Idenfication and\nRead/Write (RW) Chip Identification Shadow register.\n\
     Chip Identification Shadow is always written when this register\nis written.\n'

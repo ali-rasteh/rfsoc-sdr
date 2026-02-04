@@ -1,7 +1,8 @@
-from backend import *
-from backend import be_np as np, be_scp as scipy
-
-
+import os
+import copy
+import platform
+import numpy as np
+from scipy import constants
 
 
 
@@ -70,12 +71,9 @@ class Params_Class_Default(object):
         self.piradio_rest_port = '5111'             # PIRadio REST port
         self.piradio_rest_protocol = 'http'         # PIRadio REST protocol
         # TODO make a piradio class and transfer these parameters to that class
-        self.piradio_freq_sw_dly_default = 0.1       # PIRadio frequency switch delay (default)
-        self.piradio_gain_sw_dly_default = 0.1      # PIRadio gain change delay (default)
-        self.piradio_bias_sw_dly_default = 0.1      # PIRadio LO Suppression change delay (default)
-        self.piradio_freq_sw_dly = self.piradio_freq_sw_dly_default              # PIRadio frequency switch delay
-        self.piradio_gain_sw_dly = self.piradio_gain_sw_dly_default              # PIRadio gain change delay
-        self.piradio_bias_sw_dly = self.piradio_bias_sw_dly_default            # PIRadio LO Suppression change delay
+        self.piradio_freq_sw_dly = 0.1              # PIRadio frequency switch delay
+        self.piradio_gain_sw_dly = 0.1              # PIRadio gain change delay
+        self.piradio_bias_sw_dly = 0.1            # PIRadio LO Suppression change delay
         self.piradio_freq_range = [6.0, 22.5e9]     # PIRadio frequency range
         self.stable_fc_piradio = 10e9          # Most stable carrier frequency for the PIRadio board
 
@@ -400,9 +398,6 @@ class Params_Class(Params_Class_Default):
 
         # self.set_piradio_opt_gains = True
         # self.set_piradio_opt_losupp = True
-        self.piradio_freq_sw_dly_default = 0.1
-        self.piradio_gain_sw_dly_default = 0.1
-        self.piradio_bias_sw_dly_default = 0.1
         self.ant_dx_m = 0.026               # Antenna spacing in meters
         self.n_rx_ch_eq=1
         self.wb_sc_range=[-260,260]

@@ -1,13 +1,25 @@
-from backend import *
+import os
+import time
+import pickle
+
+from pyftdi.ftdi import Ftdi
+from pyftdi.spi import SpiController
+
 from .siversCommon import *
 from .siversDefaults import *
+
+
 
 _THIS_DIR = os.path.dirname(__file__)
 
 
+@dataclass
+class SiversControllerConfig(GeneralConfig):
+    pass
+
 class siversController(siversDefaults):
-    def __init__(self, params):
-        siversDefaults.__init__(self, params)
+    def __init__(self, config: SiversControllerConfig, **overrides):
+        super().__init__(config, **overrides)
 
         allDevices=Ftdi.list_devices()
         Ftdi.show_devices()

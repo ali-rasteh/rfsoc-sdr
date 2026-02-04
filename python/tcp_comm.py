@@ -1,7 +1,15 @@
-from backend import *
-from backend import be_np as np, be_scp as scipy
+import os
+import time
+import json
+import paramiko
+import traceback
+from dataclasses import dataclass
+from scp import SCPClient
+import requests
+import socket
+import numpy as np
+
 from sigcom_toolkit.general import General, GeneralConfig
-from dataclasses import dataclass, fields, replace
 
 
 
@@ -200,7 +208,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         self.print("Result of transmit_data_rfsoc: {}".format(data),thr=3)
         return data
 
-    def receive_data_rfsoc(self, mode='once'):
+    def receive_data_rfsoc_one(self, mode='once'):
         if mode=='once':
             nbeams = 1
             self.radio_control.sendall(b"receiveSamplesOnce")
@@ -217,6 +225,18 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         data = data/(2 ** (self.config.adc_bits + 1) - 1)
         rxtd = data[:self.nread*nbeams] + 1j*data[self.nread*nbeams:]
         rxtd = rxtd.reshape(nbeams, self.config.n_rx_ant, self.nread//self.config.n_rx_ant)
+        return rxtd
+    
+    def receive_data_rfsoc(self, n_rd_rep=1, mode='once', verbose=False):
+        rxtd=[]
+        for i in range(n_rd_rep):
+            if verbose:
+                self.print("Reading iteration: {}".format(i+1), thr=0)
+            rxtd_ = self.receive_data_rfsoc_one(mode=mode)
+            rxtd_ = rxtd_.squeeze(axis=0)
+            rxtd.append(rxtd_)
+        rxtd = np.array(rxtd)
+        self.last_rxtd = rxtd.copy()
         return rxtd
     
 
@@ -768,7 +788,7 @@ class REST_Com(General):
             result = False
 
         return result, response
-    
+
 
 @dataclass
 class PiradioRestComConfig(RestComConfig):
@@ -776,7 +796,7 @@ class PiradioRestComConfig(RestComConfig):
     gain_sw_dly: float = 1.0
     bias_sw_dly: float = 1.0
     freq_range: list = [6.0, 22.5]
-
+5
 class REST_Com_Piradio(REST_Com):
     def __init__(self, config: RestComConfig, **overrides):
         super().__init__(config, **overrides)

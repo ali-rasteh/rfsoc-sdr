@@ -1,10 +1,15 @@
 from .siversDoc import siversDocClass as doc
-from sigcom_toolkit.general import General
+from sigcom_toolkit.general import General, GeneralConfig
+from dataclasses import dataclass
 
+
+@dataclass
+class SiversDefaultConfig(GeneralConfig):
+    pass
 
 class siversDefaults(General):
-    def __init__(self, params=None):
-        super().__init__(params)
+    def __init__(self, config: SiversDefaultConfig, **overrides):
+        super().__init__(config, **overrides)
        
         self.freq = 45e6               # XO reference frequency
         self.freq_alt = 40e6           # Alternative XO reference frequency
