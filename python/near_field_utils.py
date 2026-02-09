@@ -10,8 +10,9 @@ from sigcom_toolkit.signal_utils import Signal_Utils, AoAKalmanFilter, SignalUti
 
 try:
     from sigcom_toolkit.near_field import Sim as Near_Field_Model, RoomModel
-except:
-    pass
+except Exception:
+    Near_Field_Model = None
+    RoomModel = None
 
 
 
@@ -64,6 +65,8 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
 
 
     def create_near_field_model(self):
+        if Near_Field_Model is None or RoomModel is None:
+            raise ImportError("sigcom_toolkit.near_field is required for near-field modeling")
         self.RoomModel = RoomModel(xlim=self.nf_walls[0], ylim=self.nf_walls[1])
         # # Place a source
         # xsrc = np.array([2,4])

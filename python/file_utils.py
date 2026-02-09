@@ -53,21 +53,27 @@ class File_Utils(General):
 
     def download_files(self):
 
+        if self.scp_client is None:
+            raise RuntimeError("SCP client is not initialized. Set scp_connect=True in config.")
+
+        if not self.config.files_to_download:
+            raise ValueError("files_to_download is empty; nothing to download.")
+
         # Ensure the local directory exists
-        if not os.path.exists(self.local_base_addr):
-            self.print(f"Local directory {self.local_base_addr} does not exist. Creating it.", thr=0)
-            os.makedirs(self.local_base_addr, exist_ok=True)
+        if not os.path.exists(self.config.local_base_addr):
+            self.print(f"Local directory {self.config.local_base_addr} does not exist. Creating it.", thr=0)
+            os.makedirs(self.config.local_base_addr, exist_ok=True)
 
         # self.files_to_download_ = [os.path.join(host_files_base_addr, file) for file in files_to_download]
-        self.files_to_download_ = self.files_to_download.copy()
+        self.files_to_download_ = self.config.files_to_download.copy()
 
         # self.download_files(files_to_download_, local_base_addr)
         temp_dir = "/tmp/rfsoc/"
         os.makedirs(temp_dir, exist_ok=True)
-        self.scp_client.download_files_with_pattern(self.host_files_base_addr, self.files_to_download_, temp_dir)
+        self.scp_client.download_files_with_pattern(self.config.host_files_base_addr, self.files_to_download_, temp_dir)
         self.modify_files(base_dir=temp_dir)
-        self.changed_files = self.sync_directories(temp_dir, self.local_base_addr)
-        for file in self.configs_to_modify:
+        self.changed_files = self.sync_directories(temp_dir, self.config.local_base_addr)
+        for file in self.config.configs_to_modify:
             if file in self.changed_files:
                 self.changed_files.remove(file)
         changed = (len(self.changed_files) > 0)
@@ -77,12 +83,12 @@ class File_Utils(General):
 
     def modify_files(self, base_dir=None):
         if base_dir is None:
-            base_dir = self.local_base_addr
+            base_dir = self.config.local_base_addr
         changed = False
-        for file in self.configs_to_modify:
+        for file in self.config.configs_to_modify:
             local_script_path = os.path.join(base_dir, file)
-            for param in self.configs_to_modify[file]:
-                result = self.modify_text_file(local_script_path, param, self.configs_to_modify[file][param])
+            for param in self.config.configs_to_modify[file]:
+                result = self.modify_text_file(local_script_path, param, self.config.configs_to_modify[file][param])
                 if result:
                     changed = True
         return changed
@@ -90,9 +96,9 @@ class File_Utils(General):
 
     def convert_files(self):
         changed = False
-        for file in self.files_to_convert:
-            file_1 = os.path.join(self.local_base_addr, file)
-            file_2 = os.path.join(self.local_base_addr, self.files_to_convert[file])
+        for file in self.config.files_to_convert:
+            file_1 = os.path.join(self.config.local_base_addr, file)
+            file_2 = os.path.join(self.config.local_base_addr, self.config.files_to_convert[file])
             if file_1 in self.changed_files:
                 self.convert_file_format(file_1, file_2)
                 changed = True

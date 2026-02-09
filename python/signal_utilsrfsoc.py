@@ -1,8 +1,9 @@
 import os
 import time
 import itertools
-from pyparsing import Any
+import ast
 from dataclasses import dataclass
+from typing import Any
 from cycler import cycler
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -14,8 +15,17 @@ from scipy import constants
 
 
 from sigcom_toolkit.signal_utils import Signal_Utils, SignalUtilsConfig
-from tcp_comm import PiradioRestComConfig, TCPComRFSoCConfig, Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, REST_Com_Piradio, Tcp_Comm_Controller
-from serial_comm import Serial_Comm_TurnTable
+from tcp_comm import (
+    PiradioRestComConfig,
+    TCPComRFSoCConfig,
+    TCPComLinTrackConfig,
+    TCPComControllerConfig,
+    Tcp_Comm_RFSoC,
+    Tcp_Comm_LinTrack,
+    REST_Com_Piradio,
+    Tcp_Comm_Controller,
+)
+from serial_comm import SerialComTurnTableConfig, Serial_Comm_TurnTable
 
 
 
@@ -221,12 +231,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             item = self.network_topology[name]
             if item['type']=='rfsoc':
                 ip_address = item['ip']
-                self._network_objects[name] = Tcp_Comm_RFSoC(self.config, ip_address=ip_address)
+                rfsoc_config = TCPComRFSoCConfig().update_from_config(self.config)
+                self._network_objects[name] = Tcp_Comm_RFSoC(rfsoc_config, server_ip=ip_address)
                 self._network_objects[name].init_tcp_client()
 
             elif item['type']=='lintrack':
                 ip_address = item['ip']
-                self._network_objects[name] = Tcp_Comm_LinTrack(self.config, ip_address=ip_address)
+                lintrack_config = TCPComLinTrackConfig().update_from_config(self.config)
+                self._network_objects[name] = Tcp_Comm_LinTrack(lintrack_config, server_ip=ip_address)
                 self._network_objects[name].init_tcp_client()
                 # self._network_objects[name].return2home()
                 # self._network_objects[name].go2end()
@@ -235,7 +247,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 port = item.get('port', 'COM6')
                 baudrate = item.get('baudrate', 115200)
                 rotation_delay = item.get('rotation_delay', 0.0)
-                self._network_objects[name] = Serial_Comm_TurnTable(self.config, port=port, baudrate=baudrate, rotation_delay=rotation_delay)
+                turntable_config = SerialComTurnTableConfig(port=port, baudrate=baudrate, rotation_delay=rotation_delay)
+                self._network_objects[name] = Serial_Comm_TurnTable(turntable_config)
                 try:
                     self._network_objects[name].connect()
                     self._network_objects[name].move_to_position(0)
@@ -248,21 +261,28 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             elif item['type']=='piradio':
                 ip_address = item['ip']
-                self._network_objects[name] = REST_Com_Piradio(self.config, ip_address=ip_address)
+                piradio_config = PiradioRestComConfig().update_from_config(self.config)
+                self._network_objects[name] = REST_Com_Piradio(piradio_config, ip_address=ip_address)
                 self._network_objects[name].set_frequency_piradio(fc=self.config.fc)
             
             
             elif item['type']=='controller':
                 ip_address = item['ip']
-                self._network_objects[name] = Tcp_Comm_Controller(self.config, ip_address=ip_address)
+                controller_config = TCPComControllerConfig().update_from_config(self.config)
+                self._network_objects[name] = Tcp_Comm_Controller(controller_config, server_ip=ip_address)
                 self._network_objects[name].init_tcp_client()
                 self._network_objects[name].set_frequency_piradio(self.config.fc)
 
             if 'slave' in self.config.host_role:
-                self._network_objects['self'] = Tcp_Comm_Controller(self.config)
+                controller_config = TCPComControllerConfig().update_from_config(self.config)
+                self._network_objects['self'] = Tcp_Comm_Controller(controller_config)
                 self._network_objects['self'].init_tcp_server()
-                self._network_objects['self'].obj_piradio = self._network_objects['piradio']
-                self._network_objects['self'].obj_rfsoc = self._network_objects['rfsoc']
+                piradio_key = next((k for k, v in self.network_topology.items() if v['type'] == 'piradio'), None)
+                rfsoc_key = next((k for k, v in self.network_topology.items() if v['type'] == 'rfsoc'), None)
+                if not piradio_key or not rfsoc_key:
+                    raise ValueError("Slave mode requires at least one piradio and one rfsoc in network_topology")
+                self._network_objects['self'].obj_piradio = self._network_objects[piradio_key]
+                self._network_objects['self'].obj_rfsoc = self._network_objects[rfsoc_key]
                 self._network_objects['self'].run_tcp_server(self._network_objects['self'].parse_and_execute)
 
 
@@ -326,7 +346,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_base_s *= self.db_to_lin(self.config.sig_gain_db, mode='mag')
             txtd_base.append(txtd_base_s)
 
-            self.sig_pow_dbm = self.lin_to_db(0.5 * 1000, mode='pow') + self.config.sig_gain_db
+            self.config.sig_pow_dbm = self.lin_to_db(0.5 * 1000, mode='pow') + self.config.sig_gain_db
             bw = (nsc/self.config.nfft_tx) * self.config.fs_tx
             self.config.sig_psd_dbm = self.config.sig_pow_dbm - self.lin_to_db(bw, mode='pow')
             self.config.sig_psd_dbm_sc = self.config.sig_pow_dbm - self.lin_to_db(nsc, mode='pow')
@@ -349,6 +369,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         txtd_base = np.array(txtd_base)
 
         if self.config.tx_sig_sim == 'shifted':
+            if self.config.n_tx_ant < 2:
+                raise ValueError("tx_sig_sim='shifted' requires at least two TX antennas")
             txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(384), axis=-1)
 
         if self.config.rfsoc_mixer_mode=='digital' and self.config.mix_freq_dac!=0:
@@ -364,7 +386,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_base = self.beam_form(txtd_base)
             txtd = self.beam_form(txtd)
 
-        self.print(f"Dot product of transmitted signals: {np.abs(np.vdot(txtd_base[1], txtd_base[0]))}", thr=4)
+        if self.config.n_tx_ant > 1:
+            self.print(f"Dot product of transmitted signals: {np.abs(np.vdot(txtd_base[1], txtd_base[0]))}", thr=4)
         # self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
         self.txtd_base, self.txtd = txtd_base, txtd
@@ -401,7 +424,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
     def process_sys_response(self):
         self.sys_response = np.load(self.config.sys_response_path)['h_est_full_avg']
-        self.sys_response /= np.max(np.abs(self.config.sys_response))
+        self.sys_response /= np.max(np.abs(self.sys_response))
 
 
     def compute_sys_response(self):
@@ -617,7 +640,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         tx_gain_dB_list = np.arange(min_tx_gain_dB, max_tx_gain_dB+gain_step_dB, gain_step_dB)
         rx_gain_dB_list = np.arange(min_rx_gain_dB, max_rx_gain_dB+gain_step_dB, gain_step_dB)
 
-        freq_list = [self.config.stable_fc_piradio]
+        freq_list = [client_piradio_rx.config.stable_fc_piradio]
         for frequency in freq_list:
             self.print("Finding gains for frequency: {} GHz".format(frequency), thr=1)
             for client in [client_piradio_rx, client_piradio_tx]:
@@ -645,8 +668,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.print("Setting RX gain to {} dB".format(rx_gain_dB), thr=1)
                     client_piradio_rx.set_gain_piradio(trx='rx', chan=0, gain_db=rx_gain_dB)
                     client_piradio_rx.set_gain_piradio(trx='rx', chan=1, gain_db=rx_gain_dB)
-                    if client_piradio_rx.gain_sw_dly == 0:
-                        time.sleep(2*self.config.piradio_gain_sw_dly_default)
+                    if client_piradio_rx.config.gain_sw_dly == 0:
+                        time.sleep(2*client_piradio_rx.config.piradio_gain_sw_dly_default)
 
                     rxtd = client_rfsoc_rx.receive_data_rfsoc(mode='once')
                     snr = self.calculate_snr(sig_td=rxtd[0,:,:self.config.n_samples_trx], sig_sc_range=self.config.sc_range)
@@ -691,7 +714,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             n = 4*int(np.round(self.config.fs_rx/self.config.f_max))
             self.plot_signal(x=self.config.t_rx[:n], sigs=rxtd[plt_frm_id, ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=4)
 
-        if self.rfsoc_mixer_mode == 'digital' and self.mix_freq_adc!=0:
+        if self.config.rfsoc_mixer_mode == 'digital' and self.config.mix_freq_adc!=0:
             rxtd_base = np.zeros_like(rxtd)
             for ant_id in range(self.config.n_rx_ant):
                 for frm_id in range(n_rd_rep):
@@ -699,7 +722,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         else:
             rxtd_base = rxtd.copy()
 
-        if 'filter' in self.rx_chain:
+        if 'filter' in self.config.rx_chain:
             for ant_id in range(self.config.n_rx_ant):
                 for frm_id in range(n_rd_rep):
                     cf = (self.config.filter_bw_range[0]+self.config.filter_bw_range[1])/2
@@ -783,7 +806,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     h.append(h_est_full)
                 h = np.array(h)
                 h = h.transpose(3,1,2,0)
-                g = self.sys_response.copy()
+                g = self.sys_response.copy() if self.sys_response is not None else None
                 if g is not None:
                     g = g.transpose(2,0,1)
                 ndly = 5000
@@ -881,6 +904,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         measurement = {}
         save_id = 1
         phys_config = None
+        phys_config_id = 0
         angle_id = 0
         freq_id = 0
 
@@ -890,10 +914,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             action = spec_list[1]
             rng = spec_list[2]
 
-            if len(spec_list)<=3:
+            if len(spec_list) <= 3:
                 param = None
             else:
-                param = spec_list[3:]
+                param = [p for p in spec_list[3:] if p != ""]
 
             try:
                 rng = eval(rng)
@@ -912,7 +936,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         rng = np.linspace(start, stop, int(count))
 
             print(target, action, rng, param)
-            return (action, rng, param)
+            return (target, action, rng, param)
 
         loop_list = [parse_action(item) for item in self.config.action_loop]
         targets = [item[0] for item in loop_list]
@@ -934,16 +958,19 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             # process only the actions whose value changed
             for i in changed_idxs:
-                targets = targets[i]
+                target_spec = targets[i]
                 action = actions[i]
                 value = values[i]
                 param = params[i]
 
-                targets = eval(targets)
+                if isinstance(target_spec, str) and target_spec.strip().startswith(("[", "(")):
+                    targets_list = ast.literal_eval(target_spec)
+                else:
+                    targets_list = [target_spec]
+                if not isinstance(targets_list, list):
+                    targets_list = [targets_list]
                 target_objects = []
-                if type(targets) is not list:
-                    targets = [targets]
-                for target in targets:
+                for target in targets_list:
                     target_object = self.network_objects[target] if target in self.network_objects else None
                     if target_object is None and not target in ['self']:
                         raise ValueError("Invalid target object: {}".format(target))
@@ -951,11 +978,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
                 if action == 'change_phys_config':
-                    if phys_config is not None:
-                        phys_config_id = 0    
+                    if not self.config.measurement_configs:
+                        raise ValueError("measurement_configs is empty; cannot change physical configuration")
                     phys_config = self.config.measurement_configs[phys_config_id]
                     self.print(f'Please change the physical configuration to: {phys_config}', thr=0)
-                    phys_config_id += 1
+                    phys_config_id = (phys_config_id + 1) % len(self.config.measurement_configs)
                 
                 if action == 'change_tx_rx_distance':
                     tx_rx_distance = input('Please enter the TX to RX distance in meters (empty for default): ')
@@ -968,7 +995,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 if action == 'capture':
                     client_rfsoc = target_objects[0]
-                    process_signal = (param[0] == 'process') if len(param)>0 else False
+                    process_signal = (param and param[0] == 'process')
 
                     rxtd_save=[]
                     h_est_full_save=[]
@@ -990,7 +1017,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                             rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode='once')
 
                             # to handle the dimenstion needed for read repeat
-                            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(self.txtd_base, rxtd[i])
+                            rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
+                            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(self.txtd_base, rxtd_frame)
 
                             rxtd_save.append(rxtd_base)
                             
@@ -1015,6 +1043,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 if action == 'save':
                     # self.print("Starting to save signals for configuration: {}".format(phys_config), thr=0)
+                    if not param or len(param) < 2:
+                        raise ValueError("save action requires at least two params: save_list and save_prefix")
                     save_list = eval(param[0])  # e.g., ['signal', 'channel']
 
                     save_prefix = param[1]
@@ -1093,14 +1123,20 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if len(target_objects)>1:
                         client_piradio_tx = target_objects[1]
                         clients.append(client_piradio_tx)
+                    frequency = None
                     try:
                         frequency = float(param[0])
                         for client in clients:
                             client.hop_freq(freq=frequency)
-                    except:
+                    except Exception:
                         for client in clients:
                             client.hop_freq()
-                    self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
+                        if clients:
+                            frequency = clients[0].fc
+                    if frequency is None:
+                        self.print("Saving signals after frequency hop", thr=0)
+                    else:
+                        self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
 
                 if action == 'set_gain_db_tx':
                     client_piradio = target_objects[0]

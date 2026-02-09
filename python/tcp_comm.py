@@ -38,12 +38,20 @@ class Tcp_Comm(General):
         self.print("Tcp_Comm object init done", thr=5)
 
     def close(self):
-        self.radio_control.close()
-        self.radio_data.close()
+        for attr_name in ("radio_control", "radio_data"):
+            sock = getattr(self, attr_name, None)
+            if sock is not None:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
         self.print("Client object closed", thr=1)
 
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            pass
         self.print("Client object deleted", thr=1)
 
     def init_tcp_server(self):
