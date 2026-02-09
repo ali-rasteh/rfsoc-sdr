@@ -266,7 +266,7 @@ class Sounder(SounderConfig):
             self.update_rfsoc_files()
 
         self.signals_inst = Signal_Utils_Rfsoc(self.config)
-        (self.txtd_base, self.txtd) = self.signals_inst.gen_tx_signal()
+        self.signals_inst.gen_tx_signal()
 
 
     def update_rfsoc_files(self):
@@ -297,9 +297,9 @@ class Sounder(SounderConfig):
         from rfsoc import RFSoC
         
         rfsoc_inst = RFSoC(self.config)
-        rfsoc_inst.txtd = self.txtd
+        rfsoc_inst.txtd = self.signals_inst.txtd
         if self.config.transmit_signal:
-            rfsoc_inst.send_frame(self.txtd)
+            rfsoc_inst.send_frame(self.signals_inst.txtd)
 
         # Receiving a test frame to verify connection
         rfsoc_inst.recv_frame_one(n_frame=self.config.n_frame_rd)
@@ -314,12 +314,12 @@ class Sounder(SounderConfig):
         self.config.show_saved_sigs=len(self.config.saved_sig_plot)>0
         if 'client' in self.config.host_role and not self.config.show_saved_sigs:
             if 'channel' in self.config.save_list or 'signal' in self.config.save_list:
-                self.signals_inst.save_signal_channel(self.txtd_base, save_list=self.config.save_list)
+                self.signals_inst.save_signal_channel(self.signals_inst.txtd_base, save_list=self.config.save_list)
             self.signals_inst.operator()
 
         if 'client' in self.config.host_role and not 'slave' in self.config.host_role:
-            animate_plot_inst = Animate_Plot(self.config, self.signals_inst, self.txtd_base)
-            animate_plot_inst.init_objects(txtd_base=self.txtd_base)
+            animate_plot_inst = Animate_Plot(self.config, self.signals_inst, self.signals_inst.txtd_base)
+            animate_plot_inst.init_objects(txtd_base=self.signals_inst.txtd_base)
             animate_plot_inst.init_plots()
 
 

@@ -15,6 +15,7 @@ from scipy import constants
 
 
 from sigcom_toolkit.signal_utils import Signal_Utils, SignalUtilsConfig
+from sigcom_toolkit.general import GeneralConfig
 from tcp_comm import (
     PiradioRestComConfig,
     TCPComRFSoCConfig,
@@ -218,7 +219,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return piradio_rx_list
 
 
-    def init_objects(self, txtd_base=None):
+    def init_objects(self):
 
         # TODO Check all these
         # client_rfsoc
@@ -308,9 +309,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 client_rfsoc.set_frequency_sivers(self.config.fc)
                 client_rfsoc.set_mode_sivers('RXen0_TXen1')
                 client_rfsoc.set_tx_gain_sivers()
-
-        self.txtd_base = txtd_base
-
 
         try:
             from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
@@ -1173,8 +1171,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     client_rfsoc = target_objects[0]
                     region = self.generate_random_regions(shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size])
                     self.config.wb_sc_range = [region[0][0].start-(self.config.nfft_tx >> 1), region[0][0].stop-1-(self.config.nfft_tx >> 1)]
-                    (self.txtd_base, self.txtd) = self.gen_tx_signal()
-                    client_rfsoc.transmit_data_rfsoc(self.txtd)
+                    (txtd_base, txtd) = self.gen_tx_signal()
+                    client_rfsoc.transmit_data_rfsoc(txtd)
     
 
 
@@ -1187,10 +1185,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         matlab_stream_port = 50007             # Port for the MATLAB data transfer
 
         try:
-            #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #s.connect((matlab_stream_ip, matlab_stream_port))
-            #print("Connected to MATLAB stream at {}:{}".format(matlab_stream_ip, matlab_stream_port))
-            #s.close()
             buf = io.BytesIO()
             scipy.io.savemat(buf, {'rxtd': rxtd}, do_compression=True)
             scipy.io.savemat(buf, {'freq': freq}, do_compression=True)
@@ -1212,16 +1206,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
 
-
+@dataclass
+class AnimationPlotConfig(GeneralConfig):
+    animate_plot_mode: list = []
+    plot_configs: dict = None
 
 class Animate_Plot(Signal_Utils_Rfsoc):
-    def __init__(self, config, signals_obj, txtd_base):
-        super().__init__(config)
+    def __init__(self, config: AnimationPlotConfig, signals_obj: Signal_Utils_Rfsoc, **overrides: Any):
+        super().__init__(config, **overrides)
 
-        self.animate_plot_mode = getattr(config, 'animate_plot_mode', [])
-        self.plot_configs = getattr(config, 'plot_configs', None)
         self.signals_obj = signals_obj
-        self.txtd_base = txtd_base
+        self.signals_config = signals_obj.config
+        self.txtd_base = self.signals_obj.txtd_base
 
         self.plot_colors = ['#57068C', 'orange', 'green', 'red', 'blue', 'brown', 'pink', 'gray', 'olive', 'cyan']
         # set matplotlib axes color cycle so subsequent ax.plot calls use our colors by default
@@ -1231,21 +1227,20 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             # fail silently if matplotlib/cycler are not available at init time
             pass
         self.mag_filter_list = {"process_list": ['fft'], "signal_name": ['h', 'H']}
-        self.untoched_plot_list = {"process_list": ['IQ'], "signal_name": ['aoa_gauge', 'nf_loc']}
-        self.plot_colors = ['purple', 'orange', 'green', 'red', 'blue', 'brown', 'pink', 'gray', 'olive', 'cyan']
+        self.untouched_plot_list = {"process_list": ['IQ'], "signal_name": ['aoa_gauge', 'nf_loc']}
 
         self.anim_paused = False
         self.read_id = -1
-        self.n_plots_row = len(self.animate_plot_mode)
-        self.n_plots_col = len(self.freq_hop_list)
+        self.config.n_plots_row = len(self.config.animate_plot_mode)
+        self.config.n_plots_col = len(self.signals_config.freq_hop_list)
 
-        self.plt_n_samples_rx = self.n_samples_trx
-        self.n_samp_ch_sp = self.n_samples_ch // 2
+        self.config.plt_n_samples_rx = self.signals_config.n_samples_trx
+        self.config.n_samp_ch_sp = self.signals_config.n_samples_ch // 2
 
         self.start_time = time.time()
 
 
-    def process_signals_for_plot(self, txtd_base, rxtd_base, h_est_full, H_est_full, sparse_est_params):
+    def process_signals_for_plot(self, rxtd_base, h_est_full, H_est_full, sparse_est_params):
 
         '''
         Instructions to build signals for plots:
@@ -1271,7 +1266,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         supported_operations = ['+', '-', '*', '/']
         signals=[]
-        for plot in self.animate_plot_mode:
+        for plot in self.config.animate_plot_mode:
             plot_signals = []
             rx_ids = []
             tx_ids = []
@@ -1319,30 +1314,30 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
                 if signal_name == 'txtd':
-                    x = self.t_tx[:self.n_samples_tx]
-                    sig = txtd_base[tx_id]
+                    x = self.signals_config.t_tx[:self.signals_config.n_samples_tx]
+                    sig = self.txtd_base[tx_id]
                     title += "TX"
                     if 'fft' in signal_process_list:
-                        x = self.freq_tx
+                        x = self.signals_config.freq_tx
                         xlabel_mode = 'freq'
                         title += "-FD"
                     else:
-                        x = self.t_tx*1e9
+                        x = self.signals_config.t_tx*1e9
                         xlabel_mode = 'time'
                         title += "-TD"
                 elif signal_name == 'rxtd':
                     sig = rxtd_base[rx_id]
                     title += "RX"
                     if 'fft' in signal_process_list:
-                        x = self.freq_trx
+                        x = self.signals_config.freq_trx
                         xlabel_mode = 'freq'
                         title += "-FD"
                     else:
-                        x = self.t_rx[:self.plt_n_samples_rx]*1e9
+                        x = self.signals_config.t_rx[:self.config.plt_n_samples_rx]*1e9
                         xlabel_mode = 'time'
                         title += "-TD"
                 elif signal_name == 'h':
-                    x = self.t_trx[:self.n_samples_ch]*1e9
+                    x = self.signals_config.t_trx[:self.signals_config.n_samples_ch]*1e9
                     sig = h_est_full[rx_id, tx_id]
                     title += "Channel"
                     if 'fft' in signal_process_list:
@@ -1352,7 +1347,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         xlabel_mode = 'time'
                         title += "-TD"
                 elif signal_name == 'H':
-                    x = self.freq_trx[(self.sc_range_ch[0]+self.n_samples_trx//2):(self.sc_range_ch[1]+self.n_samples_trx//2+1)]
+                    x = self.signals_config.freq_trx[(self.signals_config.sc_range_ch[0]+self.signals_config.n_samples_trx//2):(self.signals_config.sc_range_ch[1]+self.signals_config.n_samples_trx//2+1)]
                     sig = H_est_full[rx_id, tx_id]
                     title += "Channel-FD"
                     if 'ifft' in signal_process_list:
@@ -1413,8 +1408,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label_final += operation + label
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
-                    # if "phase" in signal_process_list:
-                    #     sig_final = np.unwrap(sig_final)
                     plot_signals.append({'signal_name': signal_name, 'trx_id':[rx_id, tx_id], 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
                     sig_final = None
                     label_final = None
@@ -1465,23 +1458,24 @@ class Animate_Plot(Signal_Utils_Rfsoc):
     
 
 
-    def receive_data_anim(self, txtd_base):
+    def receive_data_anim(self):
 
         self.read_id+=1
         sigs_save = None
         channels_save = None
-        if 'channel' in self.saved_sig_plot:
-            channels_save = np.load(self.channel_save_path)
-        if 'signal' in self.saved_sig_plot:
-            sigs_save = np.load(self.sig_save_path)
+        if 'channel' in self.signals_config.saved_sig_plot:
+            channels_save = np.load(self.signals_config.channel_save_path)
+        if 'signal' in self.signals_config.saved_sig_plot:
+            sigs_save = np.load(self.signals_config.sig_save_path)
 
         if sigs_save is None:
             if channels_save is None:
-                rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.n_rd_rep, mode='once')
+                rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
             else:
                 rxtd = None
+            txtd_base = self.txtd_base
         else:
-            rxtd = sigs_save['rxtd_{:.1f}'.format(self.signals_obj.fc/1e9)][self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
+            rxtd = sigs_save['rxtd_{:.1f}'.format(self.signals_obj.fc/1e9)][self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
             txtd_base = sigs_save['txtd'][0]
 
         if channels_save is None:
@@ -1495,23 +1489,23 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         break
                     else:
                         self.print("Re-estimating channel due to zero paths", thr=0)
-                        rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.n_rd_rep, mode='once')
+                        rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
                 else:
                     break
         else:
             h_est_full = channels_save['h_est_full_{:.1f}'.format(self.signals_obj.fc/1e9)]
 
-            h = h_est_full.copy()[self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
+            h = h_est_full.copy()[self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
             h = h.transpose(3,1,2,0)
             g = None
             ndly = 5000
-            sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=ndly, drange=self.sparse_ch_samp_range, cv=True, n_ignore=self.sparse_ch_n_ignore)
+            sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.signals_config.sc_range_ch, npaths=1, nframe_avg=1, ndly=ndly, drange=self.signals_config.sparse_ch_samp_range, cv=True, n_ignore=self.signals_config.sparse_ch_n_ignore)
 
             h_est_full = h_est_full[self.read_id]
             H_est_full = fft(h_est_full, axis=-1)
 
 
-        signals = self.process_signals_for_plot(txtd_base, rxtd_base, h_est_full, H_est_full, sparse_est_params)
+        signals = self.process_signals_for_plot(rxtd_base, h_est_full, H_est_full, sparse_est_params)
         
         return signals, h_est_full, sparse_est_params
 
@@ -1531,14 +1525,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         if self.anim_paused:
             return self.line
 
-        signals, h_est_full, sparse_est_params = self.receive_data_anim(self.txtd_base)
-
-        for client in [self.client_piradio, self.client_controller]:
-            client.hop_freq()
+        signals, h_est_full, sparse_est_params = self.receive_data_anim()
 
         line_id = 0
-        for i in range(self.n_plots_row):
-            j = self.signals_obj.fc_id - 1
+        for i in range(self.config.n_plots_row):
+            j = self.signals_config.fc_id - 1
 
             for signal in signals[i]['plot_signals']:
 
@@ -1558,10 +1549,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
                     line_id+=1
                 elif signal_name == 'aoa_gauge':
-                    self.signals_obj.publish_aoa_turtlebot(signal_data)
-                    snr = self.calculate_snr(sig_td=self.signals_obj.last_rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
-                    snr_dB = self.lin_to_db(snr, mode='pow')
-                    self.signals_obj.publish_snr_turtlebot(snr_dB)
                     self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
                     self.ax[i][j].set_xlim(0, 1)
                     self.ax[i][j].set_ylim(0.5, 1)
@@ -1573,17 +1560,17 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     peaks = peaks[rx_id, tx_id]
                     
                     # Plot the raw response
-                    dly = np.arange(self.n_samples_ch)
-                    dly = dly - self.n_samples_ch*(dly > self.n_samples_ch/2)
-                    dly = dly / self.fs_trx *1e9
-                    chan_pow = self.lin_to_db(np.abs(h_tr), mode='mag')
+                    dly = np.arange(self.signals_config.n_samples_ch)
+                    dly = dly - self.signals_config.n_samples_ch*(dly > self.signals_config.n_samples_ch/2)
+                    dly = dly / self.signals_config.fs_trx *1e9
+                    chan_pow = self.signals_obj.lin_to_db(np.abs(h_tr), mode='mag')
 
                     # Roll the response and shift the response
-                    rots = self.n_samp_ch_sp//4
+                    rots = self.signals_config.n_samp_ch_sp//4
                     yshift = np.percentile(chan_pow, 25)
                     chan_powr = np.roll(chan_pow, rots) - yshift
                     dlyr = np.roll(dly, rots)
-                    self.line[line_id][j].set_data(dlyr[:self.n_samp_ch_sp], chan_powr[:self.n_samp_ch_sp])
+                    self.line[line_id][j].set_data(dlyr[:self.signals_config.n_samp_ch_sp], chan_powr[:self.signals_config.n_samp_ch_sp])
                     line_id+=1
 
                     # Compute the axes
@@ -1592,14 +1579,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
                     # Plot the locations of the detected peaks
                     peaks_ = np.abs(peaks)**2
-                    peaks_  = self.lin_to_db(peaks_, mode='pow')-yshift
+                    peaks_  = self.signals_obj.lin_to_db(peaks_, mode='pow')-yshift
                     dly_est = dly_est*1e9
-                    dly_est = dly_est[dly_est<=np.max(dlyr[:self.n_samp_ch_sp])]
+                    dly_est = dly_est[dly_est<=np.max(dlyr[:self.signals_config.n_samp_ch_sp])]
                     self.line[line_id][j].set_data(dly_est, peaks_)
                     line_id+=1
-                    # for dly, peak in zip(dly_est, peaks_):
-                    #     # self.line[line_id][j].set_ydata([dly, peak])
-                    #     self.line[line_id][j].set_segments([[[dly, ymin], [dly, peak]]])
                     self.line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks_)])
                     line_id+=1
                     self.ax[i][j].set_ylim([ymin, ymax])
@@ -1619,7 +1603,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 y_max = np.max(sig) + 0.1*(np.max(sig)-y_min)
                 self.ax[i][j].set_ylim(y_min, y_max)
 
-            elif not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
+            elif not (signal_name in self.untouched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untouched_plot_list['process_list'])):
                 try:
                     self.ax[i][j].relim()
                     self.ax[i][j].autoscale_view()
@@ -1634,14 +1618,14 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
     def init_plots(self):
-        if self.plot_level<0:
+        if self.config.plot_level<0:
             return
         
-        signals, _, _ = self.receive_data_anim(self.txtd_base)
+        signals, _, _ = self.receive_data_anim()
         
         # Set up the figure and plot
-        self.line = [[None for j in range(self.n_plots_col)] for i in range(3*self.n_plots_row)]
-        self.fig, self.ax = plt.subplots(self.n_plots_row, self.n_plots_col)
+        self.line = [[None for j in range(self.config.n_plots_col)] for i in range(3*self.config.n_plots_row)]
+        self.fig, self.ax = plt.subplots(self.config.n_plots_row, self.config.n_plots_col)
         if type(self.ax) is not np.ndarray:
             self.ax = np.array([self.ax])
         if len(self.ax.shape)<2:
@@ -1649,9 +1633,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         self.fig.canvas.mpl_connect('key_press_event', self.toggle_pause)
 
 
-        for j in range(self.n_plots_col):
+        for j in range(self.config.n_plots_col):
             line_id = 0
-            for i in range(self.n_plots_row):
+            for i in range(self.config.n_plots_row):
                 for signal in signals[i]['plot_signals']:
 
                     signal_name = signal['signal_name']
@@ -1679,8 +1663,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         line_id+=2
 
                     elif signal_name=='aoa_gauge':
-                        self.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
-                        self.gauge_update_needle(self.ax[i][j], 0, min_val=-90, max_val=90)
+                        self.signals_obj.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
+                        self.signals_obj.gauge_update_needle(self.ax[i][j], 0, min_val=-90, max_val=90)
                         self.ax[i][j].set_xlim(0, 1)
                         self.ax[i][j].set_ylim(0.5, 1)
                         self.ax[i][j].axis('off')
@@ -1689,10 +1673,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         self.ax[i][j] = self.signals_obj.nf_model.plot_results(self.ax[i][j], RoomModel=self.signals_obj.RoomModel, plot_type='init_est')
                         self.ax[i][j].set_yticks([])
 
-                        self.ax[i][j].set_xlim(self.nf_region[0])
-                        self.ax[i][j].set_ylim(self.nf_region[1])
-                        self.ax[i][j].set_xticks(np.arange(self.nf_region[0,0], self.nf_region[0,1], 1.0))
-                        self.ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
+                        self.ax[i][j].set_xlim(self.signals_config.nf_region[0])
+                        self.ax[i][j].set_ylim(self.signals_config.nf_region[1])
+                        self.ax[i][j].set_xticks(np.arange(self.signals_config.nf_region[0,0], self.signals_config.nf_region[0,1], 1.0))
+                        self.ax[i][j].set_yticks(np.arange(self.signals_config.nf_region[1,0], self.signals_config.nf_region[1,1], 2.0))
 
                     else:
                         self.line[line_id][j], = self.ax[i][j].plot(x_data, signal_data, label=label)
@@ -1700,38 +1684,38 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
                 # Truncate the title to a maximum of 30 characters
-                title = (signals[i]['title'][:self.plot_configs['title_max_chars']] + '...') if len(signals[i]['title']) > self.plot_configs['title_max_chars'] else signals[i]['title']
-                title = title + "\n Carrier Frequency: {} GHz".format(self.freq_hop_list[j]/1e9)
+                title = (signals[i]['title'][:self.config.plot_configs['title_max_chars']] + '...') if len(signals[i]['title']) > self.config.plot_configs['title_max_chars'] else signals[i]['title']
+                title = title + "\n Carrier Frequency: {} GHz".format(self.signals_config.freq_hop_list[j]/1e9)
                 x_label = signals[i]['x_label']
                 y_label = signals[i]['y_label']
                 self.ax[i][j].set_title(title)
                 self.ax[i][j].set_xlabel(x_label)
                 self.ax[i][j].set_ylabel(y_label)
 
-                self.ax[i][j].title.set_fontsize(self.plot_configs['title_size'])
-                self.ax[i][j].xaxis.label.set_fontsize(self.plot_configs['xaxis_size'])
-                self.ax[i][j].yaxis.label.set_fontsize(self.plot_configs['yaxis_size'])
-                self.ax[i][j].tick_params(axis='both', which='major', labelsize=self.plot_configs['ticks_size'])  # For major ticks
-                self.ax[i][j].legend(fontsize=self.plot_configs['legend_size'])
+                self.ax[i][j].title.set_fontsize(self.config.plot_configs['title_size'])
+                self.ax[i][j].xaxis.label.set_fontsize(self.config.plot_configs['xaxis_size'])
+                self.ax[i][j].yaxis.label.set_fontsize(self.config.plot_configs['yaxis_size'])
+                self.ax[i][j].tick_params(axis='both', which='major', labelsize=self.config.plot_configs['ticks_size'])  # For major ticks
+                self.ax[i][j].legend(fontsize=self.config.plot_configs['legend_size'])
 
                 self.ax[i][j].grid(True)
-                if not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
+                if not (signal_name in self.untouched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untouched_plot_list['process_list'])):
                     self.ax[i][j].relim()
                     self.ax[i][j].autoscale_view()
                 self.ax[i][j].minorticks_on()
 
-        for j in range(self.n_plots_col):
+        for j in range(self.config.n_plots_col):
             for i in range(len(self.line)):
                 if self.line[i][j] is not None:
                     # self.line[i][j].set_linewidth(3.0-0.5*self.n_plots_row-0.3*self.n_plots_col)
-                    self.line[i][j].set_linewidth(self.plot_configs['line_width'])
+                    self.line[i][j].set_linewidth(self.config.plot_configs['line_width'])
 
         # Create the animation
         plt.tight_layout()
-        plt.subplots_adjust(hspace=self.plot_configs['hspace'], wspace=self.plot_configs['wspace'])
-        anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.anim_interval, blit=False)
+        plt.subplots_adjust(hspace=self.config.plot_configs['hspace'], wspace=self.config.plot_configs['wspace'])
+        anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.config.plot_configs['anim_interval'], blit=False)
         plt.show()
-        self.fig.savefig(self.figs_save_path, dpi=300)
+        self.fig.savefig(self.config.plot_configs['figs_save_path'], dpi=300)
 
 
 
