@@ -29,6 +29,8 @@ from tcp_comm import (
 from serial_comm import SerialComTurnTableConfig, Serial_Comm_TurnTable
 
 
+
+
 @dataclass
 class RxSignal:
     rxtd: np.ndarray
@@ -181,8 +183,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.aoa_list = []
         self.lin_track_dir = 'forward'
         self.tx_rx_distance = 3.0
-        self.last_rxtd_base = None
-        self.last_rxtd = None
+        self.tx_signal = None
+        self.rx_signal = None
 
         self.print("signals object initialization done", thr=1)
 
@@ -302,7 +304,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         for item in self.rfsoc_tx_list:
             client_rfsoc = self.network_objects[item]
-            client_rfsoc.transmit_data_rfsoc(self.txtd)
+            client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
 
 
         for item in self.rfsoc_rx_list:
@@ -401,8 +403,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print(f"Dot product of transmitted signals: {np.abs(np.vdot(txtd_base[1], txtd_base[0]))}", thr=4)
         # self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
-        self.txtd_base, self.txtd = txtd_base, txtd
-        return (txtd_base, txtd)
+        self.tx_signal = TxSignal(txtd=txtd, txtd_base=txtd_base)
+        return self.tx_signal
 
 
     def validate_saved_signals(self, rxtd, txtd=None, thr = 1e-8):
@@ -482,8 +484,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         
                     for frequency, rxtd in rxtd_dict.items():
                         rxtd = np.mean(rxtd, axis=0)
-                        (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
-                        max_gain = np.max(np.abs(h_est_full), axis=-1)
+                        rx_signal = self.rx_operations(txtd_base, rxtd)
+                        max_gain = np.max(np.abs(rx_signal.h_est_full), axis=-1)
                         sys_response[angle][frequency] = max_gain
 
 
@@ -839,9 +841,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         if len(rxtd_base.shape)==3:
             rxtd_base = rxtd_base[plt_frm_id]
-        self.last_rxtd_base = rxtd_base.copy()
+        self.rx_signal = RxSignal(
+            rxtd=rxtd,
+            rxtd_base=rxtd_base,
+            h_est_full=h_est_full,
+            H_est=H_est,
+            H_est_max=H_est_max,
+            sparse_est_params=sparse_est_params,
+        )
 
-        return (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params)
+        return self.rx_signal
     
 
 
@@ -1009,9 +1018,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     process_signal = (param and param[0] == 'process')
 
                     rxtd_save=[]
-                    h_est_full_save=[]
-                    H_est_save=[]
-                    H_est_max_save=[]
 
                     if process_signal:
                         # n_rd_rep = self.n_save
@@ -1029,24 +1035,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                             # to handle the dimenstion needed for read repeat
                             rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
-                            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(self.txtd_base, rxtd_frame)
+                            rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd_frame)
 
-                            rxtd_save.append(rxtd_base)
-                            
-                            h_est_full_save.append(h_est_full)
-                            H_est_save.append(H_est)
-                            H_est_max_save.append(H_est_max)
-
-                        h_est_full_save = np.array(h_est_full_save)
-                        H_est_save = np.array(H_est_save)
-                        H_est_max_save = np.array(H_est_max_save)
-
+                            rxtd_save.append(rx_signal.rxtd_base)
                     else:
                         rxtd_save = np.empty((self.config.n_save, self.config.n_rx_ant, self.config.n_samples_tx), dtype=rxtd.dtype)
                         for i in range(self.config.n_frame_rd):
                             rxtd_save[i::self.config.n_frame_rd] = rxtd[:,:,i*self.config.n_samples_tx:(i+1)*self.config.n_samples_tx]
 
-                    txtd_save = np.expand_dims(self.txtd_base, axis=0)
+                    txtd_save = np.expand_dims(self.tx_signal.txtd_base, axis=0)
                     rxtd_save = np.array(rxtd_save)
 
                     self.validate_saved_signals(rxtd=rxtd_save)
@@ -1066,9 +1063,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if 'signal' in save_list:
                         measurement['txtd'] = txtd_save.copy()
                         measurement['rxtd_{}'.format(self.config.fc/1e9)] = rxtd_save.copy()
-                    if 'channel' in save_list:
-                        measurement['h_est_full_{}'.format(self.config.fc/1e9)] = h_est_full_save.copy()
-                    
+
                     measurement['sig_interval'] = [self.config.wb_sc_range[0]+(self.config.nfft_tx >> 1), self.config.wb_sc_range[1]+(self.config.nfft_tx >> 1)]
                     # measurement['tx_gain_db'] = tx_gain_db
                     # measurement['rx_gain_db'] = rx_gain_db
@@ -1079,12 +1074,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                             np.savez(sig_save_path, **measurement)
                         elif self.config.save_format == 'mat':
                             scipy.io.savemat(sig_save_path, measurement)
-                    if 'channel' in save_list:
-                        channel_save_path=os.path.join(self.config.channel_dir, save_name)
-                        if self.config.save_format == 'npz':
-                            np.savez(channel_save_path, **measurement)
-                        elif self.config.save_format == 'mat':
-                            scipy.io.savemat(channel_save_path, measurement)
 
                     save_id += 1
 
@@ -1123,7 +1112,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.publish_aoa_turtlebot(aoa)
 
                 if action == 'publish_snr_ros2':
-                    snr = self.calculate_snr(sig_td=self.last_rxtd[0,:,:self.config.n_samples_trx], sig_sc_range=self.config.sc_range)
+                    snr = self.calculate_snr(sig_td=self.rx_signal.rxtd[0,:,:self.config.n_samples_trx], sig_sc_range=self.config.sc_range)
                     snr_dB = self.lin_to_db(snr, mode='pow')
                     self.publish_snr_turtlebot(snr_dB)
 
@@ -1184,8 +1173,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     client_rfsoc = target_objects[0]
                     region = self.generate_random_regions(shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size])
                     self.config.wb_sc_range = [region[0][0].start-(self.config.nfft_tx >> 1), region[0][0].stop-1-(self.config.nfft_tx >> 1)]
-                    (txtd_base, txtd) = self.gen_tx_signal()
-                    client_rfsoc.transmit_data_rfsoc(txtd)
+                    tx_signal = self.gen_tx_signal()
+                    client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
     
 
 
@@ -1253,7 +1242,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         self.start_time = time.time()
 
 
-    def process_signals_for_plot(self, rxtd_base, h_est_full, H_est_full, sparse_est_params):
+    def process_signals_for_plot(self, rx_signal):
 
         '''
         Instructions to build signals for plots:
@@ -1276,6 +1265,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         aoa_gauge : ["aoa_gauge|0|0"]
         nf_loc :    ["nf_loc|0|0"]
         '''
+
+        rxtd_base = rx_signal.rxtd_base
+        h_est_full = rx_signal.h_est_full
+        H_est_full = rx_signal.H_est_full
+        sparse_est_params = rx_signal.sparse_est_params
 
         supported_operations = ['+', '-', '*', '/']
         signals=[]
@@ -1328,7 +1322,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
                 if signal_name == 'txtd':
                     x = self.signals_config.t_tx[:self.signals_config.n_samples_tx]
-                    sig = self.signals_obj.txtd_base[tx_id]
+                    sig = self.signals_obj.tx_signal.txtd_base[tx_id]
                     title += "TX"
                     if 'fft' in signal_process_list:
                         x = self.signals_config.freq_tx
@@ -1486,18 +1480,17 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
             else:
                 rxtd = None
-            txtd_base = self.signals_obj.txtd_base
+            txtd_base = self.signals_obj.tx_signal.txtd_base
         else:
             rxtd = sigs_save['rxtd_{:.1f}'.format(self.signals_obj.fc/1e9)][self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
             txtd_base = sigs_save['txtd'][0]
 
         if channels_save is None:
             while True:
-                (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.signals_obj.rx_operations(txtd_base, rxtd)
+                rx_signal = self.signals_obj.rx_operations(txtd_base, rxtd)
 
-                H_est_full = fft(h_est_full, axis=-1)
-                if sparse_est_params is not None:
-                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+                if rx_signal.sparse_est_params is not None:
+                    (h_tr, dly_est, peaks, npath_est) = rx_signal.sparse_est_params
                     if np.min(npath_est) > 0:
                         break
                     else:
@@ -1515,12 +1508,24 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.signals_config.sc_range_ch, npaths=1, nframe_avg=1, ndly=ndly, drange=self.signals_config.sparse_ch_samp_range, cv=True, n_ignore=self.signals_config.sparse_ch_n_ignore)
 
             h_est_full = h_est_full[self.read_id]
-            H_est_full = fft(h_est_full, axis=-1)
+            if rxtd is None:
+                rxtd_base = np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_samples_trx), dtype=complex)
+            else:
+                rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
+                rxtd_base = rxtd_frame
+            rx_signal = RxSignal(
+                rxtd=rxtd,
+                rxtd_base=rxtd_base,
+                h_est_full=h_est_full,
+                H_est=np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_tx_ant), dtype=complex),
+                H_est_max=np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_tx_ant), dtype=complex),
+                sparse_est_params=sparse_est_params,
+            )
 
 
-        signals = self.process_signals_for_plot(rxtd_base, h_est_full, H_est_full, sparse_est_params)
+        signals = self.process_signals_for_plot(rx_signal)
         
-        return signals, h_est_full, sparse_est_params
+        return signals, rx_signal
 
 
 
@@ -1538,7 +1543,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         if self.anim_paused:
             return self.line
 
-        signals, h_est_full, sparse_est_params = self.receive_data_anim()
+        signals, _ = self.receive_data_anim()
 
         line_id = 0
         for i in range(self.config.n_plots_row):
@@ -1634,7 +1639,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         if self.config.plot_level<0:
             return
         
-        signals, _, _ = self.receive_data_anim()
+        signals, _ = self.receive_data_anim()
         
         # Set up the figure and plot
         self.line = [[None for j in range(self.config.n_plots_col)] for i in range(3*self.config.n_plots_row)]
