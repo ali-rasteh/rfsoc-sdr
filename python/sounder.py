@@ -21,8 +21,7 @@ class SounderConfig(GeneralConfig):
 
     # Board and RFSoC FPGA project parameters
     measurement_configs = []                                               # List of measurement configurations
-    # TODO remove the mode
-    mode='client'                  # Mode of operation, server or client or client_master or client_slave
+    host_role='client'                  # Mode of operation, client or client_master or client_slave
     transmit_signal=False               # If True, sends TX signal
 
     # Plots and logs parameters
@@ -124,9 +123,18 @@ class SounderConfig(GeneralConfig):
 
 
 
+    def detect_running_platform(self):
+        system_info = platform.uname()
+        if "pynq" in system_info.node.lower():
+            self.running_platform = 'rfsoc'
+        else:
+            self.running_platform = 'host'
+
 
     def __post_init__(self):
         super().__post_init__()
+
+        self.detect_running_platform()
 
         self.calib_config_path=os.path.join(self.calib_config_dir, 'calib_config.npz')      # Calibration parameters path
         self.optimal_gains_path=os.path.join(self.calib_config_dir, 'optimal_gains.json')   # Calibration parameters path
@@ -144,10 +152,10 @@ class SounderConfig(GeneralConfig):
         self.nfft_rx = self.n_frame_rd*self.nfft
 
         if self.overwrite_level:
-            if self.mode == 'server':
+            if self.running_platform == 'rfsoc':
                 self.plot_level=4
                 self.verbose_level=4
-            elif 'slave' in self.mode:
+            elif 'slave' in self.host_role:
                 self.plot_level=0
                 self.verbose_level=4
             else:
@@ -245,38 +253,20 @@ class Sounder(SounderConfig):
     def __init__(self, config: SounderConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
-        self.calc_params()
-
-
         if self.config.save_parameters:
-            self.config.save_parameters = False
             self.save_class_attributes_to_json(self.config, self.config.config_save_path)
+            self.config.save_parameters = False
         if self.config.load_parameters:
             self.load_class_attributes_from_json(self.config, self.config.config_path)
-            self.calc_params()
 
         self.create_dirs([self.config.calib_config_dir, self.config.sig_dir, self.config.channel_dir, self.config.figs_dir, self.config.config_dir])
-        self.print("Running the code in mode {}".format(self.config.mode), thr=1)
+        self.print("Running the code as {}".format(self.config.host_role), thr=1)
 
-        if self.config.mode=='server' and (self.config.update_rfsoc_files or self.config.modify_rfsoc_files):
+        if self.config.running_platform == 'rfsoc' and (self.config.update_rfsoc_files or self.config.modify_rfsoc_files):
             self.update_rfsoc_files()
 
         self.signals_inst = Signal_Utils_Rfsoc(self.config)
         (self.txtd_base, self.txtd) = self.signals_inst.gen_tx_signal()
-
-
-    def detect_running_platform(self):
-        system_info = platform.uname()
-        if "pynq" in system_info.node.lower():
-            self.running_platform = 'rfsoc'
-        else:
-            self.running_platform = 'host'
-
-
-    # TODO remove calc_params
-    def calc_params(self):
-
-        self.detect_running_platform()
 
 
     def update_rfsoc_files(self):
@@ -318,16 +308,16 @@ class Sounder(SounderConfig):
 
     def run(self):
 
-        if self.running_platform=='rfsoc':
+        if self.config.running_platform=='rfsoc':
             self.run_rfsoc()
 
         self.config.show_saved_sigs=len(self.config.saved_sig_plot)>0
-        if 'client' in self.config.mode and not self.config.show_saved_sigs:
+        if 'client' in self.config.host_role and not self.config.show_saved_sigs:
             if 'channel' in self.config.save_list or 'signal' in self.config.save_list:
                 self.signals_inst.save_signal_channel(self.txtd_base, save_list=self.config.save_list)
             self.signals_inst.operator()
 
-        if 'client' in self.config.mode and not 'slave' in self.config.mode:
+        if 'client' in self.config.host_role and not 'slave' in self.config.host_role:
             animate_plot_inst = Animate_Plot(self.config, self.signals_inst, self.txtd_base)
             animate_plot_inst.init_objects(txtd_base=self.txtd_base)
             animate_plot_inst.init_plots()

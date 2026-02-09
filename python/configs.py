@@ -1,30 +1,23 @@
 import os
 import copy
+from dataclasses import dataclass
 import numpy as np
-
-
-class Configs_Class_Default(object):
-    measurement_type=''            # Type of the measurement
+from sounder import SounderConfig
 
 
 
-
-
-
-
-class Configs_Class(Configs_Class_Default):
+@dataclass
+class Configs_Class(SounderConfig):
     def __init__(self):
         super().__init__()
+
+        measurement_type=''            # Type of the measurement
 
         self.init()
         self.populate_measurement_parameters()
 
-    
-    def init(self):
 
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
-        # configs = parser.parse_args()
+    def init(self):
 
         self.ant_d_m = [0.026]               # Antenna spacing in meters
         self.n_rx_ch_eq=1
@@ -36,7 +29,6 @@ class Configs_Class(Configs_Class_Default):
         self.n_rd_rep=1
         self.anim_interval = 100
         self.save_parameters=True
-        # self.load_parameters=True
         self.plot_configs = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
 
         # self.overwrite_level=False
@@ -46,7 +38,6 @@ class Configs_Class(Configs_Class_Default):
 
         # self.update_rfsoc_files = True
         # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
-        self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
         self.host_ip = '192.168.2.1'
         # self.host_username = 'wirelesslab914'
         self.host_username = 'alira'
@@ -68,23 +59,20 @@ class Configs_Class(Configs_Class_Default):
         # self.measurement_type = 'stream_to_matlab'
         # self.measurement_type = 'turtlebot_demo'
 
-        self.mode = 'client'
-        # self.mode = 'client_master'
-        # self.mode = 'client_slave'
+        self.host_role = 'client'
+        # self.host_role = 'client_master'
+        # self.host_role = 'client_slave'
 
         self.transmit_signal=True
 
 
-
-
-
     def populate_measurement_parameters(self):
 
-        if self.mode == 'client':
+        if self.host_role == 'client':
             self.transmit_signal=True
-        elif self.mode == 'client_master':
+        elif self.host_role == 'client_master':
             self.transmit_signal=False
-        elif self.mode == 'client_slave':
+        elif self.host_role == 'client_slave':
             self.transmit_signal=True
 
 
@@ -127,7 +115,7 @@ class Configs_Class(Configs_Class_Default):
 
 
         elif self.measurement_type == 'mmw_demo_simple':
-            self.mode = 'client'
+            self.host_role = 'client'
             self.RFFE='sivers'
             self.wb_sc_range=[-300,-100]
             self.transmit_signal=False
@@ -348,7 +336,7 @@ class Configs_Class(Configs_Class_Default):
             self.freq_hop_config['list'] = [10.0e9]
             cfo_ppm = -100
 
-            if self.mode == 'client_master':
+            if self.host_role == 'client_master':
                 cfo = cfo_ppm * self.freq_hop_config['list'][0] / 1e6
                 self.mix_freq_adc += cfo
                 self.do_rfsoc_mixer_settings=True

@@ -258,7 +258,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 self._network_objects[name].init_tcp_client()
                 self._network_objects[name].set_frequency_piradio(self.config.fc)
 
-            if 'slave' in self.config.mode:
+            if 'slave' in self.config.host_role:
                 self._network_objects['self'] = Tcp_Comm_Controller(self.config)
                 self._network_objects['self'].init_tcp_server()
                 self._network_objects['self'].obj_piradio = self._network_objects['piradio']
@@ -1052,8 +1052,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.print("Waiting for {} seconds...".format(wait_time), thr=2)
                     time.sleep(wait_time)
                 
+                # TODO update this part
                 if action == 'report_time':
-                    # TODO
                     freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
                     remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
                     self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)

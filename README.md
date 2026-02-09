@@ -10,7 +10,6 @@
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
 - Open the RFSoC web interface using a web browser on [This Link](http://192.168.3.1:9090/lab/)
 - Put all the python scripts from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/python) in the corresponding project folder on the board. you can create a folder for your project at `/home/xilinx/jupyter_notebooks/YOURFOLDER/`. You only need to copy the `.py` scripts not all other folders in the provided link.
-- In the `backend.py` script, change `import_pynq` to True. Also if you're planning to use the Sivers antenna, please change `import_sivers` to True.
 - Put the clock configurations files from [this folder in the Repo](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/rfsoc/rfsoc4x2_clock_configs) in this folder on RFSoC4x2: `/usr/local/share/pynq-venv/lib/python3.10/site-packages/xrfclk/`
 - Provide internet connection to the board by connecting it to a server/PC and routing the traffic or by any other methods you like. 
 - Install the RFSoC-MTS package on the RFSoC4x2 according to instructions in [this linke](https://github.com/Xilinx/RFSoC-MTS/tree/main)
