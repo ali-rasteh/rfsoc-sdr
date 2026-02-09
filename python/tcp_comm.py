@@ -408,8 +408,8 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
 
                 f_mixer_dac = float(clientMsgParsed[1])
                 f_mixer_adc = float(clientMsgParsed[2])
-                success = self.obj_rfsoc.set_dac_mixer(rfsoc_mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
-                success &= self.obj_rfsoc.set_adc_mixer(rfsoc_mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
+                success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
+                success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
                 if success == True:
                     responseToCMD = self.config.successMessage 
                 else:
@@ -795,10 +795,11 @@ class PiradioRestComConfig(RestComConfig):
     freq_sw_dly: float = 1.0
     gain_sw_dly: float = 1.0
     bias_sw_dly: float = 1.0
-    freq_range: list = [6.0, 22.5]
-5
+    port: int = 5111
+
+
 class REST_Com_Piradio(REST_Com):
-    def __init__(self, config: RestComConfig, **overrides):
+    def __init__(self, config: PiradioRestComConfig, **overrides):
         super().__init__(config, **overrides)
 
         self.print("REST_Com_Piradio object init done", thr=1)

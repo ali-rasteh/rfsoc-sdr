@@ -19,7 +19,38 @@ except:
 
 @dataclass
 class NearFieldSignalUtilsConfig(SignalUtilsRFSoCConfig):
-    pass
+    nf_param_estimate = False                  # If True, performs near field parameter estimation
+    nf_walls = np.array([[-5,4], [-1,6]])      # Near field walls coordinates in meters
+    nf_rx_sep_dir = np.array([1,0])            # Direction of the RX antenna separation
+    nf_tx_sep_dir = np.array([1,0])            # Direction of the TX antenna separation
+    nf_npath_max = [20,5]                      # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
+    nf_stop_thr = 0.03                         # Stopping threshold for the near field parameter estimation
+    nf_tx_loc = np.array([[0.3,1.0]])          # TX antenna location in meters
+    nf_rx_loc_sep = np.array([0,0.2,0.4])      # RX locations separation in meters
+    nf_tx_ant_sep = 0.5                        # TX antenna separation in meters
+    nf_rx_ant_sep = 0.5 * np.array([1,2,4])    # RX antenna separation in meters
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.nf_n_rx_loc_sep = len(self.nf_rx_loc_sep)
+        self.nf_n_ant_sep = len(self.nf_rx_ant_sep)
+        self.nf_n_meas = self.nf_n_rx_loc_sep * self.nf_n_ant_sep
+        p = len(self.nf_rx_sep_dir)
+        # Generate the RX antenna positions
+        self.nf_rx_ant_loc = np.zeros((self.n_rx_ant, self.nf_n_meas, p))
+        self.nf_tx_ant_loc = np.zeros((self.n_tx_ant, self.nf_n_meas, p))
+        for k in range(self.nf_n_rx_loc_sep):
+            for i in range(self.nf_n_ant_sep):
+                m = k*self.nf_n_ant_sep + i
+                # Linear distance of the RX antennas from the origin
+                t = self.nf_rx_loc_sep[k] + self.nf_rx_ant_sep[i]*np.arange(self.n_rx_ant)*self.wl
+                # Position of the RX antennas
+                self.nf_rx_ant_loc[:,m,:] = t[:,None]*self.nf_rx_sep_dir[None,:]
+
+                t = self.ant_d_m[0] * np.arange(self.n_tx_ant)
+                self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
+
 
 class NearFieldSignalUtils(Signal_Utils_Rfsoc):
     def __init__(self, config: NearFieldSignalUtilsConfig, **overrides: Any):        
@@ -49,7 +80,7 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
         # self.nf_region[1,0] -= room_length
         self.nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
-                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.nf_npath_max[1], 
+                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.npath_max[1], 
                         stop_thresh=self.nf_stop_thr, region=self.nf_region, tx=self.nf_tx_loc)
         
         self.nf_model.gen_tx_pos()
@@ -106,7 +137,7 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
                         distance = np.round(distance, 2)
                         client_lintrack.move(lin_track_id=1, distance=distance)
                         time.sleep(0.5)
-                        self.ant_dx = self.nf_rx_ant_sep[0]
+                        self.ant_d[0] = self.nf_rx_ant_sep[0]
 
                         if self.nf_loc_idx < len(self.nf_rx_loc):
                             distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
@@ -132,12 +163,11 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(0.5)
-                            self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
+                            self.ant_d[0] = self.nf_rx_ant_sep[self.nf_sep_idx]
                     
                     self.nf_sep_idx+=1
             
-                self.ant_dx_m = self.ant_dx * self.wl
-
+                self.ant_d_m[0] = self.ant_d[0] * self.wl
 
     def est_nf_param(self, h, dly_est, peaks, npaths):
         """
@@ -183,9 +213,9 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
         # phase_diff = np.mean(phase_diff, axis=-1)
         aoa = np.zeros(phase_diff.shape)
         for m in range(phase_diff.shape[-1]):
-            ant_dx_m = np.linalg.norm(self.nf_rx_ant_loc[1,m,:] - self.nf_rx_ant_loc[0,m,:], axis=-1)
-            aoa[:,m] = self.phase_to_aoa(phase_diff[:,m], wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=ant_dx_m, ant_dy_m=self.ant_dy_m)
-            # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
+            ant_d_m = [np.linalg.norm(self.nf_rx_ant_loc[1,m,:] - self.nf_rx_ant_loc[0,m,:], axis=-1)]
+            aoa[:,m] = self.phase_to_aoa(phase_diff[:,m], wl=self.wl, ant_d_m=ant_d_m)
+            # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_d_m=self.ant_d_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
         # print("phase_diff: ", phase_diff[:,0])
         # print("aoa: ", aoa[:,0])

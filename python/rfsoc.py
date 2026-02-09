@@ -7,7 +7,7 @@ from pynq import Overlay, allocate, GPIO
 import xrfclk
 import xrfdc
 
-from signal_utilsrfsoc import Signal_Utils_Rfsoc
+from sigcom_toolkit.general import GeneralConfig, General
 from tcp_comm import Tcp_Comm_RFSoC
 try:
     from Sivers.siversController import *
@@ -18,7 +18,7 @@ except Exception as e:
 
 @dataclass
 class RFSoCConfig(GeneralConfig):
-    beam_test: list = []
+    beam_test: np.ndarray = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
     project: str = 'sounder_if_ddr4'
     board: str = 'rfsoc_4x2'
     RFFE: str = 'none'
@@ -26,7 +26,8 @@ class RFSoCConfig(GeneralConfig):
     rfsoc_lmx_freq_mhz: float = 3932.16
     dac_fs: float = 245.76e6 * 4
     adc_fs: float = 245.76e6 * 4
-    bit_file_path: str = 'project_v1-0-58_20241001-150336.bit'
+    bit_file_path: str = 'project_v1-0-58_20241001-150336.bit'          # Path to the bit file for the RFSoC (Without DAC MTS)
+    # bit_file_path: str = 'project_v1-0-62_20241019-173825.bit'          # Path to the bit file for the RFSoC (With DAC MTS)
     mix_freq_dac: float = 1000e6
     mix_freq_adc: float = 1000e6
     rfsoc_mix_phase_off: float = 0.0
@@ -46,6 +47,15 @@ class RFSoCConfig(GeneralConfig):
 
     def __post_init__(self):
         super().__post_init__()
+
+        if self.DynamicPLLConfig is None:
+            self.DynamicPLLConfig = (0, self.rfsoc_lmk_freq_mhz, self.rfsoc_lmx_freq_mhz)
+
+        if 'sounder_bbf' in self.project:
+            self.do_rfsoc_mixer_settings=False
+            self.do_rfsoc_pll_settings=False
+        if self.board == "rfsoc_4x2":
+            self.do_rfsoc_pll_settings=False
 
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12
@@ -154,7 +164,7 @@ class RFSoCConfig(GeneralConfig):
 
 
 
-class RFSoC(Signal_Utils_Rfsoc):
+class RFSoC(General):
     def __init__(self, config: RFSoCConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -364,15 +374,15 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.print("ADC init and reset done", thr=1)
 
 
-    def set_dac_mixer(self, rfsoc_mix_freq=None, do_rfsoc_mixer_settings=None):
+    def set_dac_mixer(self, mix_freq=None, do_rfsoc_mixer_settings=None):
         result = True
 
-        if rfsoc_mix_freq is None:
-            rfsoc_mix_freq = self.config.mix_freq_dac
+        if mix_freq is None:
+            mix_freq = self.config.mix_freq_dac
         if do_rfsoc_mixer_settings is None:
             do_rfsoc_mixer_settings = self.config.do_rfsoc_mixer_settings
 
-        cofig_str = 'DAC configs: rfsoc_mix_freq: {}, rfsoc_mix_phase_off: {:.3f}'.format(rfsoc_mix_freq, self.config.rfsoc_mix_phase_off)
+        cofig_str = 'DAC configs: mix_freq: {}, rfsoc_mix_phase_off: {:.3f}'.format(mix_freq, self.config.rfsoc_mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.config.DynamicPLLConfig)
         cofig_str += ', do_rfsoc_mixer_settings: ' + str(do_rfsoc_mixer_settings)
         self.print(cofig_str, thr=2)
@@ -386,7 +396,7 @@ class RFSoC(Signal_Utils_Rfsoc):
                     dac_tile.DynamicPLLConfig(self.config.DynamicPLLConfig[0], self.config.DynamicPLLConfig[1], self.config.DynamicPLLConfig[2])
                 # print(dac_block.MixerSettings)
                 if do_rfsoc_mixer_settings:
-                    dac_block.MixerSettings['Freq'] = rfsoc_mix_freq/1e6
+                    dac_block.MixerSettings['Freq'] = mix_freq/1e6
                     dac_block.MixerSettings['PhaseOffset'] = self.config.rfsoc_mix_phase_off
                     # dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
                     dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
@@ -397,15 +407,15 @@ class RFSoC(Signal_Utils_Rfsoc):
         return result
 
 
-    def set_adc_mixer(self, rfsoc_mix_freq=None, do_rfsoc_mixer_settings=None):
+    def set_adc_mixer(self, mix_freq=None, do_rfsoc_mixer_settings=None):
         result = True
         
-        if rfsoc_mix_freq is None:
-            rfsoc_mix_freq = self.config.mix_freq_adc
+        if mix_freq is None:
+            mix_freq = self.config.mix_freq_adc
         if do_rfsoc_mixer_settings is None:
             do_rfsoc_mixer_settings = self.config.do_rfsoc_mixer_settings
 
-        cofig_str = 'ADC configs: rfsoc_mix_freq: {:.2e}, rfsoc_mix_phase_off: {:.2f}'.format(rfsoc_mix_freq, self.config.rfsoc_mix_phase_off)
+        cofig_str = 'ADC configs: mix_freq: {:.2e}, rfsoc_mix_phase_off: {:.2f}'.format(mix_freq, self.config.rfsoc_mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.config.DynamicPLLConfig)
         cofig_str += ', do_rfsoc_mixer_settings: ' + str(do_rfsoc_mixer_settings)
         self.print(cofig_str, thr=2)
@@ -423,18 +433,18 @@ class RFSoC(Signal_Utils_Rfsoc):
                     #     'CoarseMixFreq'  : xrfdc.COARSE_MIX_BYPASS,
                     #     'EventSource'    : xrfdc.EVNT_SRC_TILE,
                     #     'FineMixerScale' : xrfdc.MIXER_SCALE_1P0,
-                    #     'Freq'           : -1*rfsoc_mix_freq/1e6,
+                    #     'Freq'           : -1*mix_freq/1e6,
                     #     'MixerMode'      : xrfdc.MIXER_MODE_R2C,
                     #     'MixerType'      : xrfdc.MIXER_TYPE_FINE,
                     #     'PhaseOffset'    : 0.0
                     # }
-                    adc_block.MixerSettings['Freq'] = -1*rfsoc_mix_freq/1e6
+                    adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
                     adc_block.MixerSettings['PhaseOffset'] = self.config.rfsoc_mix_phase_off
                     # adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
                     adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
                     # adc_block.UpdateEvent(xrfdc.EVENT_MIXER)
                     adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
-                    # adc_block.MixerSettings['Freq'] = -1*rfsoc_mix_freq/1e6
+                    # adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
             
         self.print("ADC Mixer Settings done", thr=1)
 

@@ -93,8 +93,8 @@ as follows:
 - Alternatively you can connect to the board's Web GUI at [This Link](http://192.168.137.51:5006) and configure all needed parameters.
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
 - Open the RFSoC web interface using a web browser on [This Link](http://192.168.3.1:9090/lab/)
-- Run the rfsoc_test.py script on the RFSoC4x2 using a jupyter notebook or using `python rfsoc_test.py`. When you see `Waiting for a connection` in the log, the RFSoC4x2 is ready.
-- refine the configurations in the `rfsoc_test.py` file on your system/PC and run the script using `python rfsoc_test.py`. You need to run the code in an envioronment with capability of showing plots which means the backednd to show the matplotlib figures should be cofigured propoerly. I suggest you use VScode as your IDE.
+- Run the sounder.py script on the RFSoC4x2 using a jupyter notebook or using `python sounder.py`. When you see `Waiting for a connection` in the log, the RFSoC4x2 is ready.
+- refine the configurations in the `sounder.py` file on your system/PC and run the script using `python sounder.py`. You need to run the code in an envioronment with capability of showing plots which means the backednd to show the matplotlib figures should be cofigured propoerly. I suggest you use VScode as your IDE.
 - First time you run the system you need to do phase calibration on the receiver, so when the script shows a message about the calibration, follow the instructions to run the calibration.
 - Finally the script should receive the measurements, do the needed processing and show the animation plots.
 - You can also save the signal and channel responses by adding appropriate elements to the save_list parameter.

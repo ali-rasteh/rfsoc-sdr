@@ -25,7 +25,7 @@ echo 1 | /usr/bin/tee /proc/sys/net/ipv4/ip_forward >/dev/null
 # echo "Starting Python app..."
 # # Replace the shell with python so systemd tracks it as the main process
 # cd /home/xilinx/jupyter_notebooks/sounder_sdr
-# exec /usr/local/share/pynq-venv/bin/python ./rfsoc_test.py
+# exec /usr/local/share/pynq-venv/bin/python ./sounder.py
 
 
 echo "Startup script finished at $(date)" >> "$LOGFILE"

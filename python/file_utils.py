@@ -2,10 +2,10 @@
 This script is used to copy and modify files from a remote host to a local directory.
 It supports two targets: 'rfsoc' and 'raspi', each with its own set of files and parameters to modify.
 Functions:
-    main(params):
+    main(config):
         Main function to handle the file copying and modification process.
         Args:
-            params (Params_Class): An instance of Params_Class containing configuration parameters.
+            config (Configs_Class): An instance of Configs_Class containing configuration parameters.
 Usage:
     Run this script directly to copy and modify files based on the specified target.
     You can modify parameters at the beginning of the main function to customize the behavior.
@@ -16,7 +16,7 @@ Usage:
 import os
 from dataclasses import dataclass
 
-from params import Params_Class
+from configs import Configs_Class
 from tcp_comm import Scp_Com, ScpComConfig
 from sigcom_toolkit.general import General, GeneralConfig
 
@@ -31,7 +31,7 @@ class FileUtilsConfig(GeneralConfig):
     host_files_base_addr: str = '~/RFSoC_SDR/python/'
     local_base_addr: str = './'
     files_to_download: list = None
-    params_to_modify: dict = None
+    configs_to_modify: dict = None
     files_to_convert: dict = None
 
 
@@ -67,7 +67,7 @@ class File_Utils(General):
         self.scp_client.download_files_with_pattern(self.host_files_base_addr, self.files_to_download_, temp_dir)
         self.modify_files(base_dir=temp_dir)
         self.changed_files = self.sync_directories(temp_dir, self.local_base_addr)
-        for file in self.params_to_modify:
+        for file in self.configs_to_modify:
             if file in self.changed_files:
                 self.changed_files.remove(file)
         changed = (len(self.changed_files) > 0)
@@ -79,10 +79,10 @@ class File_Utils(General):
         if base_dir is None:
             base_dir = self.local_base_addr
         changed = False
-        for file in self.params_to_modify:
+        for file in self.configs_to_modify:
             local_script_path = os.path.join(base_dir, file)
-            for param in self.params_to_modify[file]:
-                result = self.modify_text_file(local_script_path, param, self.params_to_modify[file][param])
+            for param in self.configs_to_modify[file]:
+                result = self.modify_text_file(local_script_path, param, self.configs_to_modify[file][param])
                 if result:
                     changed = True
         return changed
@@ -102,8 +102,8 @@ class File_Utils(General):
 
 if __name__ == "__main__":
 
-    params = Params_Class()
-    file_utils = File_Utils(params)
+    config = Configs_Class()
+    file_utils = File_Utils(config=config)
     file_utils.download_files()
     file_utils.modify_files()
 

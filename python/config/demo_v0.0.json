@@ -145,7 +145,7 @@
         0,
         101
     ],
-    "send_signal": true,
+    "transmit_signal": true,
     "server_ip": null,
     "sig_dir": "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/sigs/",
     "sig_gain_db": 0,

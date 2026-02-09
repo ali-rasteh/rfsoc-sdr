@@ -15,7 +15,7 @@ from general import General
 
 # TODO add config class and transfer all parameters
 
-class Params_Class(object):
+class Configs_Class(object):
     def __init__(self):
         # parser = argparse.ArgumentParser()
         # parser.add_argument("--output_mode", type=str, default="dc", help="Type of the Raspberry Pi hat output to use")
@@ -25,11 +25,11 @@ class Params_Class(object):
         # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
         # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
         # parser.add_argument("--run_tcp_server", action="store_true", default=False, help="If true, runs the TCP server")
-        # params = parser.parse_args()
-        params = SimpleNamespace()
-        params.overwrite_configs=True
+        # config = parser.parse_args()
+        config = SimpleNamespace()
+        config.overwrite_configs=True
 
-        if params.overwrite_configs:
+        if config.overwrite_configs:
             self.output_mode = 'dc'
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -52,18 +52,18 @@ class Params_Class(object):
 
 
 class LinearTrack(General):
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, config):
+        super().__init__(config)
 
-        self.run_tcp_server = params.run_tcp_server
-        self.output_mode = params.output_mode
-        self.dis_per_rev = params.dis_per_rev
-        self.pulse_per_rev = params.pulse_per_rev
-        self.pulse_freq = params.pulse_freq
-        self.dis_coeff = params.dis_coeff
-        self.overhead_time = params.overhead_time
-        self.position_file_path = params.position_file_path
-        self.n_motors = params.n_motors
+        self.run_tcp_server = config.run_tcp_server
+        self.output_mode = config.output_mode
+        self.dis_per_rev = config.dis_per_rev
+        self.pulse_per_rev = config.pulse_per_rev
+        self.pulse_freq = config.pulse_freq
+        self.dis_coeff = config.dis_coeff
+        self.overhead_time = config.overhead_time
+        self.position_file_path = config.position_file_path
+        self.n_motors = config.n_motors
         self.total_length = 1500      # length of the linear track in mm
         self.plate_length = 125
         self.travel_length = self.total_length - self.plate_length
@@ -88,7 +88,7 @@ class LinearTrack(General):
         self.position = self.read_position()
         
         if self.run_tcp_server:
-            self.tcp_comm = Tcp_Comm_LinTrack(params)
+            self.tcp_comm = Tcp_Comm_LinTrack(config)
             self.tcp_comm.init_tcp_server()
 
 
@@ -321,8 +321,8 @@ class LinearTrack(General):
 
 
 
-def lintrack_run(params):
-    lt = LinearTrack(params)
+def lintrack_run(config):
+    lt = LinearTrack(config)
 
     atexit.register(lt.reset)
     # atexit.register(on_program_exit)
@@ -340,7 +340,7 @@ def lintrack_run(params):
     lt.interactive_move(motor_id=1)
     # lt.back_and_forth(motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=3.0)
 
-    if params.run_tcp_server:
+    if config.run_tcp_server:
         lt.run_tcp()
 
 
@@ -348,5 +348,5 @@ def lintrack_run(params):
 
 
 if __name__ == '__main__':
-    params = Params_Class()
-    lintrack_run(params)
+    config = Configs_Class()
+    lintrack_run(config)
