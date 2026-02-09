@@ -29,6 +29,19 @@ from tcp_comm import (
 from serial_comm import SerialComTurnTableConfig, Serial_Comm_TurnTable
 
 
+@dataclass
+class RxSignal:
+    rxtd: np.ndarray
+    rxtd_base: np.ndarray
+    h_est_full: np.ndarray
+    H_est: np.ndarray
+    H_est_max: np.ndarray
+    sparse_est_params: dict
+
+@dataclass
+class TxSignal:
+    txtd: np.ndarray
+    txtd_base: np.ndarray
 
 
 @dataclass
@@ -1217,7 +1230,12 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         self.signals_obj = signals_obj
         self.signals_config = signals_obj.config
-        self.txtd_base = self.signals_obj.txtd_base
+
+        self.config.n_plots_row = len(self.config.animate_plot_mode)
+        self.config.n_plots_col = len(self.signals_config.freq_hop_list)
+
+        self.config.plt_n_samples_rx = self.signals_config.n_samples_trx
+        self.config.n_samp_ch_sp = self.signals_config.n_samples_ch // 2
 
         self.plot_colors = ['#57068C', 'orange', 'green', 'red', 'blue', 'brown', 'pink', 'gray', 'olive', 'cyan']
         # set matplotlib axes color cycle so subsequent ax.plot calls use our colors by default
@@ -1231,12 +1249,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         self.anim_paused = False
         self.read_id = -1
-        self.config.n_plots_row = len(self.config.animate_plot_mode)
-        self.config.n_plots_col = len(self.signals_config.freq_hop_list)
-
-        self.config.plt_n_samples_rx = self.signals_config.n_samples_trx
-        self.config.n_samp_ch_sp = self.signals_config.n_samples_ch // 2
-
+        
         self.start_time = time.time()
 
 
@@ -1315,7 +1328,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
                 if signal_name == 'txtd':
                     x = self.signals_config.t_tx[:self.signals_config.n_samples_tx]
-                    sig = self.txtd_base[tx_id]
+                    sig = self.signals_obj.txtd_base[tx_id]
                     title += "TX"
                     if 'fft' in signal_process_list:
                         x = self.signals_config.freq_tx
@@ -1455,7 +1468,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             signals.append({'plot_signals': plot_signals, 'title': title, 'x_label': xlabel, 'y_label': ylabel})
 
         return signals
-    
+
 
 
     def receive_data_anim(self):
@@ -1473,7 +1486,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
             else:
                 rxtd = None
-            txtd_base = self.txtd_base
+            txtd_base = self.signals_obj.txtd_base
         else:
             rxtd = sigs_save['rxtd_{:.1f}'.format(self.signals_obj.fc/1e9)][self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
             txtd_base = sigs_save['txtd'][0]
