@@ -1175,6 +1175,39 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.config.wb_sc_range = [region[0][0].start-(self.config.nfft_tx >> 1), region[0][0].stop-1-(self.config.nfft_tx >> 1)]
                     (self.txtd_base, self.txtd) = self.gen_tx_signal()
                     client_rfsoc.transmit_data_rfsoc(self.txtd)
+    
+
+
+    def stream_rx_td_to_matlab(self, rxtd, freq):
+        import io
+        import socket
+        import scipy.io
+        
+        matlab_stream_ip = '10.20.38.213'     # IP address for the MATLAB data transfer
+        matlab_stream_port = 50007             # Port for the MATLAB data transfer
+
+        try:
+            #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            #s.connect((matlab_stream_ip, matlab_stream_port))
+            #print("Connected to MATLAB stream at {}:{}".format(matlab_stream_ip, matlab_stream_port))
+            #s.close()
+            buf = io.BytesIO()
+            scipy.io.savemat(buf, {'rxtd': rxtd}, do_compression=True)
+            scipy.io.savemat(buf, {'freq': freq}, do_compression=True)
+            data = buf.getvalue()
+            print(len(data), "bytes of rxtd data to be sent to MATLAB stream")
+
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(.1)
+                sock.connect((matlab_stream_ip, matlab_stream_port))
+                sock.sendall(len(data).to_bytes(8, byteorder='big'))  # Send the length of the data first
+                sock.sendall(data)
+                self.print("rxtd data sent to MATLAB stream at {}:{}".format(matlab_stream_ip, matlab_stream_port), thr=1)
+        
+        except Exception as e:
+            self.print("Error in streaming rxtd to MATLAB: {}".format(e), thr=0)
+
+
 
 
 
@@ -1497,14 +1530,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         if self.anim_paused:
             return self.line
-        
+
         signals, h_est_full, sparse_est_params = self.receive_data_anim(self.txtd_base)
 
         for client in [self.client_piradio, self.client_controller]:
             client.hop_freq()
-
-        self.signals_obj.handle_nf(h_est_full, sparse_est_params, client_lintrack)
-
 
         line_id = 0
         for i in range(self.n_plots_row):
@@ -1517,7 +1547,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 tx_id = signal['trx_id'][1]
                 signal_data = signal['data']
                 signal_process_list = signal['process_list']
-                
+
                 if 'IQ' in signal_process_list:
                     self.line[line_id][j].set_offsets(np.column_stack((signal_data.real, signal_data.imag)))
                     line_id+=1
@@ -1588,6 +1618,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 y_min = np.percentile(sig, 10)
                 y_max = np.max(sig) + 0.1*(np.max(sig)-y_min)
                 self.ax[i][j].set_ylim(y_min, y_max)
+
             elif not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
                 try:
                     self.ax[i][j].relim()
@@ -1701,37 +1732,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
         self.fig.savefig(self.figs_save_path, dpi=300)
-
-
-
-    def stream_rx_td_to_matlab(self, rxtd, freq):
-        import io
-        import socket
-        import scipy.io
-        
-        matlab_stream_ip = '10.20.38.213'     # IP address for the MATLAB data transfer
-        matlab_stream_port = 50007             # Port for the MATLAB data transfer
-
-        try:
-            #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #s.connect((matlab_stream_ip, matlab_stream_port))
-            #print("Connected to MATLAB stream at {}:{}".format(matlab_stream_ip, matlab_stream_port))
-            #s.close()
-            buf = io.BytesIO()
-            scipy.io.savemat(buf, {'rxtd': rxtd}, do_compression=True)
-            scipy.io.savemat(buf, {'freq': freq}, do_compression=True)
-            data = buf.getvalue()
-            print(len(data), "bytes of rxtd data to be sent to MATLAB stream")
-
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(.1)
-                sock.connect((matlab_stream_ip, matlab_stream_port))
-                sock.sendall(len(data).to_bytes(8, byteorder='big'))  # Send the length of the data first
-                sock.sendall(data)
-                self.print("rxtd data sent to MATLAB stream at {}:{}".format(matlab_stream_ip, matlab_stream_port), thr=1)
-        
-        except Exception as e:
-            self.print("Error in streaming rxtd to MATLAB: {}".format(e), thr=0)
 
 
 
