@@ -7,7 +7,6 @@ from typing import Any
 from scipy import constants
 import numpy as np
 
-from configs import Configs_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from file_utils import File_Utils
 from sigcom_toolkit.general import GeneralConfig
@@ -53,7 +52,6 @@ class SounderConfig(GeneralConfig):
         'host': {'type': 'host', 'role': 'rx', 'ip': '192.168.3.100', 'protocol': 'ssh'},
     }
     network_objects = {}           # Dictionary to hold network communication objects
-    freq_hop_config = {'mode': 'discrete', 'list': [10.0e9], 'range': [10.0e9, 10.0e9], 'step': 1.0e9}    # Frequency hopping configuration, modes: discrete or sweep
 
 
 
@@ -136,8 +134,6 @@ class SounderConfig(GeneralConfig):
         self.calib_config_path=os.path.join(self.calib_config_dir, 'calib_config.npz')      # Calibration parameters path
         self.optimal_gains_path=os.path.join(self.calib_config_dir, 'optimal_gains.json')   # Calibration parameters path
         self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')                        # Signal load path
-        self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')                    # Signal save path
-        self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')        # Channel save path
         self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')   # System response save path
         self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')                 # Figures save path
         self.config_path = os.path.join(self.config_dir, 'config.json')             # Configuration load path
@@ -161,17 +157,6 @@ class SounderConfig(GeneralConfig):
 
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.beamforming = False
-
-        if self.freq_hop_config['mode']=='discrete':
-            self.freq_hop_list = self.freq_hop_config['list']
-        elif self.freq_hop_config['mode']=='sweep':
-            self.freq_hop_list = np.arange(self.freq_hop_config['range'][0], self.freq_hop_config['range'][1]+self.freq_hop_config['step'], self.freq_hop_config['step'])
-        else:
-            raise ValueError('Invalid freq_hop_config mode: ' + self.freq_hop_config['mode'])
-
-        if self.save_format != 'npz':
-            self.sig_save_path = self.sig_save_path.replace('.npz', f'.{self.save_format}')
-            self.channel_save_path = self.channel_save_path.replace('.npz', f'.{self.save_format}')
 
         self.fc = self.freq_hop_list[0]
         self.wl = constants.c / self.fc
@@ -310,10 +295,3 @@ class Sounder(SounderConfig):
         if 'client' in self.config.host_role:
             self.signals_inst.operator()
 
-
-
-if __name__ == '__main__':
-    
-    config = Configs_Class()
-    sounder = Sounder(config)
-    sounder.run()

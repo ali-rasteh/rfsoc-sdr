@@ -16,7 +16,7 @@ Usage:
 import os
 from dataclasses import dataclass
 
-from configs import Configs_Class
+from sounder_configs import BaseConfig
 from tcp_comm import Scp_Com, ScpComConfig
 from sigcom_toolkit.general import General, GeneralConfig
 
@@ -108,7 +108,7 @@ class File_Utils(General):
 
 if __name__ == "__main__":
 
-    config = Configs_Class()
+    config = BaseConfig()
     file_utils = File_Utils(config=config)
     file_utils.download_files()
     file_utils.modify_files()

@@ -1073,7 +1073,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
                 if action == 'capture_from_file':
-                    sigs_save = np.load(self.config.sig_save_path)
+                    sig_path = os.path.join(self.config.sig_dir, str(param[0]))
+                    sigs_save = np.load(sig_path)
 
                     rxtd = sigs_save['rxtd_{:.1f}'.format(self.config.fc/1e9)][read_id*self.config.n_rd_rep:(read_id+1)*self.config.n_rd_rep]
                     txtd_base = sigs_save['txtd'][0]
@@ -1746,7 +1747,7 @@ class Animate_Plot(General):
 
 
 if __name__ == "__main__":
-    from configs import Configs_Class
+    from python.sounder_configs import Configs_Class
     config = Configs_Class()
 
     signals_inst = Signal_Utils_Rfsoc(config)
