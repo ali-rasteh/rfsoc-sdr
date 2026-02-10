@@ -1,80 +1,9 @@
 import os
-import copy
 from dataclasses import dataclass
-import numpy as np
 from sounder import SounderConfig
 
 
-
-@dataclass
-class Configs_Class(SounderConfig):
-    def __init__(self):
-        super().__init__()
-
-        measurement_type=''            # Type of the measurement
-
-        self.init()
-        self.populate_measurement_parameters()
-
-
-    def init(self):
-
-        self.ant_d_m = [0.026]               # Antenna spacing in meters
-        self.n_rx_ch_eq=1
-        self.wb_sc_range=[-260,260]
-        self.rx_same_delay=False
-        # self.sparse_ch_samp_range=[-5,100]
-        # self.sparse_ch_n_ignore=5
-        self.n_frame_rd=32
-        self.n_rd_rep=1
-        self.anim_interval = 100
-        self.save_parameters=True
-        self.plot_configs = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
-
-        # self.overwrite_level=False
-        # self.plot_level=0
-        # self.verbose_level=3
-
-
-        # self.update_rfsoc_files = True
-        # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
-        self.host_ip = '192.168.2.1'
-        # self.host_username = 'wirelesslab914'
-        self.host_username = 'alira'
-        self.host_password = ''
-
-
-
-        # self.measurement_type = 'plot_saved_signal'
-        # self.measurement_type = 'RFSoC_demo_simple'
-        # self.measurement_type = 'mmw_demo_simple'
-        self.measurement_type = 'FR3_spectrum_sweep'
-        # self.measurement_type = 'FR3_demo_simple'
-        # self.measurement_type = 'FR3_demo_multi_freq'
-        # self.measurement_type = 'FR3_nyu_3state'
-        # self.measurement_type = 'FR3_nyu_13state'
-        # self.measurement_type = 'FR3_ant_calib'
-        # self.measurement_type = 'FR3_beamforming'
-        # self.measurement_type = 'FR3_cfo'
-        # self.measurement_type = 'stream_to_matlab'
-        # self.measurement_type = 'turtlebot_demo'
-
-        self.host_role = 'client'
-        # self.host_role = 'client_master'
-        # self.host_role = 'client_slave'
-
-        self.transmit_signal=True
-
-
     def populate_measurement_parameters(self):
-
-        if self.host_role == 'client':
-            self.transmit_signal=True
-        elif self.host_role == 'client_master':
-            self.transmit_signal=False
-        elif self.host_role == 'client_slave':
-            self.transmit_signal=True
-
 
         h00 = "h|0|0|circshift|mag|dbmag"
         h01 = "h|0|1|circshift|mag|dbmag"
@@ -99,11 +28,10 @@ class Configs_Class(SounderConfig):
 
         IQ00 = ["rxtd|0|0|fft|fftshift|IQ"]
         aoa_gauge = ["aoa_gauge|0|0"]
-        
+
 
 
         if self.measurement_type == 'plot_saved_signal':
-            self.saved_sig_plot = ['signal']
             self.sig_save_path=os.path.join(self.sig_dir, '0_tx1_rx1_rx_rotate.npz')
             self.wb_sc_range=[-260,260]
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]

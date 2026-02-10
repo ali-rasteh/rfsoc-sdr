@@ -8,7 +8,7 @@ from scipy import constants
 import numpy as np
 
 from configs import Configs_Class
-from signal_utilsrfsoc import Signal_Utils_Rfsoc, Animate_Plot
+from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from file_utils import File_Utils
 from sigcom_toolkit.general import GeneralConfig
 
@@ -28,7 +28,6 @@ class SounderConfig(GeneralConfig):
     overwrite_level=True           # If True, overwrites the plot and verbose levels
     plot_level=0                   # Level of plotting outputs
     verbose_level=0                # Level of printing output
-    anim_interval=500              # Animation interval in ms
     animate_plot_mode=[]        # List of plots to animate
     # dictionary of plot fonts configurations
     plot_configs = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
@@ -91,7 +90,7 @@ class SounderConfig(GeneralConfig):
     filter_bw_range=[-450e6,450e6]         # Final filter BW range on the RX signal
     n_rx_ch_eq=1                           # Number of RX chains for channel equalization
     sparse_ch_samp_range=[-6,20]           # Range of samples around the strongest peak to consider for channel estimation
-    sparse_ch_n_ignore=-1                  # Number of samples to ignore around the strongest peak
+    sparse_ch_n_ignore=5                  # Number of samples to ignore around the strongest peak
     rx_same_delay=True                     # If True, all applies the same time shift to all RX antennas
     rx_chain=['sync_time', 'channel_est']  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, sparse_est, channel_eq
     channel_limit = True                   # If True, limits the channel to a specific range in the frequency domain
@@ -104,9 +103,7 @@ class SounderConfig(GeneralConfig):
     figs_dir=os.path.join(os.getcwd(), 'figs/')                                     # Figures directory
     config_dir = os.path.join(os.getcwd(), 'config/')                               # Configuration directory
     n_save = 100                                                                    # Number of samples to save
-    save_list = ['', '']                                                            # List of items to save, signal or channel
     save_format = 'npz'                                                             # Format to save the data, npz or mat (for MATLAB)
-    saved_sig_plot = []                                                             # List of saved signal plots
     save_parameters=False                                                           # If True, saves current parameters
     load_parameters=False                                                           # If True, loads parameters from the file
     
@@ -217,9 +214,8 @@ class SounderConfig(GeneralConfig):
             self.null_sc_range = [-1*self.wb_null_sc, self.wb_null_sc]
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
-        
-        if ('channel' in self.save_list):
-            self.channel_limit = False
+
+
         if self.channel_limit:
             self.sc_range_ch = self.sc_range
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
@@ -311,16 +307,9 @@ class Sounder(SounderConfig):
         if self.config.running_platform=='rfsoc':
             self.run_rfsoc()
 
-        self.config.show_saved_sigs=len(self.config.saved_sig_plot)>0
-        if 'client' in self.config.host_role and not self.config.show_saved_sigs:
-            if 'channel' in self.config.save_list or 'signal' in self.config.save_list:
-                self.signals_inst.save_signal_channel(self.signals_inst.txtd_base, save_list=self.config.save_list)
+        if 'client' in self.config.host_role:
             self.signals_inst.operator()
 
-        if 'client' in self.config.host_role and not 'slave' in self.config.host_role:
-            animate_plot_inst = Animate_Plot(self.config, self.signals_inst, self.signals_inst.txtd_base)
-            animate_plot_inst.init_objects(txtd_base=self.signals_inst.txtd_base)
-            animate_plot_inst.init_plots()
 
 
 if __name__ == '__main__':
@@ -328,4 +317,3 @@ if __name__ == '__main__':
     config = Configs_Class()
     sounder = Sounder(config)
     sounder.run()
-

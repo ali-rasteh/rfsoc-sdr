@@ -7,7 +7,6 @@ from typing import Any
 from cycler import cycler
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import numpy as np
 from numpy.fft import fft, ifft, fftshift, ifftshift
 import scipy.io
@@ -15,7 +14,7 @@ from scipy import constants
 
 
 from sigcom_toolkit.signal_utils import Signal_Utils, SignalUtilsConfig
-from sigcom_toolkit.general import GeneralConfig
+from sigcom_toolkit.general import GeneralConfig, General
 from tcp_comm import (
     PiradioRestComConfig,
     TCPComRFSoCConfig,
@@ -39,6 +38,23 @@ class RxSignal:
     H_est: np.ndarray
     H_est_max: np.ndarray
     sparse_est_params: dict
+
+
+@dataclass
+class PlotChart:
+    plot_signals: dict
+    title: str
+    x_label: str
+    y_label: str
+
+@dataclass
+class PlotSignal:
+    signal_name: str
+    trx_id: list
+    process_list: list
+    x: np.ndarray
+    data: np.ndarray
+    label: str
 
 @dataclass
 class TxSignal:
@@ -185,6 +201,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.tx_rx_distance = 3.0
         self.tx_signal = None
         self.rx_signal = None
+        self.animate_plotter = None
 
         self.print("signals object initialization done", thr=1)
 
@@ -916,7 +933,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 title += "-Norm"
             else:
                 raise ValueError("Invalid operation: {}".format(item))
-            
+
         return sig, title
 
 
@@ -927,6 +944,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         phys_config_id = 0
         angle_id = 0
         freq_id = 0
+        read_id = 0
 
         def parse_action(spec):
             spec_list = spec.split("/")
@@ -1003,7 +1021,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     phys_config = self.config.measurement_configs[phys_config_id]
                     self.print(f'Please change the physical configuration to: {phys_config}', thr=0)
                     phys_config_id = (phys_config_id + 1) % len(self.config.measurement_configs)
-                
+
+
                 if action == 'change_tx_rx_distance':
                     tx_rx_distance = input('Please enter the TX to RX distance in meters (empty for default): ')
                     if tx_rx_distance != '':
@@ -1012,6 +1031,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         except:
                             raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
                         self.tx_rx_distance = tx_rx_distance
+
 
                 if action == 'capture':
                     client_rfsoc = target_objects[0]
@@ -1026,7 +1046,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         # n_rd_rep = self.n_save//self.n_frame_rd
                         n_rd_rep = int(value)//self.config.n_frame_rd
                     rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode='once', verbose=False)
-                    # raise ValueError('Stop')
+                    self.rx_signal = RxSignal(
+                        rxtd=rxtd,
+                    )
 
                     if process_signal:
                         for i in range(self.config.n_save):
@@ -1036,6 +1058,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                             # to handle the dimenstion needed for read repeat
                             rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
                             rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd_frame)
+                            self.rx_signal = rx_signal
 
                             rxtd_save.append(rx_signal.rxtd_base)
                     else:
@@ -1047,6 +1070,31 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     rxtd_save = np.array(rxtd_save)
 
                     self.validate_saved_signals(rxtd=rxtd_save)
+
+
+                if action == 'capture_from_file':
+                    sigs_save = np.load(self.config.sig_save_path)
+
+                    rxtd = sigs_save['rxtd_{:.1f}'.format(self.config.fc/1e9)][read_id*self.config.n_rd_rep:(read_id+1)*self.config.n_rd_rep]
+                    txtd_base = sigs_save['txtd'][0]
+
+                    rx_signal = self.rx_operations(txtd_base, rxtd)
+                    self.rx_signal = rx_signal
+                    tx_signal = TxSignal(
+                        txtd_base=txtd_base,
+                    )
+                    read_id+=1
+
+
+                if action == 'update_plot':
+                    if self.animate_plotter is None:
+                        self.animate_plotter = Animate_Plot(self.config, self)
+
+                    rx_signal = self.rx_signal
+                    if rx_signal is None:
+                        raise ValueError("update_plot requires a valid rx_signal; run capture first")
+
+                    self.animate_plotter.update_once(rx_signal)
 
 
                 if action == 'save':
@@ -1077,17 +1125,20 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     save_id += 1
 
+
                 if action == 'wait':
                     wait_time = float(value)
                     self.print("Waiting for {} seconds...".format(wait_time), thr=2)
                     time.sleep(wait_time)
-                
+
+
                 # TODO update this part
                 if action == 'report_time':
                     freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
                     remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
                     self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
                     angle_id += 1
+
 
                 if action == 'rotate_table':
                     client_turntable = target_objects[0]
@@ -1099,10 +1150,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     rotation_time = time.time()-start_time
                     self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
 
+
                 if action == 'move_lin_track':
                     client_lintrack = target_objects[0]
                     distance = float(value)
                     client_lintrack.move(lin_track_id=0, distance=distance)
+
 
                 if action == 'return_lin_track_home':
                     client_lintrack.return2home(lin_track_id=0)
@@ -1111,10 +1164,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     aoa = self.aoa_list[-1] if len(self.aoa_list)>0 else 0
                     self.publish_aoa_turtlebot(aoa)
 
+
                 if action == 'publish_snr_ros2':
                     snr = self.calculate_snr(sig_td=self.rx_signal.rxtd[0,:,:self.config.n_samples_trx], sig_sc_range=self.config.sc_range)
                     snr_dB = self.lin_to_db(snr, mode='pow')
                     self.publish_snr_turtlebot(snr_dB)
+
 
                 if action == 'hop_freq':
                     clients = []
@@ -1138,12 +1193,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     else:
                         self.print("Saving signals for Freq: {} GHz".format(frequency/1e9), thr=0)
 
+
                 if action == 'set_gain_db_tx':
                     client_piradio = target_objects[0]
                     gain_db = int(value)
                     tx_gain_db = gain_db
                     client_piradio.set_gain_piradio(trx='tx', chan=0, gain_db=gain_db)
                     client_piradio.set_gain_piradio(trx='tx', chan=1, gain_db=gain_db)
+
 
                 if action == 'set_gain_db_rx':
                     client_piradio = target_objects[0]
@@ -1152,22 +1209,27 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     client_piradio.set_gain_piradio(trx='rx', chan=0, gain_db=gain_db)
                     client_piradio.set_gain_piradio(trx='rx', chan=1, gain_db=gain_db)
 
+
                 if action == 'find_optimal_gain_piradio':
                     client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
                     self.find_optimal_gain_piradio(client_rfsoc_rx, client_piradio_rx, client_piradio_tx)
+
 
                 if action == 'set_optimal_gain_piradio':
                     client_piradio_rx, client_piradio_tx = target_objects
                     client_piradio_rx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
                     client_piradio_tx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
-                
+
+
                 if action == 'set_optimal_losupp_piradio':
                     client_piradio_rx, client_piradio_tx = target_objects
                     client_piradio_rx.set_optimal_losupp_piradio()
                     client_piradio_tx.set_optimal_losupp_piradio()
 
+
                 if action == 'switch_sig_size':
                     sig_size = int(value)
+
 
                 if action == 'switch_sig_ss':
                     client_rfsoc = target_objects[0]
@@ -1176,6 +1238,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     tx_signal = self.gen_tx_signal()
                     client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
     
+
 
 
     def stream_rx_td_to_matlab(self, rxtd, freq):
@@ -1213,7 +1276,7 @@ class AnimationPlotConfig(GeneralConfig):
     animate_plot_mode: list = []
     plot_configs: dict = None
 
-class Animate_Plot(Signal_Utils_Rfsoc):
+class Animate_Plot(General):
     def __init__(self, config: AnimationPlotConfig, signals_obj: Signal_Utils_Rfsoc, **overrides: Any):
         super().__init__(config, **overrides)
 
@@ -1238,11 +1301,12 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
         self.anim_paused = False
         self.read_id = -1
-        
+        self.plots_initialized = False
+
         self.start_time = time.time()
 
 
-    def process_signals_for_plot(self, rx_signal):
+    def process_signals_for_plot(self, rx_signal: RxSignal):
 
         '''
         Instructions to build signals for plots:
@@ -1387,7 +1451,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 else:
                     raise ValueError('Unsupported signal name: {}'.format(signal_name))
 
-
                 sig, title_post = self.signals_obj.process_sig(sig, process_list=signal_process_list)
                 title += title_post
                 label = "RX {}/TX {}".format(rx_id, tx_id)
@@ -1395,7 +1458,6 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label += "-Real"
                 if 'imag' in signal_process_list:
                     label += "-Imag"
-
 
                 if sig_final is None:
                     sig_final = sig.copy()
@@ -1415,7 +1477,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label_final += operation + label
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
-                    plot_signals.append({'signal_name': signal_name, 'trx_id':[rx_id, tx_id], 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
+                    plot_signals.append(PlotSignal(signal_name=signal_name, trx_id=[rx_id, tx_id], process_list=signal_process_list, x=x, data=sig_final, label=label_final))
                     sig_final = None
                     label_final = None
 
@@ -1459,74 +1521,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 ylabel = "Y (m)"
 
 
-            signals.append({'plot_signals': plot_signals, 'title': title, 'x_label': xlabel, 'y_label': ylabel})
+            signals.append(PlotChart(plot_signals=plot_signals, title=title, x_label=xlabel, y_label=ylabel))
 
         return signals
-
-
-
-    def receive_data_anim(self):
-
-        self.read_id+=1
-        sigs_save = None
-        channels_save = None
-        if 'channel' in self.signals_config.saved_sig_plot:
-            channels_save = np.load(self.signals_config.channel_save_path)
-        if 'signal' in self.signals_config.saved_sig_plot:
-            sigs_save = np.load(self.signals_config.sig_save_path)
-
-        if sigs_save is None:
-            if channels_save is None:
-                rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
-            else:
-                rxtd = None
-            txtd_base = self.signals_obj.tx_signal.txtd_base
-        else:
-            rxtd = sigs_save['rxtd_{:.1f}'.format(self.signals_obj.fc/1e9)][self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
-            txtd_base = sigs_save['txtd'][0]
-
-        if channels_save is None:
-            while True:
-                rx_signal = self.signals_obj.rx_operations(txtd_base, rxtd)
-
-                if rx_signal.sparse_est_params is not None:
-                    (h_tr, dly_est, peaks, npath_est) = rx_signal.sparse_est_params
-                    if np.min(npath_est) > 0:
-                        break
-                    else:
-                        self.print("Re-estimating channel due to zero paths", thr=0)
-                        rxtd = self.client_rfsoc.receive_data_rfsoc(n_rd_rep=self.signals_config.n_rd_rep, mode='once')
-                else:
-                    break
-        else:
-            h_est_full = channels_save['h_est_full_{:.1f}'.format(self.signals_obj.fc/1e9)]
-
-            h = h_est_full.copy()[self.read_id*self.signals_config.n_rd_rep:(self.read_id+1)*self.signals_config.n_rd_rep]
-            h = h.transpose(3,1,2,0)
-            g = None
-            ndly = 5000
-            sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.signals_config.sc_range_ch, npaths=1, nframe_avg=1, ndly=ndly, drange=self.signals_config.sparse_ch_samp_range, cv=True, n_ignore=self.signals_config.sparse_ch_n_ignore)
-
-            h_est_full = h_est_full[self.read_id]
-            if rxtd is None:
-                rxtd_base = np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_samples_trx), dtype=complex)
-            else:
-                rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
-                rxtd_base = rxtd_frame
-            rx_signal = RxSignal(
-                rxtd=rxtd,
-                rxtd_base=rxtd_base,
-                h_est_full=h_est_full,
-                H_est=np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_tx_ant), dtype=complex),
-                H_est_max=np.zeros((self.signals_config.n_rx_ant, self.signals_config.n_tx_ant), dtype=complex),
-                sparse_est_params=sparse_est_params,
-            )
-
-
-        signals = self.process_signals_for_plot(rx_signal)
-        
-        return signals, rx_signal
-
 
 
     def toggle_pause(self, event):
@@ -1534,28 +1531,25 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             self.anim_paused = not self.anim_paused
 
 
-
-    def update(self, frame):
-        elapsed_time = time.time() - self.start_time
-        fps = 1 / elapsed_time if elapsed_time > 0 else float('inf')
-        self.print("Animation update time: {:.3f} s, FPS: {:.2f}".format(elapsed_time, fps), thr=5)
-
+    def update(self, frame, rx_signal: RxSignal=None):
         if self.anim_paused:
             return self.line
 
-        signals, _ = self.receive_data_anim()
+        if rx_signal is None:
+            raise ValueError("rx_signal cannot be None for plot_level >= 0")
+        signals = self.process_signals_for_plot(rx_signal)
 
         line_id = 0
         for i in range(self.config.n_plots_row):
             j = self.signals_config.fc_id - 1
 
-            for signal in signals[i]['plot_signals']:
+            for signal in signals[i].plot_signals:
 
-                signal_name = signal['signal_name']
-                rx_id = signal['trx_id'][0]
-                tx_id = signal['trx_id'][1]
-                signal_data = signal['data']
-                signal_process_list = signal['process_list']
+                signal_name = signal.signal_name
+                rx_id = signal.trx_id[0]
+                tx_id = signal.trx_id[1]
+                signal_data = signal.data
+                signal_process_list = signal.process_list
 
                 if 'IQ' in signal_process_list:
                     self.line[line_id][j].set_offsets(np.column_stack((signal_data.real, signal_data.imag)))
@@ -1628,18 +1622,30 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 except Exception as e:
                     print("Error in autoscale {}".format(e))
 
-        self.start_time = time.time()
-
         return self.line
 
 
+    def update_once(self, rx_signal: RxSignal=None):
+        if rx_signal is None:
+            raise ValueError("rx_signal cannot be None for plot update")
+
+        if not self.plots_initialized:
+            self.init_plots(rx_signal)
+        else:
+            self.update(frame=0, rx_signal=rx_signal)
+            if self.fig is not None:
+                self.fig.canvas.draw_idle()
+                self.fig.canvas.flush_events()
+                plt.pause(0.001)
 
 
-    def init_plots(self):
+    def init_plots(self, rx_signal: RxSignal=None):
         if self.config.plot_level<0:
             return
         
-        signals, _ = self.receive_data_anim()
+        if rx_signal is None:
+            raise ValueError("rx_signal cannot be None for plot_level >= 0")
+        signals = self.process_signals_for_plot(rx_signal)
         
         # Set up the figure and plot
         self.line = [[None for j in range(self.config.n_plots_col)] for i in range(3*self.config.n_plots_row)]
@@ -1654,13 +1660,13 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         for j in range(self.config.n_plots_col):
             line_id = 0
             for i in range(self.config.n_plots_row):
-                for signal in signals[i]['plot_signals']:
+                for signal in signals[i].plot_signals:
 
-                    signal_name = signal['signal_name']
-                    label = signal['label']
-                    signal_process_list = signal['process_list']
-                    signal_data = signal['data']
-                    x_data = signal['x']
+                    signal_name = signal.signal_name
+                    label = signal.label
+                    signal_process_list = signal.process_list
+                    signal_data = signal.data
+                    x_data = signal.x
                 
                     if 'IQ' in signal_process_list:
                         self.line[line_id][j] = self.ax[i][j].scatter(signal_data.real, signal_data.imag, facecolors='none', edgecolors='b', s=10)
@@ -1702,10 +1708,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
                 # Truncate the title to a maximum of 30 characters
-                title = (signals[i]['title'][:self.config.plot_configs['title_max_chars']] + '...') if len(signals[i]['title']) > self.config.plot_configs['title_max_chars'] else signals[i]['title']
+                title = (signals[i].title[:self.config.plot_configs['title_max_chars']] + '...') if len(signals[i].title) > self.config.plot_configs['title_max_chars'] else signals[i].title
                 title = title + "\n Carrier Frequency: {} GHz".format(self.signals_config.freq_hop_list[j]/1e9)
-                x_label = signals[i]['x_label']
-                y_label = signals[i]['y_label']
+                x_label = signals[i].x_label
+                y_label = signals[i].y_label
                 self.ax[i][j].set_title(title)
                 self.ax[i][j].set_xlabel(x_label)
                 self.ax[i][j].set_ylabel(y_label)
@@ -1728,12 +1734,14 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     # self.line[i][j].set_linewidth(3.0-0.5*self.n_plots_row-0.3*self.n_plots_col)
                     self.line[i][j].set_linewidth(self.config.plot_configs['line_width'])
 
-        # Create the animation
+        # Render once and keep the figure open for manual updates
         plt.tight_layout()
         plt.subplots_adjust(hspace=self.config.plot_configs['hspace'], wspace=self.config.plot_configs['wspace'])
-        anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.config.plot_configs['anim_interval'], blit=False)
-        plt.show()
-        self.fig.savefig(self.config.plot_configs['figs_save_path'], dpi=300)
+        self.plots_initialized = True
+        # anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.config.plot_configs['anim_interval'], blit=False)
+        plt.ion()
+        plt.show(block=False)
+        # self.fig.savefig(self.config.plot_configs['figs_save_path'], dpi=300)
 
 
 
