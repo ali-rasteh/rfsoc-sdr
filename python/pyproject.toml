@@ -1,0 +1,56 @@
+[tool.ruff]
+# 1. Target Python Version
+# Helps Ruff understand what syntax is allowed (e.g., match/case in 3.10+)
+target-version = "py310" 
+
+# 2. Line Length
+# 88 is the standard for Black. 100 or 120 is common for wider screens.
+line-length = 100
+# indent-width = 4          # Default is 4 spaces
+
+[tool.ruff.lint]
+# 3. Rules to Enable
+# We select a strict set of rules to ensure high code quality.
+select = [
+    "E",    # pycodestyle (Error)
+    "F",    # Pyflakes (The core linter)
+    "W",    # pycodestyle (Warning)
+    "I",    # isort (Sorts imports automatically)
+    "N",    # pep8-naming (Enforces ClassName, function_name, CONSTANT_NAME)
+    "UP",   # pyupgrade (Upgrades old syntax, e.g., "str" + "str" -> f-strings)
+    "B",    # flake8-bugbear (Catches common bugs & design issues)
+    "A",    # flake8-builtins (Prevents naming variables like 'list' or 'str')
+    "C4",   # flake8-comprehensions (Optimizes list/dict comprehensions)
+    "SIM",  # flake8-simplify (Suggests simpler syntax)
+    "PT",   # flake8-pytest-style (Enforces pytest best practices)
+]
+
+# 4. Rules to Ignore
+# specific rules that can be annoying or conflict with the formatter
+ignore = [
+    "E501",  # Ignore line-length (let the formatter handle splitting lines)
+    "B008",  # Ignore "function call in argument defaults" (common in FastAPI/Pydantic)
+]
+
+# 5. Unused Imports
+# Prevents unused imports from cluttering your code during development
+# but fails in CI/CD.
+unfixable = ["F401"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore "unused import" errors in __init__.py files (common for exposing modules)
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+# 6. Import Sorting Configuration
+# Forces imports to be separated into blocks (Standard Lib, 3rd Party, Local)
+known-first-party = ["python"] # CHANGE THIS to your actual project folder name
+combine-as-imports = true
+
+[tool.ruff.format]
+# 7. Formatting Style (matches Black)
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
