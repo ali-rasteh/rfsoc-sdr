@@ -6,21 +6,21 @@ import matplotlib.pyplot as plt
 
 fc = 57.51e9
 
-ip_address = '127.0.0.1'
+ip_address = "127.0.0.1"
 radio_control_port = 8080
 radio_data_port = 8081
 
 
 def set_mode(mode):
-    if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
-        radio_control.sendall(b"setModeSiver "+str.encode(str(mode)))
+    if mode == "RXen0_TXen1" or mode == "RXen1_TXen0" or mode == "RXen0_TXen0":
+        radio_control.sendall(b"setModeSiver " + str.encode(str(mode)))
         data = radio_control.recv(1024)
         print(data)
         return data
 
 
 def set_frequency(fc):
-    radio_control.sendall(b"setCarrierFrequency "+str.encode(str(fc)))
+    radio_control.sendall(b"setCarrierFrequency " + str.encode(str(fc)))
     data = radio_control.recv(1024)
     print(data)
     return data
@@ -31,10 +31,13 @@ def set_rx_gain():
     rx_gain_ctrl_bb2 = 0x00
     rx_gain_ctrl_bb3 = 0x33
     rx_gain_ctrl_bfrf = 0x7F
-    radio_control.sendall(b"setGainRX " + str.encode(str(int(rx_gain_ctrl_bb1)) + " ") \
-                                                  + str.encode(str(int(rx_gain_ctrl_bb2)) + " ") \
-                                                  + str.encode(str(int(rx_gain_ctrl_bb3)) + " ") \
-                                                  + str.encode(str(int(rx_gain_ctrl_bfrf))))
+    radio_control.sendall(
+        b"setGainRX "
+        + str.encode(str(int(rx_gain_ctrl_bb1)) + " ")
+        + str.encode(str(int(rx_gain_ctrl_bb2)) + " ")
+        + str.encode(str(int(rx_gain_ctrl_bb3)) + " ")
+        + str.encode(str(int(rx_gain_ctrl_bfrf)))
+    )
     data = radio_control.recv(1024)
     print(data)
     return data
@@ -52,9 +55,10 @@ def receive_data():
         data = radio_data.recv(nbytes)
         buf.extend(data)
     data = np.frombuffer(buf, dtype=np.int16)
-    rxtd = data[:nread*nbeams] + 1j*data[nread*nbeams:]
+    rxtd = data[: nread * nbeams] + 1j * data[nread * nbeams :]
     rxtd = rxtd.reshape(nbeams, nread)
     return rxtd
+
 
 def receive_data_once():
     nbeams = 1
@@ -105,7 +109,7 @@ print(hest.shape)
 
 signal = hest
 signal = signal.flatten()
-t = np.linspace(0,1,signal.shape[0])
+t = np.linspace(0, 1, signal.shape[0])
 # print(signal.shape)
 signal_fd = np.fft.fft(signal)
 freq = np.fft.fftfreq(t.shape[-1])
@@ -114,6 +118,6 @@ plt.plot(freq, signal_fd.real)
 plt.show()
 # plt.plot(t,signal.real)
 plt.plot(signal)
-plt.xlim(0,10)
+plt.xlim(0, 10)
 plt.show()
 print(np.max(signal.real))

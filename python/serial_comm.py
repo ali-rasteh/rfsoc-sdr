@@ -6,12 +6,11 @@ from dataclasses import dataclass
 from sigcom_toolkit.general import General, GeneralConfig
 
 
-
 @dataclass
 class SerialComConfig(GeneralConfig):
-    port : str = 'COM6'
-    baudrate : int = 115200
-    timeout : float = 1.0
+    port: str = "COM6"
+    baudrate: int = 115200
+    timeout: float = 1.0
 
 
 class Serial_Comm(General):
@@ -29,7 +28,6 @@ class Serial_Comm(General):
         self.client = None
         self.print("Serial_Comm Client object created", thr=1)
 
-
     def list_ports(self):
         """
         List all available COM ports.
@@ -38,16 +36,16 @@ class Serial_Comm(General):
         for port, desc, hwid in ports:
             self.print(f"{port}: {desc} [{hwid}]", thr=0)
 
-
     def connect(self):
         """Establish a connection to the target."""
-        self.client = serial.Serial(port=self.config.port, baudrate=self.config.baudrate, timeout=self.config.timeout)
+        self.client = serial.Serial(
+            port=self.config.port, baudrate=self.config.baudrate, timeout=self.config.timeout
+        )
         time.sleep(1)  # Wait for target to reset
         if self.client.is_open:
             self.print("Client serial connected!", thr=1)
         else:
             self.print("Client serial connection failed.", thr=0)
-
 
     def close(self):
         """Close the connection to the Target."""
@@ -55,11 +53,9 @@ class Serial_Comm(General):
             self.client.close()
             self.print("Client serial closed", thr=1)
 
-
     def __del__(self):
         self.close()
         self.print("Client object deleted", thr=1)
-
 
     def write(self, data):
         """
@@ -70,7 +66,6 @@ class Serial_Comm(General):
         if self.client and self.client.is_open:
             self.client.write(data.encode())  # Convert string to bytes
             self.print("Finished writing to the Serial target", thr=5)
-
 
     def read_lines(self, max_lines=None, termination_signal="END"):
         """
@@ -84,7 +79,7 @@ class Serial_Comm(General):
         lines_read = 0
         while True:
             if self.client.in_waiting > 0:  # Check if there is data to read
-                line = self.client.readline().decode('utf-8').strip()  # Decode bytes to string
+                line = self.client.readline().decode("utf-8").strip()  # Decode bytes to string
                 responses.append(line)
                 self.print(f"Target: {line}", thr=5)  # Debugging: print to console
 
@@ -97,11 +92,11 @@ class Serial_Comm(General):
         return responses
 
 
-
 @dataclass
 class SerialComTurnTableConfig(SerialComConfig):
-    rotation_delay : float = 0.0
-    
+    rotation_delay: float = 0.0
+
+
 class Serial_Comm_TurnTable(Serial_Comm):
     def __init__(self, config: SerialComTurnTableConfig, **overrides):
         """
@@ -118,12 +113,10 @@ class Serial_Comm_TurnTable(Serial_Comm):
 
         # self.connect()
 
-
     def return2home(self):
         self.print("Starting turn-table homing procedure..", thr=2)
         self.move_to_position(position=0.0)
         self.print("turn-table homing procedure done.", thr=2)
-
 
     def move_to_position(self, position):
         self.print(f"Moving turn-table to position: {position}", thr=2)
@@ -133,17 +126,16 @@ class Serial_Comm_TurnTable(Serial_Comm):
         # block until position is reached:
         isReady = False
         while not isReady:
-            if (responses[-1] == "done."):
+            if responses[-1] == "done.":
                 isReady = True
             else:
-                self.print('waiting..', thr=3)
+                self.print("waiting..", thr=3)
                 time.sleep(0.1)
                 responses = self.read_lines(max_lines=1)
         self.position = position
         if self.config.rotation_delay > 0.0:
             time.sleep(self.config.rotation_delay)
         self.print(f"Turn-table moved to position: {position}", thr=3)
-
 
     def set_home(self):
         self.print("Setting the current position as the home position", thr=2)
@@ -153,13 +145,14 @@ class Serial_Comm_TurnTable(Serial_Comm):
         self.position = 0.0
         self.print("Home position set", thr=3)
 
-
-    def calibrate(self, mode='start'):
+    def calibrate(self, mode="start"):
         self.print("Calibrating the turn-table with mode {}".format(mode), thr=1)
         self.print("Try to set the angle at zero ...", thr=1)
         while True:
-            angle_str = input("Enter the angle to move in deg, empty if need to finish calibration: ")
-            if angle_str == '':
+            angle_str = input(
+                "Enter the angle to move in deg, empty if need to finish calibration: "
+            )
+            if angle_str == "":
                 # if mode == 'start':
                 #     self.position = 0.0
                 # elif mode == 'end':
@@ -175,12 +168,11 @@ class Serial_Comm_TurnTable(Serial_Comm):
 
         self.print("Calibration for turn-table complete", thr=1)
 
-
     def interactive_move(self):
         self.print("Starting interactive move for TurnTable", thr=1)
         while True:
             angle_str = input("Enter the angle to move in degrees, empty if need to break: ")
-            if angle_str == '':
+            if angle_str == "":
                 break
             try:
                 angle = float(angle_str)
@@ -188,8 +180,3 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 self.print("Invalid angle, please enter a valid angle", thr=0)
                 continue
             self.move_to_position(position=angle)
-
-
-
-
-
