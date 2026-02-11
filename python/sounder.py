@@ -7,14 +7,14 @@ from typing import Any
 from scipy import constants
 import numpy as np
 
-from signal_utilsrfsoc import Signal_Utils_Rfsoc
+from signal_utilsrfsoc import Signal_Utils_Rfsoc, SignalUtilsRFSoCConfig
 from file_utils import File_Utils
 from sigcom_toolkit.general import GeneralConfig
 
 
 
 @dataclass
-class SounderConfig(GeneralConfig):
+class SounderConfig(SignalUtilsRFSoCConfig):
     # Constant parameters
     seed=100
 

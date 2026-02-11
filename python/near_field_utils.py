@@ -191,9 +191,6 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
         dly_est = np.take_along_axis(dly_est, dly_sort_idx, axis=0)
         peaks = np.take_along_axis(peaks, dly_sort_idx, axis=0)
 
-
-        # self.plot_signal(self.t_trx[:100], np.abs(h[:100,1,1,0]), scale='dB20')
-
         txid = 0
 
         self.nf_model.chan_td = h[:,:,txid,:]

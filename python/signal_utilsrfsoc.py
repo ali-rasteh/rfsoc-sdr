@@ -9,6 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import fft, ifft, fftshift, ifftshift
+from sigcom_toolkit.plot_utils import Plot_Utils, PlotUtilsConfig
 import scipy.io
 from scipy import constants
 
@@ -183,7 +184,8 @@ class PiRadioFR3Trx(REST_Com_Piradio):
 
 @dataclass
 class SignalUtilsRFSoCConfig(SignalUtilsConfig):
-    pass
+    seed: int = None
+    seed_list: list = None
 
 
 class Signal_Utils_Rfsoc(Signal_Utils):
@@ -386,7 +388,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             title = 'TX signal spectrum in base-band for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
-            self.plot_signal(x=self.config.freq_tx, sigs=txtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
+            self.plotter.plot_signal(x=self.config.freq_tx, sigs=txtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
             title = 'Base-band TX signal in time domain at \n the time transition for antenna {}'.format(ant_id)
             xlabel = 'Time (s)'
             ylabel = 'Magnitude'
@@ -394,7 +396,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             t=self.config.t_tx[:2*n]
             sig_real=np.concatenate((txtd_base[ant_id].real[-n:], txtd_base[ant_id].real[:n]))
             sig_imag=np.concatenate((txtd_base[ant_id].imag[-n:], txtd_base[ant_id].imag[:n]))
-            self.plot_signal(x=t, sigs={'real':sig_real, 'imag':sig_imag}, mode='time', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4, legend=True)
+            self.plotter.plot_signal(x=t, sigs={'real':sig_real, 'imag':sig_imag}, mode='time', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4, legend=True)
 
         txtd_base = np.array(txtd_base)
 
@@ -418,7 +420,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         if self.config.n_tx_ant > 1:
             self.print(f"Dot product of transmitted signals: {np.abs(np.vdot(txtd_base[1], txtd_base[0]))}", thr=4)
-        # self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
+        # self.plotter.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
         self.tx_signal = TxSignal(txtd=txtd, txtd_base=txtd_base)
         return self.tx_signal
@@ -736,13 +738,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             title = 'RX signal spectrum for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
-            self.plot_signal(x=self.config.freq_rx, sigs=rxtd[plt_frm_id, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
+            self.plotter.plot_signal(x=self.config.freq_rx, sigs=rxtd[plt_frm_id, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
 
             title = 'RX signal in time domain (zoomed) for antenna {}'.format(ant_id)
             xlabel = 'Time (s)'
             ylabel = 'Magnitude'
             n = 4*int(np.round(self.config.fs_rx/self.config.f_max))
-            self.plot_signal(x=self.config.t_rx[:n], sigs=rxtd[plt_frm_id, ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=4)
+            self.plotter.plot_signal(x=self.config.t_rx[:n], sigs=rxtd[plt_frm_id, ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=4)
 
         if self.config.rfsoc_mixer_mode == 'digital' and self.config.mix_freq_adc!=0:
             rxtd_base = np.zeros_like(rxtd)
@@ -762,7 +764,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 title = 'RX signal spectrum after filtering in base-band for antenna {}'.format(ant_id)
                 xlabel = 'Frequency (MHz)'
                 ylabel = 'Magnitude (dB)'
-                self.plot_signal(x=self.config.freq_rx, sigs=rxtd_base[0, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
+                self.plotter.plot_signal(x=self.config.freq_rx, sigs=rxtd_base[0, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
 
         for ant_id in range(self.config.n_rx_ant):
             # n_samples = min(len(txtd_base), len(rxtd_base))
@@ -778,7 +780,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             f1=np.abs(self.config.freq - xlim[0]).argmin()
             f2=np.abs(self.config.freq - xlim[1]).argmin()
             ylim=(np.min(rxfd_base_[f1:f2]*scale), 1.1*np.max(rxfd_base_[f1:f2]*scale))
-            self.plot_signal(x=self.config.freq, sigs={"txfd_base":txfd_base_, "Scaled rxfd_base":rxfd_base_*scale}, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
+            self.plotter.plot_signal(x=self.config.freq, sigs={"txfd_base":txfd_base_, "Scaled rxfd_base":rxfd_base_*scale}, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
             self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.config.freq[(self.config.nfft>>1)+np.argmax(txfd_base_[self.config.nfft>>1:])]), thr=4)
             self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.config.freq[(self.config.nfft>>1)+np.argmax(rxfd_base_[self.config.nfft>>1:])]), thr=4)
 
@@ -1133,12 +1135,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     time.sleep(wait_time)
 
 
-                # TODO update this part
+                # TODO
                 if action == 'report_time':
-                    freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
-                    remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
-                    self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
-                    angle_id += 1
+                    # freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
+                    # remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
+                    # self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
+                    # angle_id += 1
+                    pass
 
 
                 if action == 'rotate_table':
@@ -1273,11 +1276,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
 @dataclass
-class AnimationPlotConfig(GeneralConfig):
+class AnimationPlotConfig(PlotUtilsConfig):
     animate_plot_mode: list = []
     plot_configs: dict = None
 
-class Animate_Plot(General):
+class Animate_Plot(Plot_Utils):
     def __init__(self, config: AnimationPlotConfig, signals_obj: Signal_Utils_Rfsoc, **overrides: Any):
         super().__init__(config, **overrides)
 
