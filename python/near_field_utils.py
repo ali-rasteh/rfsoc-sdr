@@ -1,15 +1,15 @@
 import time
 from dataclasses import dataclass
 from typing import Any
+
 import numpy as np
 from numpy.fft import fft
 
-
-from signal_utilsrfsoc import Signal_Utils_Rfsoc, SignalUtilsRFSoCConfig
-from sigcom_toolkit.signal_utils import Signal_Utils, AoAKalmanFilter, SignalUtilsConfig
+from sigcom_toolkit.signal_utils import AoAKalmanFilter, Signal_Utils, SignalUtilsConfig
+from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 try:
-    from sigcom_toolkit.near_field import Sim as Near_Field_Model, RoomModel
+    from sigcom_toolkit.near_field import RoomModel, Sim as Near_Field_Model
 except Exception:
     Near_Field_Model = None
     RoomModel = None
@@ -61,7 +61,7 @@ class NearFieldSignalUtilsConfig(SignalUtilsRFSoCConfig):
                 )
 
 
-class NearFieldSignalUtils(Signal_Utils_Rfsoc):
+class NearFieldSignalUtils(SignalUtilsRfsoc):
     def __init__(self, config: NearFieldSignalUtilsConfig, **overrides: Any):
         # strict override: only allow existing fields
         super().__init__(config, **overrides)
@@ -220,7 +220,7 @@ class NearFieldSignalUtils(Signal_Utils_Rfsoc):
         self.nf_model.sparse_dly_est = dly_est[:, :, txid, :]
         self.nf_model.sparse_peaks_est = peaks[:, :, txid, :]
         # self.nf_model.npath_est = n_paths_min
-        self.print("Number of paths estimated: {}".format(n_paths_min), thr=0)
+        self.print(f"Number of paths estimated: {n_paths_min}", thr=0)
 
         self.nf_model.path_est_init()
         self.nf_model.locate_tx(npath_est=n_paths_min)

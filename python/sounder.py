@@ -1,13 +1,13 @@
 import os
-from dataclasses import dataclass
 import platform
+from dataclasses import dataclass
 from typing import Any
 
-from scipy import constants
 import numpy as np
+from scipy import constants
 
-from signal_utilsrfsoc import Signal_Utils_Rfsoc, SignalUtilsRFSoCConfig
 from file_utils import File_Utils
+from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 
 @dataclass
@@ -282,9 +282,7 @@ class SounderConfig(SignalUtilsRFSoCConfig):
                 "linear_track/*.txt",
             ]
 
-        if self.files_dwnld_target == "rfsoc":
-            self.configs_to_modify = {}
-        elif self.files_dwnld_target == "raspi":
+        if self.files_dwnld_target == "rfsoc" or self.files_dwnld_target == "raspi":
             self.configs_to_modify = {}
 
         if self.files_dwnld_target == "rfsoc":
@@ -310,14 +308,14 @@ class Sounder(SounderConfig):
                 self.config.config_dir,
             ]
         )
-        self.print("Running the code as {}".format(self.config.host_role), thr=1)
+        self.print(f"Running the code as {self.config.host_role}", thr=1)
 
         if self.config.running_platform == "rfsoc" and (
             self.config.update_rfsoc_files or self.config.modify_rfsoc_files
         ):
             self.update_rfsoc_files()
 
-        self.signals_inst = Signal_Utils_Rfsoc(self.config)
+        self.signals_inst = SignalUtilsRfsoc(self.config)
         self.signals_inst.gen_tx_signal()
 
     def update_rfsoc_files(self):

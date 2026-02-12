@@ -1,32 +1,32 @@
+import ast
+import contextlib
+import itertools
 import os
 import time
-import itertools
-import ast
 from dataclasses import dataclass
 from typing import Any
-from cycler import cycler
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.fft import fft, ifft, fftshift, ifftshift
-from sigcom_toolkit.plot_utils import Plot_Utils, PlotUtilsConfig
 import scipy.io
+from matplotlib.cycler import cycler
+from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
 
-
+from serial_comm import Serial_Comm_TurnTable, SerialComTurnTableConfig
+from sigcom_toolkit.plot_utils import Plot_Utils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import Signal_Utils, SignalUtilsConfig
-from sigcom_toolkit.general import GeneralConfig, General
 from tcp_comm import (
     PiradioRestComConfig,
-    TCPComRFSoCConfig,
-    TCPComLinTrackConfig,
-    TCPComControllerConfig,
-    Tcp_Comm_RFSoC,
-    Tcp_Comm_LinTrack,
     REST_Com_Piradio,
     Tcp_Comm_Controller,
+    Tcp_Comm_LinTrack,
+    Tcp_Comm_RFSoC,
+    TCPComControllerConfig,
+    TCPComLinTrackConfig,
+    TCPComRFSoCConfig,
 )
-from serial_comm import SerialComTurnTableConfig, Serial_Comm_TurnTable
 
 
 @dataclass
@@ -34,8 +34,8 @@ class RxSignal:
     rxtd: np.ndarray
     rxtd_base: np.ndarray
     h_est_full: np.ndarray
-    H_est: np.ndarray
-    H_est_max: np.ndarray
+    h_est_freq: np.ndarray
+    h_est_freq_max: np.ndarray
     sparse_est_params: dict
 
 
@@ -88,9 +88,7 @@ class ClientRFSoC(Tcp_Comm_RFSoC):
                 self.rx_phase_offset = np.load(self.config.calib_config_path)["rx_phase_offset"]
                 self.rx_delay_offset = np.load(self.config.calib_config_path)["rx_delay_offset"]
                 self.print(
-                    "Using saved phase offset between RX ports: {:0.3f} Rad".format(
-                        self.rx_phase_offset
-                    ),
+                    f"Using saved phase offset between RX ports: {self.rx_phase_offset:0.3f} Rad",
                     thr=1,
                 )
                 # self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
@@ -102,7 +100,7 @@ class ClientRFSoC(Tcp_Comm_RFSoC):
         else:
             phase_diff_list = []
             delay_list = []
-            for i in range(self.calib_iter):
+            for _ in range(self.calib_iter):
                 rxtd = self.receive_data_rfsoc(mode="once")
                 rxtd = rxtd[0]
                 phase_diff = Signal_Utils.calc_phase_offset(rxtd[0, :], rxtd[1, :])
@@ -119,12 +117,10 @@ class ClientRFSoC(Tcp_Comm_RFSoC):
                 fc=self.fc,
             )
             self.print(
-                "Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(
-                    self.rx_phase_offset
-                ),
+                f"Calibrated and saved phase offset between RX ports: {self.rx_phase_offset:0.3f} Rad",
                 thr=1,
             )
-            # self.print("Calibrated and saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
+            # self.print(f"Calibrated and saved delay offset between RX ports: {self.rx_delay_offset:0.3f} s", thr=1)
 
 
 @dataclass
@@ -145,10 +141,7 @@ class PiRadioFR3Trx(REST_Com_Piradio):
     def hop_freq(self, fc_id=None, freq=None, set_opt_losupp=False):
         if fc_id is None:
             fc_id = (self.fc_id + 1) % len(self.config.freq_hop_list)
-        if freq is not None:
-            fc = freq
-        else:
-            fc = self.config.freq_hop_list[int(fc_id)]
+        fc = freq if freq is not None else self.config.freq_hop_list[int(fc_id)]
         if self.fc != fc:
             self.set_frequency_piradio(fc=fc)
 
@@ -189,9 +182,7 @@ class PiRadioFR3Trx(REST_Com_Piradio):
         optimal_lo_supp = lo_supp_lut[nearest_fc]
 
         self.print(
-            "Nearest frequency: {} GHz, Optimal LO suppression: {}".format(
-                nearest_fc, optimal_lo_supp
-            ),
+            f"Nearest frequency: {nearest_fc} GHz, Optimal LO suppression: {optimal_lo_supp}",
             thr=1,
         )
         self.set_bias_piradio(chan=0, iq="I", bias_voltage=optimal_lo_supp[0])
@@ -221,7 +212,7 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     seed_list: list = None
 
 
-class Signal_Utils_Rfsoc(Signal_Utils):
+class SignalUtilsRfsoc(Signal_Utils):
     def __init__(self, config: SignalUtilsRFSoCConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -323,11 +314,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if "calibrate" in item and item["calibrate"]:
                         self._network_objects[name].calibrate()
                     self._network_objects[name].interactive_move()
-                except:
+                except Exception:
                     self._network_objects[name].list_ports()
                     raise Exception(
                         "Turntable not connected or wrong port, please check the port list"
-                    )
+                    ) from None
 
             elif item["type"] == "piradio":
                 ip_address = item["ip"]
@@ -447,9 +438,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.config.sig_psd_dbm = self.config.sig_pow_dbm - self.lin_to_db(bw, mode="pow")
             self.config.sig_psd_dbm_sc = self.config.sig_pow_dbm - self.lin_to_db(nsc, mode="pow")
             self.print(
-                "TX Signal power for antenna {}: {:0.3f} dbm".format(
-                    ant_id, self.config.sig_pow_dbm
-                ),
+                f"TX Signal power for antenna {ant_id}: {self.config.sig_pow_dbm:0.3f} dbm",
                 thr=4,
             )
             self.print(
@@ -462,7 +451,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 thr=4,
             )
 
-            title = "TX signal spectrum in base-band for antenna {}".format(ant_id)
+            title = f"TX signal spectrum in base-band for antenna {ant_id}"
             xlabel = "Frequency (MHz)"
             ylabel = "Magnitude (dB)"
             self.plotter.plot_signal(
@@ -475,8 +464,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 ylabel=ylabel,
                 plot_level=4,
             )
-            title = "Base-band TX signal in time domain at \n the time transition for antenna {}".format(
-                ant_id
+            title = (
+                f"Base-band TX signal in time domain at \n the time transition for antenna {ant_id}"
             )
             xlabel = "Time (s)"
             ylabel = "Magnitude"
@@ -550,7 +539,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         if txtd is not None:
             offset = np.argmax(np.abs(txtd[0, 0])) - np.argmax(np.abs(txtd[0, 1]))
-            self.print("Offset between TX signals: {}".format(offset), thr=0)
+            self.print(f"Offset between TX signals: {offset}", thr=0)
 
         self.print("Sanity check passed", thr=3)
 
@@ -567,10 +556,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             sys_response_folder = os.path.join(os.getcwd(), "sigs_tx2_rx2_rx_rotate/")
 
         n_tx = n_rx
-        postfix = "{}x{}".format(n_rx, n_tx)
-        sys_response_path = os.path.join(
-            self.config.channel_dir, "sys_response_{}.npz".format(postfix)
-        )
+        postfix = f"{n_rx}x{n_tx}"
+        sys_response_path = os.path.join(self.config.channel_dir, f"sys_response_{postfix}.npz")
         if not os.path.exists(sys_response_folder):
             os.makedirs(sys_response_folder)
 
@@ -579,7 +566,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             for file_name in os.listdir(sys_response_folder):
                 if file_name.endswith(".npz") or file_name.endswith(".mat"):
-                    self.print("Processing file: {}".format(file_name), thr=0)
+                    self.print(f"Processing file: {file_name}", thr=0)
                     file_path = os.path.join(sys_response_folder, file_name)
                     if file_name.endswith(".npz"):
                         data = np.load(file_path)
@@ -599,7 +586,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     rxtd_dict = {}
                     for key, value in data_dict.items():
-                        if not "rxtd_" in key:
+                        if "rxtd_" not in key:
                             continue
                         frequency = float(key.split("_")[-1])
                         rxtd_dict[frequency] = value
@@ -610,7 +597,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         max_gain = np.max(np.abs(rx_signal.h_est_full), axis=-1)
                         sys_response[angle][frequency] = max_gain
 
-            angles = [float(angle) for angle in sys_response.keys()]
+            angles = [float(angle) for angle in sys_response]
             angles = np.array(angles)
             angles = np.sort(angles)
             frequencies = np.array(list(sys_response[angles[0]].keys()))
@@ -664,16 +651,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 (line,) = ax.plot(
                     frequencies,
                     sys_response_matrix[angle_id, :, rx_id, 0],
-                    label="Angle {}, RX {}".format(fixed_angle, rx_id),
+                    label=f"Angle {fixed_angle}, RX {rx_id}",
                 )
                 lines.append(line)
         plot_params_dict["title"] = "System Response vs Frequency at Different Angles"
         plot_params_dict["xlabel"] = "Frequency (GHz)"
         plot_params_dict["ylabel"] = "Normalized Response (dB)"
         self.set_plot_params(ax, lines, plot_params_dict)
-        plt.savefig(
-            os.path.join(self.config.figs_dir, "sys_response_vs_freq_{}.pdf".format(postfix))
-        )
+        plt.savefig(os.path.join(self.config.figs_dir, f"sys_response_vs_freq_{postfix}.pdf"))
 
         fixed_freqs = [6.0, 8.0, 10.0, 15.0, 20.0]
         if n_rx > 1:
@@ -686,7 +671,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 (line,) = ax.plot(
                     angles,
                     sys_response_matrix[:, freq_id, rx_id, 0],
-                    label="Fc {}GHz, RX {}".format(fixed_freq, rx_id),
+                    label=f"Fc {fixed_freq}GHz, RX {rx_id}",
                 )
                 lines.append(line)
         plot_params_dict["title"] = "System Response vs Angle at Different Frequencies"
@@ -694,9 +679,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         plot_params_dict["ylabel"] = "Normalized Response (dB)"
         self.set_plot_params(ax, lines, plot_params_dict)
         plt.show()
-        plt.savefig(
-            os.path.join(self.config.figs_dir, "sys_response_vs_angle_{}.pdf".format(postfix))
-        )
+        plt.savefig(os.path.join(self.config.figs_dir, f"sys_response_vs_angle_{postfix}.pdf"))
 
         rx_id = 0
         tx_id = 0
@@ -713,14 +696,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             cbar = fig.colorbar(cax, ax=ax, label="Normalized Response (dB)")
             cbar.ax.tick_params(labelsize=plot_params_dict["ticks_size"])
             cbar.ax.yaxis.label.set_size(plot_params_dict["yaxis_size"])
-            plot_params_dict["title"] = "2D Heat Diagram of System Response for RX {}".format(rx_id)
+            plot_params_dict["title"] = f"2D Heat Diagram of System Response for RX {rx_id}"
             plot_params_dict["xlabel"] = "Frequency (GHz)"
             plot_params_dict["ylabel"] = "Angle (Deg)"
             self.set_plot_params(ax, lines, plot_params_dict)
             plt.savefig(
-                os.path.join(
-                    self.config.figs_dir, "sys_response_2D_{}_RX{}.pdf".format(postfix, rx_id)
-                )
+                os.path.join(self.config.figs_dir, f"sys_response_2D_{postfix}_RX{rx_id}.pdf")
             )
             plt.show()
 
@@ -737,7 +718,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         for file_name in os.listdir(input_folder):
             if file_name.endswith(".npz") or file_name.endswith(".mat"):
-                self.print("Processing file: {}".format(file_name), thr=0)
+                self.print(f"Processing file: {file_name}", thr=0)
                 file_path = os.path.join(input_folder, file_name)
                 if file_name.endswith(".npz"):
                     data = np.load(file_path)
@@ -751,15 +732,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 collected_data = {}
                 for key, value in data_dict.items():
                     # print(key, value.shape)
-                    if not any(x in key for x in ["rxtd", "h_est_full"]):
-                        continue
-                    elif ignore_less_count and value.shape[0] < collect_count:
+                    if (
+                        not any(x in key for x in ["rxtd", "h_est_full"])
+                        or ignore_less_count
+                        and value.shape[0] < collect_count
+                    ):
                         continue
                     else:
-                        if key == "txtd":
-                            collect_count_ = 1
-                        else:
-                            collect_count_ = collect_count
+                        collect_count_ = 1 if key == "txtd" else collect_count
                         collect_count_ = min(value.shape[0], collect_count_)
                         collected_data[key] = value[:collect_count_]
 
@@ -767,7 +747,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if "rxtd" in key:
                         rxtd = value
                         self.validate_saved_signals(rxtd=rxtd, txtd=collected_data["txtd"])
-                output_file_path = os.path.join(output_folder, file_name)
+                # output_file_path = os.path.join(output_folder, file_name)
                 print([(key, value.shape) for (key, value) in collected_data.items()])
                 # np.savez(output_file_path, **collected_data)
 
@@ -792,50 +772,50 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if tx_rx_distance != "":
             try:
                 self.tx_rx_distance = float(tx_rx_distance)
-            except:
-                raise ValueError("Invalid distance value: {}".format(self.tx_rx_distance))
+            except Exception:
+                raise ValueError(f"Invalid distance value: {self.tx_rx_distance}")  # noqa: B904
         else:
             pass
         self.optimal_gains[self.tx_rx_distance] = {}
 
-        max_total_gain_dB = 60
-        min_tx_gain_dB = 10
-        max_tx_gain_dB = 30
-        min_rx_gain_dB = 10
-        max_rx_gain_dB = 40
-        gain_step_dB = 1
+        max_total_gain_db = 60
+        min_tx_gain_db = 10
+        max_tx_gain_db = 30
+        min_rx_gain_db = 10
+        max_rx_gain_db = 40
+        gain_step_db = 1
 
-        tx_gain_dB_list = np.arange(min_tx_gain_dB, max_tx_gain_dB + gain_step_dB, gain_step_dB)
-        rx_gain_dB_list = np.arange(min_rx_gain_dB, max_rx_gain_dB + gain_step_dB, gain_step_dB)
+        tx_gain_db_list = np.arange(min_tx_gain_db, max_tx_gain_db + gain_step_db, gain_step_db)
+        rx_gain_db_list = np.arange(min_rx_gain_db, max_rx_gain_db + gain_step_db, gain_step_db)
 
         freq_list = [client_piradio_rx.config.stable_fc_piradio]
         for frequency in freq_list:
-            self.print("Finding gains for frequency: {} GHz".format(frequency), thr=1)
+            self.print(f"Finding gains for frequency: {frequency} GHz", thr=1)
             for client in [client_piradio_rx, client_piradio_tx]:
                 client.hop_freq(freq=frequency)
 
             self.optimal_gains[self.tx_rx_distance][frequency] = {}
 
-            snr_dB_optimal = 0
-            tx_gain_dB_optimal = 0
-            rx_gain_dB_optimal = 0
+            snr_db_optimal = 0
+            tx_gain_db_optimal = 0
+            rx_gain_db_optimal = 0
 
-            for tx_gain_dB in tx_gain_dB_list:
-                if tx_gain_dB < min_tx_gain_dB or tx_gain_dB > max_tx_gain_dB:
+            for tx_gain_db in tx_gain_db_list:
+                if tx_gain_db < min_tx_gain_db or tx_gain_db > max_tx_gain_db:
                     continue
-                self.print("Setting TX gain to {} dB".format(tx_gain_dB), thr=1)
-                client_piradio_tx.set_gain_piradio(trx="tx", chan=0, gain_db=tx_gain_dB)
-                client_piradio_tx.set_gain_piradio(trx="tx", chan=1, gain_db=tx_gain_dB)
+                self.print(f"Setting TX gain to {tx_gain_db} dB", thr=1)
+                client_piradio_tx.set_gain_piradio(trx="tx", chan=0, gain_db=tx_gain_db)
+                client_piradio_tx.set_gain_piradio(trx="tx", chan=1, gain_db=tx_gain_db)
 
-                for rx_gain_dB in rx_gain_dB_list:
-                    if rx_gain_dB < min_rx_gain_dB or rx_gain_dB > max_rx_gain_dB:
+                for rx_gain_db in rx_gain_db_list:
+                    if rx_gain_db < min_rx_gain_db or rx_gain_db > max_rx_gain_db:
                         continue
-                    if tx_gain_dB + rx_gain_dB > max_total_gain_dB:
+                    if tx_gain_db + rx_gain_db > max_total_gain_db:
                         continue
 
-                    self.print("Setting RX gain to {} dB".format(rx_gain_dB), thr=1)
-                    client_piradio_rx.set_gain_piradio(trx="rx", chan=0, gain_db=rx_gain_dB)
-                    client_piradio_rx.set_gain_piradio(trx="rx", chan=1, gain_db=rx_gain_dB)
+                    self.print(f"Setting RX gain to {rx_gain_db} dB", thr=1)
+                    client_piradio_rx.set_gain_piradio(trx="rx", chan=0, gain_db=rx_gain_db)
+                    client_piradio_rx.set_gain_piradio(trx="rx", chan=1, gain_db=rx_gain_db)
                     if client_piradio_rx.config.gain_sw_dly == 0:
                         time.sleep(2 * client_piradio_rx.config.piradio_gain_sw_dly_default)
 
@@ -844,32 +824,28 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         sig_td=rxtd[0, :, : self.config.n_samples_trx],
                         sig_sc_range=self.config.sc_range,
                     )
-                    snr_dB = self.lin_to_db(snr, mode="pow")
+                    snr_db = self.lin_to_db(snr, mode="pow")
                     self.print(
-                        "SNR for TX gain {} dB and RX gain {} dB: {:.3f} dB".format(
-                            tx_gain_dB, rx_gain_dB, snr_dB
-                        ),
+                        f"SNR for TX gain {tx_gain_db} dB and RX gain {rx_gain_db} dB: {snr_db:.3f} dB",
                         thr=1,
                     )
-                    if snr_dB > snr_dB_optimal:
-                        snr_dB_optimal = snr_dB
-                        tx_gain_dB_optimal = tx_gain_dB
-                        rx_gain_dB_optimal = rx_gain_dB
+                    if snr_db > snr_db_optimal:
+                        snr_db_optimal = snr_db
+                        tx_gain_db_optimal = tx_gain_db
+                        rx_gain_db_optimal = rx_gain_db
 
             self.print(
-                "Optimal TX gain for frequency {}: {} dB".format(frequency, tx_gain_dB_optimal),
+                f"Optimal TX gain for frequency {frequency}: {tx_gain_db_optimal} dB",
                 thr=1,
             )
             self.print(
-                "Optimal RX gain for frequency {}: {} dB".format(frequency, rx_gain_dB_optimal),
+                f"Optimal RX gain for frequency {frequency}: {rx_gain_db_optimal} dB",
                 thr=1,
             )
-            self.print(
-                "Optimal SNR for frequency {}: {} dB".format(frequency, snr_dB_optimal), thr=1
-            )
+            self.print(f"Optimal SNR for frequency {frequency}: {snr_db_optimal} dB", thr=1)
 
-            self.optimal_gains[self.tx_rx_distance][frequency]["tx_gain"] = int(tx_gain_dB_optimal)
-            self.optimal_gains[self.tx_rx_distance][frequency]["rx_gain"] = int(rx_gain_dB_optimal)
+            self.optimal_gains[self.tx_rx_distance][frequency]["tx_gain"] = int(tx_gain_db_optimal)
+            self.optimal_gains[self.tx_rx_distance][frequency]["rx_gain"] = int(rx_gain_db_optimal)
 
         self.save_dict_to_json(self.optimal_gains, self.config.optimal_gains_path)
         self.print("Calculated and saved optimal TX/RX gains...", thr=1)
@@ -885,7 +861,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_rd_rep = rxtd.shape[0]
 
         for ant_id in range(self.config.n_rx_ant):
-            title = "RX signal spectrum for antenna {}".format(ant_id)
+            title = f"RX signal spectrum for antenna {ant_id}"
             xlabel = "Frequency (MHz)"
             ylabel = "Magnitude (dB)"
             self.plotter.plot_signal(
@@ -899,7 +875,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 plot_level=4,
             )
 
-            title = "RX signal in time domain (zoomed) for antenna {}".format(ant_id)
+            title = f"RX signal in time domain (zoomed) for antenna {ant_id}"
             xlabel = "Time (s)"
             ylabel = "Magnitude"
             n = 4 * int(np.round(self.config.fs_rx / self.config.f_max))
@@ -940,9 +916,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         plot=False,
                     )
 
-                title = "RX signal spectrum after filtering in base-band for antenna {}".format(
-                    ant_id
-                )
+                title = f"RX signal spectrum after filtering in base-band for antenna {ant_id}"
                 xlabel = "Frequency (MHz)"
                 ylabel = "Magnitude (dB)"
                 self.plotter.plot_signal(
@@ -963,13 +937,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 fftshift(fft(rxtd_base[plt_frm_id, ant_id, : self.config.n_samples]))
             )
 
-            title = "TX and RX signals spectrum in base-band for antenna {}".format(ant_id)
+            title = f"TX and RX signals spectrum in base-band for antenna {ant_id}"
             xlabel = "Frequency (MHz)"
             ylabel = "Magnitude (dB)"
             scale = np.max(txfd_base_) / np.max(rxfd_base_)
-            self.print(
-                "TX to RX spectrum scale for antenna {}: {:0.3f}".format(ant_id, scale), thr=4
-            )
+            self.print(f"TX to RX spectrum scale for antenna {ant_id}: {scale:0.3f}", thr=4)
             xlim = (-2 * self.config.f_max / 1e6, 2 * self.config.f_max / 1e6)
             f1 = np.abs(self.config.freq - xlim[0]).argmin()
             f2 = np.abs(self.config.freq - xlim[1]).argmin()
@@ -1017,10 +989,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if "sync_time" in self.config.rx_chain:
             rxtd_base_s = []
             for frm_id in range(n_rd_rep):
-                if "sync_time_frac" in self.config.rx_chain:
-                    sync_frac = True
-                else:
-                    sync_frac = False
+                sync_frac = "sync_time_frac" in self.config.rx_chain
                 rxtd_base_s_ = self.sync_time(
                     rxtd_base[frm_id],
                     txtd_base,
@@ -1076,7 +1045,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if "sparse_est" in self.config.rx_chain:
                 h = []
                 for frm_id in range(n_rd_rep):
-                    h_est_full, H_est, H_est_max = self.channel_estimate(
+                    h_est_full, h_est_freq, h_est_freq_max = self.channel_estimate(
                         txtd_base,
                         rxtd_pilot_s[frm_id],
                         sys_response=self.sys_response,
@@ -1102,7 +1071,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     n_ignore=self.config.sparse_ch_n_ignore,
                 )
             else:
-                h_est_full, H_est, H_est_max = self.channel_estimate(
+                h_est_full, h_est_freq, h_est_freq_max = self.channel_estimate(
                     txtd_base,
                     rxtd_pilot_s,
                     sys_response=self.sys_response,
@@ -1115,7 +1084,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 rxtd_pilot,
                 self.config.fc,
                 h_est_full,
-                H_est_max,
+                h_est_freq_max,
                 self.rx_phase_list,
                 self.aoa_list,
             )
@@ -1128,14 +1097,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 (self.config.n_rx_ant, self.config.n_tx_ant, self.config.n_samples_ch),
                 dtype=complex,
             )
-            H_est = np.ones((self.config.n_rx_ant, self.config.n_tx_ant), dtype=complex)
-            H_est_max = H_est.copy()
+            h_est_freq = np.ones((self.config.n_rx_ant, self.config.n_tx_ant), dtype=complex)
+            h_est_freq_max = h_est_freq.copy()
         if "channel_eq" in self.config.rx_chain and "channel_est" in self.config.rx_chain:
             rxtd_base = self.channel_equalize(
                 txtd_base,
                 rxtd_base[plt_frm_id],
                 h_est_full,
-                H_est,
+                h_est_freq,
                 sc_range=self.config.sc_range,
                 sc_range_ch=self.config.sc_range_ch,
                 null_sc_range=self.config.null_sc_range,
@@ -1148,14 +1117,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd=rxtd,
             rxtd_base=rxtd_base,
             h_est_full=h_est_full,
-            H_est=H_est,
-            H_est_max=H_est_max,
+            h_est_freq=h_est_freq,
+            h_est_freq_max=h_est_freq_max,
             sparse_est_params=sparse_est_params,
         )
 
         return self.rx_signal
 
-    def process_sig(self, sig=None, process_list=[]):
+    def process_sig(self, sig=None, process_list=()):
         if sig is None:
             return None
 
@@ -1220,7 +1189,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 sig = sig / np.max(np.abs(sig))
                 title += "-Norm"
             else:
-                raise ValueError("Invalid operation: {}".format(item))
+                raise ValueError(f"Invalid operation: {item}")
 
         return sig, title
 
@@ -1229,8 +1198,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         save_id = 1
         phys_config = None
         phys_config_id = 0
-        angle_id = 0
-        freq_id = 0
+        # angle_id = 0
+        # freq_id = 0
         read_id = 0
 
         def parse_action(spec):
@@ -1239,10 +1208,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             action = spec_list[1]
             rng = spec_list[2]
 
-            if len(spec_list) <= 3:
-                param = None
-            else:
-                param = [p for p in spec_list[3:] if p != ""]
+            param = None if len(spec_list) <= 3 else [p for p in spec_list[3:] if p != ""]
 
             try:
                 rng = eval(rng)
@@ -1250,7 +1216,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     rng = np.array(rng) if hasattr(rng, "__len__") else np.array([float(rng)])
                 else:
                     rng = np.array([rng])
-            except:
+            except Exception:
                 if rng.count(":") < 2:
                     rng = None
                 else:
@@ -1279,7 +1245,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # indices where the value differs from previous step
                 changed_idxs = [
                     i
-                    for i, (a, b) in enumerate(zip(prev, values))
+                    for i, (a, b) in enumerate(zip(prev, values, strict=False))
                     if a != b or actions[i] in default_actions
                 ]
             prev = values
@@ -1299,11 +1265,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     targets_list = [targets_list]
                 target_objects = []
                 for target in targets_list:
-                    target_object = (
-                        self.network_objects[target] if target in self.network_objects else None
-                    )
-                    if target_object is None and not target in ["self"]:
-                        raise ValueError("Invalid target object: {}".format(target))
+                    target_object = self.network_objects.get(target, None)
+                    if target_object is None and target not in ["self"]:
+                        raise ValueError(f"Invalid target object: {target}")
                     target_objects.append(target_object)
 
                 if action == "change_phys_config":
@@ -1322,8 +1286,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if tx_rx_distance != "":
                         try:
                             tx_rx_distance = float(tx_rx_distance)
-                        except:
-                            raise ValueError("Invalid distance value: {}".format(tx_rx_distance))
+                        except Exception:
+                            raise ValueError(f"Invalid distance value: {tx_rx_distance}") from None
                         self.tx_rx_distance = tx_rx_distance
 
                 if action == "transmit_signal":
@@ -1351,7 +1315,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     if process_signal:
                         for i in range(self.config.n_save):
-                            self.print("Channel Save Iteration: {}".format(i + 1), thr=0)
+                            self.print(f"Channel Save Iteration: {i + 1}", thr=0)
                             rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                             # to handle the dimenstion needed for read repeat
@@ -1381,7 +1345,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     sig_path = os.path.join(self.config.sig_dir, str(param[0]))
                     sigs_save = np.load(sig_path)
 
-                    rxtd = sigs_save["rxtd_{:.1f}".format(self.config.fc / 1e9)][
+                    rxtd = sigs_save[f"rxtd_{self.config.fc / 1e9:.1f}"][
                         read_id * self.config.n_rd_rep : (read_id + 1) * self.config.n_rd_rep
                     ]
                     txtd_base = sigs_save["txtd"][0]
@@ -1395,7 +1359,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 if action == "update_plot":
                     if self.animate_plotter is None:
-                        self.animate_plotter = Animate_Plot(self.config, self)
+                        self.animate_plotter = AnimatePlot(self.config, self)
 
                     rx_signal = self.rx_signal
                     if rx_signal is None:
@@ -1420,7 +1384,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     measurement["id"] = save_id
                     if "signal" in save_list:
                         measurement["txtd"] = txtd_save.copy()
-                        measurement["rxtd_{}".format(self.config.fc / 1e9)] = rxtd_save.copy()
+                        measurement[f"rxtd_{self.config.fc / 1e9}"] = rxtd_save.copy()
 
                     measurement["sig_interval"] = [
                         self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
@@ -1440,7 +1404,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 if action == "wait":
                     wait_time = float(value)
-                    self.print("Waiting for {} seconds...".format(wait_time), thr=2)
+                    self.print(f"Waiting for {wait_time} seconds...", thr=2)
                     time.sleep(wait_time)
 
                 # TODO
@@ -1454,12 +1418,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 if action == "rotate_table":
                     client_turntable = target_objects[0]
                     angle = float(value)
-                    self.print("Rotating to angle: {}".format(angle), thr=0)
+                    self.print(f"Rotating to angle: {angle}", thr=0)
 
                     start_time = time.time()
                     client_turntable.move_to_position(angle)
                     rotation_time = time.time() - start_time
-                    self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
+                    self.print(f"Time taken to rotate: {rotation_time:0.3f} s", thr=2)
 
                 if action == "move_lin_track":
                     client_lintrack = target_objects[0]
@@ -1479,8 +1443,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         sig_td=self.rx_signal.rxtd[0, :, : self.config.n_samples_trx],
                         sig_sc_range=self.config.sc_range,
                     )
-                    snr_dB = self.lin_to_db(snr, mode="pow")
-                    self.publish_snr_turtlebot(snr_dB)
+                    snr_db = self.lin_to_db(snr, mode="pow")
+                    self.publish_snr_turtlebot(snr_db)
 
                 if action == "hop_freq":
                     clients = []
@@ -1502,19 +1466,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if frequency is None:
                         self.print("Saving signals after frequency hop", thr=0)
                     else:
-                        self.print("Saving signals for Freq: {} GHz".format(frequency / 1e9), thr=0)
+                        self.print(f"Saving signals for Freq: {frequency / 1e9} GHz", thr=0)
 
                 if action == "set_gain_db_tx":
                     client_piradio = target_objects[0]
                     gain_db = int(value)
-                    tx_gain_db = gain_db
                     client_piradio.set_gain_piradio(trx="tx", chan=0, gain_db=gain_db)
                     client_piradio.set_gain_piradio(trx="tx", chan=1, gain_db=gain_db)
 
                 if action == "set_gain_db_rx":
                     client_piradio = target_objects[0]
                     gain_db = int(value)
-                    rx_gain_db = gain_db
                     client_piradio.set_gain_piradio(trx="rx", chan=0, gain_db=gain_db)
                     client_piradio.set_gain_piradio(trx="rx", chan=1, gain_db=gain_db)
 
@@ -1552,6 +1514,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def stream_rx_td_to_matlab(self, rxtd, freq):
         import io
         import socket
+
         import scipy.io
 
         matlab_stream_ip = "10.20.38.213"  # IP address for the MATLAB data transfer
@@ -1572,14 +1535,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 )  # Send the length of the data first
                 sock.sendall(data)
                 self.print(
-                    "rxtd data sent to MATLAB stream at {}:{}".format(
-                        matlab_stream_ip, matlab_stream_port
-                    ),
+                    f"rxtd data sent to MATLAB stream at {matlab_stream_ip}:{matlab_stream_port}",
                     thr=1,
                 )
 
         except Exception as e:
-            self.print("Error in streaming rxtd to MATLAB: {}".format(e), thr=0)
+            self.print(f"Error in streaming rxtd to MATLAB: {e}", thr=0)
 
 
 @dataclass
@@ -1588,9 +1549,9 @@ class AnimationPlotConfig(PlotUtilsConfig):
     plot_configs: dict = None
 
 
-class Animate_Plot(Plot_Utils):
+class AnimatePlot(Plot_Utils):
     def __init__(
-        self, config: AnimationPlotConfig, signals_obj: Signal_Utils_Rfsoc, **overrides: Any
+        self, config: AnimationPlotConfig, signals_obj: SignalUtilsRfsoc, **overrides: Any
     ):
         super().__init__(config, **overrides)
 
@@ -1616,11 +1577,8 @@ class Animate_Plot(Plot_Utils):
             "cyan",
         ]
         # set matplotlib axes color cycle so subsequent ax.plot calls use our colors by default
-        try:
+        with contextlib.suppress(Exception):
             mpl.rcParams["axes.prop_cycle"] = cycler("color", self.plot_colors)
-        except Exception:
-            # fail silently if matplotlib/cycler are not available at init time
-            pass
         self.mag_filter_list = {"process_list": ["fft"], "signal_name": ["h", "H"]}
         self.untouched_plot_list = {"process_list": ["IQ"], "signal_name": ["aoa_gauge", "nf_loc"]}
 
@@ -1655,7 +1613,7 @@ class Animate_Plot(Plot_Utils):
 
         rxtd_base = rx_signal.rxtd_base
         h_est_full = rx_signal.h_est_full
-        H_est_full = rx_signal.H_est_full
+        h_est_freq = rx_signal.h_est_freq
         sparse_est_params = rx_signal.sparse_est_params
 
         supported_operations = ["+", "-", "*", "/"]
@@ -1686,10 +1644,7 @@ class Animate_Plot(Plot_Utils):
                 rx_ids.append(rx_id)
                 tx_ids.append(tx_id)
 
-                if len(signal_desc) > 3:
-                    signal_process_list = signal_desc[3:]
-                else:
-                    signal_process_list = []
+                signal_process_list = signal_desc[3:] if len(signal_desc) > 3 else []
 
                 xlabel_mode = "time"
                 if "mag" in signal_process_list:
@@ -1750,7 +1705,7 @@ class Animate_Plot(Plot_Utils):
                             + 1
                         )
                     ]
-                    sig = H_est_full[rx_id, tx_id]
+                    sig = h_est_freq[rx_id, tx_id]
                     title += "Channel-FD"
                     if "ifft" in signal_process_list:
                         xlabel_mode = "time"
@@ -1780,13 +1735,13 @@ class Animate_Plot(Plot_Utils):
                     xlabel_mode = "nf_loc"
                     ylabel_mode = "nf_loc"
                 else:
-                    raise ValueError("Unsupported signal name: {}".format(signal_name))
+                    raise ValueError(f"Unsupported signal name: {signal_name}")
 
                 sig, title_post = self.signals_obj.process_sig(
                     sig, process_list=signal_process_list
                 )
                 title += title_post
-                label = "RX {}/TX {}".format(rx_id, tx_id)
+                label = f"RX {rx_id}/TX {tx_id}"
                 if "real" in signal_process_list:
                     label += "-Real"
                 if "imag" in signal_process_list:
@@ -1824,8 +1779,8 @@ class Animate_Plot(Plot_Utils):
                     label_final = None
 
             title += ", RX/TX: "
-            for rx_id, tx_id in zip(rx_ids, tx_ids):
-                title += "{}/{}-".format(rx_id, tx_id)
+            for rx_id, tx_id in zip(rx_ids, tx_ids, strict=False):
+                title += f"{rx_id}/{tx_id}-"
             title = title[:-1]
 
             if xlabel_mode == "time":
@@ -1946,7 +1901,7 @@ class Animate_Plot(Plot_Utils):
                     self.line[line_id][j].set_data(dly_est, peaks_)
                     line_id += 1
                     self.line[line_id][j].set_segments(
-                        [[[i, ymin], [i, j]] for i, j in zip(dly_est, peaks_)]
+                        [[[i, ymin], [i, j]] for i, j in zip(dly_est, peaks_, strict=False)]
                     )
                     line_id += 1
                     self.ax[i][j].set_ylim([ymin, ymax])
@@ -1961,10 +1916,7 @@ class Animate_Plot(Plot_Utils):
             if signal_name in self.mag_filter_list["signal_name"] or any(
                 item in signal_process_list for item in self.mag_filter_list["process_list"]
             ):
-                if len(np.array(signal_data).shape) > 1:
-                    sig = signal_data[0]
-                else:
-                    sig = signal_data.copy()
+                sig = signal_data[0] if len(np.array(signal_data).shape) > 1 else signal_data.copy()
                 y_min = np.percentile(sig, 10)
                 y_max = np.max(sig) + 0.1 * (np.max(sig) - y_min)
                 self.ax[i][j].set_ylim(y_min, y_max)
@@ -1979,7 +1931,7 @@ class Animate_Plot(Plot_Utils):
                     self.ax[i][j].relim()
                     self.ax[i][j].autoscale_view()
                 except Exception as e:
-                    print("Error in autoscale {}".format(e))
+                    print(f"Error in autoscale {e}")
 
         return self.line
 
@@ -2102,8 +2054,9 @@ class Animate_Plot(Plot_Utils):
                     if len(signals[i].title) > self.config.plot_configs["title_max_chars"]
                     else signals[i].title
                 )
-                title = title + "\n Carrier Frequency: {} GHz".format(
-                    self.signals_config.freq_hop_list[j] / 1e9
+                title = (
+                    title
+                    + f"\n Carrier Frequency: {self.signals_config.freq_hop_list[j] / 1e9} GHz"
                 )
                 x_label = signals[i].x_label
                 y_label = signals[i].y_label
@@ -2154,6 +2107,6 @@ if __name__ == "__main__":
 
     config = Configs_Class()
 
-    signals_inst = Signal_Utils_Rfsoc(config)
+    signals_inst = SignalUtilsRfsoc(config)
     # signals_inst.collect_signals()
     signals_inst.compute_sys_response()
