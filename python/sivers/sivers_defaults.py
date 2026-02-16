@@ -1,6 +1,8 @@
-from .siversDoc import siversDocClass as doc
-from sigcom_toolkit.general import General, GeneralConfig
 from dataclasses import dataclass
+
+from sigcom_toolkit.general import General, GeneralConfig
+
+from .sivers_doc import SiversDocClass as Doc
 
 
 @dataclass
@@ -8,7 +10,7 @@ class SiversDefaultConfig(GeneralConfig):
     pass
 
 
-class siversDefaults(General):
+class SiversDefaults(General):
     def __init__(self, config: SiversDefaultConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -187,7 +189,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0x02731803,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.chip_id_help,
+                "Doc": Doc.chip_id_help,
             },
             "chip_id_sw_en": {
                 "group": "system",
@@ -195,7 +197,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x01,
-                "doc": doc.chip_id_sw_en_help,
+                "Doc": Doc.chip_id_sw_en_help,
             },
             "fast_clk_ctrl": {
                 "group": "system",
@@ -203,7 +205,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x33,
-                "doc": doc.fast_clk_ctrl_help,
+                "Doc": Doc.fast_clk_ctrl_help,
             },
             "gpio_tx_rx_sw_ctrl": {
                 "group": "system",
@@ -211,7 +213,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x13,
-                "doc": doc.gpio_tx_rx_sw_ctrl_help,
+                "Doc": Doc.gpio_tx_rx_sw_ctrl_help,
             },
             "gpio_agc_rst_ctrl": {
                 "group": "system",
@@ -219,7 +221,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x13,
-                "doc": doc.gpio_agc_rst_ctrl_help,
+                "Doc": Doc.gpio_agc_rst_ctrl_help,
             },
             "gpio_agc_start_ctrl": {
                 "group": "system",
@@ -227,7 +229,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x13,
-                "doc": doc.gpio_agc_start_ctrl_help,
+                "Doc": Doc.gpio_agc_start_ctrl_help,
             },
             "gpio_agc_gain_in_ctrl": {
                 "group": "system",
@@ -235,7 +237,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.gpio_agc_gain_in_ctrl_help,
+                "Doc": Doc.gpio_agc_gain_in_ctrl_help,
             },
             "gpio_agc_gain_out_ctrl": {
                 "group": "system",
@@ -243,7 +245,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.gpio_agc_gain_out_ctrl_help,
+                "Doc": Doc.gpio_agc_gain_out_ctrl_help,
             },
             "bist_amux_ctrl": {
                 "group": "system",
@@ -251,7 +253,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xCF,
-                "doc": doc.bist_amux_ctrl_help,
+                "Doc": Doc.bist_amux_ctrl_help,
             },
             "bist_ot_ctrl": {
                 "group": "system",
@@ -259,7 +261,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x33,
-                "doc": doc.bist_ot_ctrl_help,
+                "Doc": Doc.bist_ot_ctrl_help,
             },
             "bist_ot_temp": {
                 "group": "system",
@@ -267,7 +269,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x80,
                 "mask": 0xDF,
-                "doc": doc.bist_ot_temp_help,
+                "Doc": Doc.bist_ot_temp_help,
             },
             "bist_ot_rx_off_mask": {
                 "group": "system",
@@ -275,7 +277,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x000000,
                 "mask": 0x1FFFFF,
-                "doc": doc.bist_ot_rx_off_mask_help,
+                "Doc": Doc.bist_ot_rx_off_mask_help,
             },
             "bist_ot_tx_off_mask": {
                 "group": "system",
@@ -283,7 +285,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x000000,
                 "mask": 0x1FFFFF,
-                "doc": doc.bist_ot_tx_off_mask_help,
+                "Doc": Doc.bist_ot_tx_off_mask_help,
             },
             "spare": {
                 "group": "system",
@@ -291,7 +293,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0xFF0000FF,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.spare_help,
+                "Doc": Doc.spare_help,
             },
             #
             "bias_ctrl": {
@@ -300,7 +302,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x7F,
-                "doc": doc.bias_ctrl_help,
+                "Doc": Doc.bias_ctrl_help,
             },
             "bias_vco_x3": {
                 "group": "bias",
@@ -308,7 +310,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.bias_vco_x3_help,
+                "Doc": Doc.bias_vco_x3_help,
             },
             "bias_pll": {
                 "group": "bias",
@@ -316,7 +318,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x37,
-                "doc": doc.bias_pll_help,
+                "Doc": Doc.bias_pll_help,
             },
             "bias_lo": {
                 "group": "bias",
@@ -324,7 +326,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3F,
-                "doc": doc.bias_lo_help,
+                "Doc": Doc.bias_lo_help,
             },
             "bias_tx": {
                 "group": "bias",
@@ -332,7 +334,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x0000,
                 "mask": 0xFFFF,
-                "doc": doc.bias_tx_help,
+                "Doc": Doc.bias_tx_help,
             },
             "bias_rx": {
                 "group": "bias",
@@ -340,7 +342,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x0000,
                 "mask": 0x0FFF,
-                "doc": doc.bias_rx_help,
+                "Doc": Doc.bias_rx_help,
             },
             #
             "pll_en": {
@@ -349,7 +351,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x7F,
-                "doc": doc.pll_en_help,
+                "Doc": Doc.pll_en_help,
             },
             "pll_divn": {
                 "group": "pll",
@@ -357,7 +359,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.pll_divn_help,
+                "Doc": Doc.pll_divn_help,
             },
             "pll_pfd": {
                 "group": "pll",
@@ -365,7 +367,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x07,
-                "doc": doc.pll_pfd_help,
+                "Doc": Doc.pll_pfd_help,
             },
             "pll_chp": {
                 "group": "pll",
@@ -373,7 +375,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x73,
-                "doc": doc.pll_chp_help,
+                "Doc": Doc.pll_chp_help,
             },
             "pll_ld_mux_ctrl": {
                 "group": "pll",
@@ -381,7 +383,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.pll_ld_mux_ctrl_help,
+                "Doc": Doc.pll_ld_mux_ctrl_help,
             },
             "pll_test_mux_in": {
                 "group": "pll",
@@ -389,7 +391,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.pll_test_mux_in_help,
+                "Doc": Doc.pll_test_mux_in_help,
             },
             "pll_ref_in_lvds_en": {
                 "group": "pll",
@@ -397,7 +399,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.pll_ref_in_lvds_en_help,
+                "Doc": Doc.pll_ref_in_lvds_en_help,
             },
             #
             "tx_ctrl": {
@@ -406,7 +408,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x10,
                 "mask": 0x7F,
-                "doc": doc.tx_ctrl_help,
+                "Doc": Doc.tx_ctrl_help,
             },
             "tx_bb_q_dco": {
                 "group": "tx",
@@ -414,7 +416,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x40,
                 "mask": 0x7F,
-                "doc": doc.tx_bb_q_dco_help,
+                "Doc": Doc.tx_bb_q_dco_help,
             },
             "tx_bb_i_dco": {
                 "group": "tx",
@@ -422,7 +424,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x40,
                 "mask": 0x7F,
-                "doc": doc.tx_bb_i_dco_help,
+                "Doc": Doc.tx_bb_i_dco_help,
             },
             "tx_bb_phase": {
                 "group": "tx",
@@ -430,7 +432,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x1F,
-                "doc": doc.tx_bb_phase_help,
+                "Doc": Doc.tx_bb_phase_help,
             },
             "tx_bb_gain": {
                 "group": "tx",
@@ -438,7 +440,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x23,
-                "doc": doc.tx_bb_gain_help,
+                "Doc": Doc.tx_bb_gain_help,
             },
             "tx_bb_iq_gain": {
                 "group": "tx",
@@ -446,7 +448,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_bb_iq_gain_help,
+                "Doc": Doc.tx_bb_iq_gain_help,
             },
             "tx_bfrf_gain": {
                 "group": "tx",
@@ -454,7 +456,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_bfrf_gain_help,
+                "Doc": Doc.tx_bfrf_gain_help,
             },
             "tx_bf_pdet_mux": {
                 "group": "tx",
@@ -462,7 +464,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xBF,
-                "doc": doc.tx_bf_pdet_mux_help,
+                "Doc": Doc.tx_bf_pdet_mux_help,
             },
             "tx_alc_ctrl": {
                 "group": "tx",
@@ -470,7 +472,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xF3,
-                "doc": doc.tx_alc_ctrl_help,
+                "Doc": Doc.tx_alc_ctrl_help,
             },
             "tx_alc_loop_cnt": {
                 "group": "tx",
@@ -478,7 +480,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_loop_cnt_help,
+                "Doc": Doc.tx_alc_loop_cnt_help,
             },
             "tx_alc_start_delay": {
                 "group": "tx",
@@ -486,7 +488,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x0000,
                 "mask": 0xFFFF,
-                "doc": doc.tx_alc_start_delay_help,
+                "Doc": Doc.tx_alc_start_delay_help,
             },
             "tx_alc_meas_delay": {
                 "group": "tx",
@@ -494,7 +496,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_meas_delay_help,
+                "Doc": Doc.tx_alc_meas_delay_help,
             },
             "tx_alc_bfrf_gain_max": {
                 "group": "tx",
@@ -502,7 +504,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0xFF,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_bfrf_gain_max_help,
+                "Doc": Doc.tx_alc_bfrf_gain_max_help,
             },
             "tx_alc_bfrf_gain_min": {
                 "group": "tx",
@@ -510,7 +512,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_bfrf_gain_min_help,
+                "Doc": Doc.tx_alc_bfrf_gain_min_help,
             },
             "tx_alc_step_max": {
                 "group": "tx",
@@ -518,7 +520,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x33,
-                "doc": doc.tx_alc_step_max_help,
+                "Doc": Doc.tx_alc_step_max_help,
             },
             "tx_alc_pdet_lo_th": {
                 "group": "tx",
@@ -526,7 +528,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_pdet_lo_th_help,
+                "Doc": Doc.tx_alc_pdet_lo_th_help,
             },
             "tx_alc_pdet_hi_offs_th": {
                 "group": "tx",
@@ -534,7 +536,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x1F,
-                "doc": doc.tx_alc_pdet_hi_offs_th_help,
+                "Doc": Doc.tx_alc_pdet_hi_offs_th_help,
             },
             "tx_alc_bfrf_gain": {
                 "group": "tx",
@@ -542,7 +544,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.tx_alc_bfrf_gain_help,
+                "Doc": Doc.tx_alc_bfrf_gain_help,
             },
             "tx_alc_pdet": {
                 "group": "tx",
@@ -550,7 +552,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.tx_alc_pdet_help,
+                "Doc": Doc.tx_alc_pdet_help,
             },
             #
             "adc_ctrl": {
@@ -559,7 +561,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xB7,
-                "doc": doc.adc_ctrl_help,
+                "Doc": Doc.adc_ctrl_help,
             },
             "adc_clk_div": {
                 "group": "adc",
@@ -567,7 +569,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x03,
                 "mask": 0xFF,
-                "doc": doc.adc_clk_div_help,
+                "Doc": Doc.adc_clk_div_help,
             },
             "adc_sample_cycle": {
                 "group": "adc",
@@ -575,7 +577,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3F,
-                "doc": doc.adc_sample_cycle_help,
+                "Doc": Doc.adc_sample_cycle_help,
             },
             "adc_num_samples": {
                 "group": "adc",
@@ -583,7 +585,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x0F,
-                "doc": doc.adc_num_samples_help,
+                "Doc": Doc.adc_num_samples_help,
             },
             "adc_sample": {
                 "group": "adc",
@@ -591,7 +593,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x000,
                 "mask": 0x0FFF,
-                "doc": doc.adc_sample_help,
+                "Doc": Doc.adc_sample_help,
             },
             "adc_mean": {
                 "group": "adc",
@@ -599,7 +601,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x000,
                 "mask": 0x0FFF,
-                "doc": doc.adc_mean_help,
+                "Doc": Doc.adc_mean_help,
             },
             "adc_max": {
                 "group": "adc",
@@ -607,7 +609,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x000,
                 "mask": 0x0FFF,
-                "doc": doc.adc_max_help,
+                "Doc": Doc.adc_max_help,
             },
             "adc_min": {
                 "group": "adc",
@@ -615,7 +617,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x000,
                 "mask": 0x0FFF,
-                "doc": doc.adc_min_help,
+                "Doc": Doc.adc_min_help,
             },
             "adc_diff": {
                 "group": "adc",
@@ -623,7 +625,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x0000,
                 "mask": 0x1FFF,
-                "doc": doc.adc_diff_help,
+                "Doc": Doc.adc_diff_help,
             },
             #
             "vco_en": {
@@ -632,7 +634,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x7F,
-                "doc": doc.vco_en_help,
+                "Doc": Doc.vco_en_help,
             },
             "vco_dig_tune": {
                 "group": "vco",
@@ -640,7 +642,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x7F,
-                "doc": doc.vco_dig_tune_help,
+                "Doc": Doc.vco_dig_tune_help,
             },
             "vco_ibias": {
                 "group": "vco",
@@ -648,7 +650,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3F,
-                "doc": doc.vco_ibias_help,
+                "Doc": Doc.vco_ibias_help,
             },
             "vco_vtune_ctrl": {
                 "group": "vco",
@@ -656,7 +658,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x33,
-                "doc": doc.vco_vtune_ctrl_help,
+                "Doc": Doc.vco_vtune_ctrl_help,
             },
             "vco_vtune_atc_lo_th": {
                 "group": "vco",
@@ -664,7 +666,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_vtune_atc_lo_th_help,
+                "Doc": Doc.vco_vtune_atc_lo_th_help,
             },
             "vco_amux_ctrl": {
                 "group": "vco",
@@ -672,7 +674,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x1F,
-                "doc": doc.vco_amux_ctrl_help,
+                "Doc": Doc.vco_amux_ctrl_help,
             },
             "vco_vtune_th": {
                 "group": "vco",
@@ -680,7 +682,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_vtune_th_help,
+                "Doc": Doc.vco_vtune_th_help,
             },
             "vco_atc_hi_th": {
                 "group": "vco",
@@ -688,7 +690,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_atc_hi_th_help,
+                "Doc": Doc.vco_atc_hi_th_help,
             },
             "vco_atc_lo_th": {
                 "group": "vco",
@@ -696,7 +698,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_atc_lo_th_help,
+                "Doc": Doc.vco_atc_lo_th_help,
             },
             "vco_alc_hi_th": {
                 "group": "vco",
@@ -704,7 +706,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_alc_hi_th_help,
+                "Doc": Doc.vco_alc_hi_th_help,
             },
             "vco_override_ctrl": {
                 "group": "vco",
@@ -712,7 +714,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x00,
                 "mask": 0x01FF,
-                "doc": doc.vco_override_ctrl_help,
+                "Doc": Doc.vco_override_ctrl_help,
             },
             "vco_alc_del": {
                 "group": "vco",
@@ -720,7 +722,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_alc_del_help,
+                "Doc": Doc.vco_alc_del_help,
             },
             "vco_vtune_del": {
                 "group": "vco",
@@ -728,7 +730,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_vtune_del_help,
+                "Doc": Doc.vco_vtune_del_help,
             },
             "vco_tune_loop_del": {
                 "group": "vco",
@@ -736,7 +738,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x00,
                 "mask": 0x03FFFF,
-                "doc": doc.vco_tune_loop_del_help,
+                "Doc": Doc.vco_tune_loop_del_help,
             },
             "vco_atc_vtune_set_del": {
                 "group": "vco",
@@ -744,7 +746,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x00,
                 "mask": 0x03FFFF,
-                "doc": doc.vco_atc_vtune_set_del_help,
+                "Doc": Doc.vco_atc_vtune_set_del_help,
             },
             "vco_atc_vtune_unset_del": {
                 "group": "vco",
@@ -752,7 +754,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x00,
                 "mask": 0x03FFFF,
-                "doc": doc.vco_atc_vtune_unset_del_help,
+                "Doc": Doc.vco_atc_vtune_unset_del_help,
             },
             "vco_tune_ctrl": {
                 "group": "vco",
@@ -760,7 +762,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x77,
-                "doc": doc.vco_tune_ctrl_help,
+                "Doc": Doc.vco_tune_ctrl_help,
             },
             "vco_tune_status": {
                 "group": "vco",
@@ -768,7 +770,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.vco_tune_status_help,
+                "Doc": Doc.vco_tune_status_help,
             },
             "vco_tune_det_status": {
                 "group": "vco",
@@ -776,7 +778,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x0F,
-                "doc": doc.vco_tune_det_status_help,
+                "Doc": Doc.vco_tune_det_status_help,
             },
             "vco_tune_freq_cnt": {
                 "group": "vco",
@@ -784,7 +786,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x000,
                 "mask": 0x0FFF,
-                "doc": doc.vco_tune_freq_cnt_help,
+                "Doc": Doc.vco_tune_freq_cnt_help,
             },
             "vco_tune_dig_tune": {
                 "group": "vco",
@@ -792,7 +794,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x40,
                 "mask": 0x7F,
-                "doc": doc.vco_tune_dig_tune_help,
+                "Doc": Doc.vco_tune_dig_tune_help,
             },
             "vco_tune_ibias": {
                 "group": "vco",
@@ -800,7 +802,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3F,
-                "doc": doc.vco_tune_ibias_help,
+                "Doc": Doc.vco_tune_ibias_help,
             },
             "vco_tune_vtune": {
                 "group": "vco",
@@ -808,7 +810,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x80,
                 "mask": 0xFF,
-                "doc": doc.vco_tune_vtune_help,
+                "Doc": Doc.vco_tune_vtune_help,
             },
             "vco_tune_fd_polarity": {
                 "group": "vco",
@@ -816,7 +818,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x01,
                 "mask": 0x01,
-                "doc": doc.vco_tune_fd_polarity_help,
+                "Doc": Doc.vco_tune_fd_polarity_help,
             },
             #
             "rx_gain_ctrl_mode": {
@@ -825,7 +827,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3B,
-                "doc": doc.rx_gain_ctrl_mode_help,
+                "Doc": Doc.rx_gain_ctrl_mode_help,
             },
             "rx_gain_ctrl_reg_index": {
                 "group": "rx",
@@ -833,7 +835,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_gain_ctrl_reg_index_help,
+                "Doc": Doc.rx_gain_ctrl_reg_index_help,
             },
             "rx_gain_ctrl_sel": {
                 "group": "rx",
@@ -841,7 +843,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x0000,
                 "mask": 0x03FF,
-                "doc": doc.rx_gain_ctrl_sel_help,
+                "Doc": Doc.rx_gain_ctrl_sel_help,
             },
             "rx_gain_ctrl_bfrf": {
                 "group": "rx",
@@ -849,7 +851,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_gain_ctrl_bfrf_help,
+                "Doc": Doc.rx_gain_ctrl_bfrf_help,
             },
             "rx_gain_ctrl_bb1": {
                 "group": "rx",
@@ -857,7 +859,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_gain_ctrl_bb1_help,
+                "Doc": Doc.rx_gain_ctrl_bb1_help,
             },
             "rx_gain_ctrl_bb2": {
                 "group": "rx",
@@ -865,7 +867,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_gain_ctrl_bb2_help,
+                "Doc": Doc.rx_gain_ctrl_bb2_help,
             },
             "rx_gain_ctrl_bb3": {
                 "group": "rx",
@@ -873,7 +875,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_gain_ctrl_bb3_help,
+                "Doc": Doc.rx_gain_ctrl_bb3_help,
             },
             "rx_bb_q_dco": {
                 "group": "rx",
@@ -881,7 +883,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x40,
                 "mask": 0x3FFF,
-                "doc": doc.rx_bb_q_dco_help,
+                "Doc": Doc.rx_bb_q_dco_help,
             },
             "rx_bb_i_dco": {
                 "group": "rx",
@@ -889,7 +891,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x40,
                 "mask": 0x3FFF,
-                "doc": doc.rx_bb_i_dco_help,
+                "Doc": Doc.rx_bb_i_dco_help,
             },
             "rx_dco_en": {
                 "group": "rx",
@@ -897,7 +899,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x01,
-                "doc": doc.rx_dco_en_help,
+                "Doc": Doc.rx_dco_en_help,
             },
             "rx_drv_dco": {
                 "group": "rx",
@@ -905,7 +907,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0xFF0000FF,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.rx_drv_dco_help,
+                "Doc": Doc.rx_drv_dco_help,
             },
             "rx_bb_biastrim": {
                 "group": "rx",
@@ -913,7 +915,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3F,
-                "doc": doc.rx_bb_biastrim_help,
+                "Doc": Doc.rx_bb_biastrim_help,
             },
             "rx_bb_test_ctrl": {
                 "group": "rx",
@@ -921,7 +923,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.rx_bb_test_ctrl_help,
+                "Doc": Doc.rx_bb_test_ctrl_help,
             },
             #
             "agc_int_ctrl": {
@@ -930,7 +932,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.agc_int_ctrl_help,
+                "Doc": Doc.agc_int_ctrl_help,
             },
             "agc_int_en_ctrl": {
                 "group": "agc",
@@ -938,7 +940,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x20,
                 "mask": 0x1F,
-                "doc": doc.agc_int_en_ctrl_help,
+                "Doc": Doc.agc_int_en_ctrl_help,
             },
             "agc_int_backoff": {
                 "group": "agc",
@@ -946,7 +948,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.agc_int_backoff_help,
+                "Doc": Doc.agc_int_backoff_help,
             },
             "agc_int_start_del": {
                 "group": "agc",
@@ -954,7 +956,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.agc_int_start_del_help,
+                "Doc": Doc.agc_int_start_del_help,
             },
             "agc_int_timeout": {
                 "group": "agc",
@@ -962,7 +964,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.agc_int_timeout_help,
+                "Doc": Doc.agc_int_timeout_help,
             },
             "agc_int_gain_change_del": {
                 "group": "agc",
@@ -970,7 +972,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x05,
                 "mask": 0x0F,
-                "doc": doc.agc_int_gain_change_del_help,
+                "Doc": Doc.agc_int_gain_change_del_help,
             },
             "agc_int_pdet_en": {
                 "group": "agc",
@@ -978,7 +980,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x09,
                 "mask": 0x0F,
-                "doc": doc.agc_int_pdet_en_help,
+                "Doc": Doc.agc_int_pdet_en_help,
             },
             "agc_int_pdet_filt": {
                 "group": "agc",
@@ -986,7 +988,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0x1F1F,
                 "mask": 0x1FFF,
-                "doc": doc.agc_int_pdet_filt_help,
+                "Doc": Doc.agc_int_pdet_filt_help,
             },
             "agc_int_pdet_th": {
                 "group": "agc",
@@ -994,7 +996,7 @@ class siversDefaults(General):
                 "size": 5,
                 "value": 0x0000000000,
                 "mask": 0xFFFFFFFFFF,
-                "doc": doc.agc_int_pdet_th_help,
+                "Doc": Doc.agc_int_pdet_th_help,
             },
             "agc_int_bfrf_gain_lvl": {
                 "group": "agc",
@@ -1002,7 +1004,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0xFFCC9966,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.agc_int_bfrf_gain_lvl_help,
+                "Doc": Doc.agc_int_bfrf_gain_lvl_help,
             },
             "agc_int_bb3_gain_lvl": {
                 "group": "agc",
@@ -1010,7 +1012,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0xFCA752,
                 "mask": 0xFFFFFF,
-                "doc": doc.agc_int_bb3_gain_lvl_help,
+                "Doc": Doc.agc_int_bb3_gain_lvl_help,
             },
             "agc_int_status_pdet": {
                 "group": "agc",
@@ -1018,7 +1020,7 @@ class siversDefaults(General):
                 "size": 2,
                 "value": 0xF4,
                 "mask": 0x1FFF,
-                "doc": doc.agc_int_status_pdet_help,
+                "Doc": Doc.agc_int_status_pdet_help,
             },
             "agc_int_status": {
                 "group": "agc",
@@ -1026,7 +1028,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.agc_int_status_help,
+                "Doc": Doc.agc_int_status_help,
             },
             "agc_int_gain": {
                 "group": "agc",
@@ -1034,7 +1036,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0xFF,
-                "doc": doc.agc_int_gain_help,
+                "Doc": Doc.agc_int_gain_help,
             },
             "agc_int_gain_setting": {
                 "group": "agc",
@@ -1042,7 +1044,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0xFFFFFFFF,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.agc_int_gain_setting_help,
+                "Doc": Doc.agc_int_gain_setting_help,
             },
             "agc_ext_ctrl": {
                 "group": "agc",
@@ -1050,7 +1052,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x05,
                 "mask": 0x07,
-                "doc": doc.agc_ext_ctrl_help,
+                "Doc": Doc.agc_ext_ctrl_help,
             },
             #
             "trx_ctrl": {
@@ -1059,7 +1061,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x3B,
-                "doc": doc.trx_ctrl_help,
+                "Doc": Doc.trx_ctrl_help,
             },
             "trx_soft_ctrl": {
                 "group": "trx",
@@ -1067,7 +1069,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x03,
-                "doc": doc.trx_soft_ctrl_help,
+                "Doc": Doc.trx_soft_ctrl_help,
             },
             "trx_soft_delay": {
                 "group": "trx",
@@ -1075,7 +1077,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x07,
-                "doc": doc.trx_soft_delay_help,
+                "Doc": Doc.trx_soft_delay_help,
             },
             "trx_soft_max_state": {
                 "group": "trx",
@@ -1083,7 +1085,7 @@ class siversDefaults(General):
                 "size": 1,
                 "value": 0x00,
                 "mask": 0x07,
-                "doc": doc.trx_soft_max_state_help,
+                "Doc": Doc.trx_soft_max_state_help,
             },
             "trx_tx_on": {
                 "group": "trx",
@@ -1091,7 +1093,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x1FFFFF,
                 "mask": 0x1FFFFF,
-                "doc": doc.trx_tx_on_help,
+                "Doc": Doc.trx_tx_on_help,
             },
             "trx_tx_off": {
                 "group": "trx",
@@ -1099,7 +1101,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x00,
                 "mask": 0x1FFFFF,
-                "doc": doc.trx_tx_off_help,
+                "Doc": Doc.trx_tx_off_help,
             },
             "trx_rx_on": {
                 "group": "trx",
@@ -1107,7 +1109,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x1FFFFF,
                 "mask": 0x1FFFFF,
-                "doc": doc.trx_rx_on_help,
+                "Doc": Doc.trx_rx_on_help,
             },
             "trx_rx_off": {
                 "group": "trx",
@@ -1115,7 +1117,7 @@ class siversDefaults(General):
                 "size": 3,
                 "value": 0x00,
                 "mask": 0x1FFFFF,
-                "doc": doc.trx_rx_off_help,
+                "Doc": Doc.trx_rx_off_help,
             },
             "trx_soft_tx_on_enables": {
                 "group": "trx",
@@ -1123,7 +1125,7 @@ class siversDefaults(General):
                 "size": 8,
                 "value": 0x00,
                 "mask": 0x1F1F1F1F1F1F1F1F,
-                "doc": doc.trx_soft_tx_on_enables_help,
+                "Doc": Doc.trx_soft_tx_on_enables_help,
             },
             "trx_soft_rx_on_enables": {
                 "group": "trx",
@@ -1131,7 +1133,7 @@ class siversDefaults(General):
                 "size": 8,
                 "value": 0x00,
                 "mask": 0x1F1F1F1F1F1F1F1F,
-                "doc": doc.trx_soft_rx_on_enables_help,
+                "Doc": Doc.trx_soft_rx_on_enables_help,
             },
             "trx_soft_bf_on_grp_sel": {
                 "group": "trx",
@@ -1139,7 +1141,7 @@ class siversDefaults(General):
                 "size": 4,
                 "value": 0x00,
                 "mask": 0xFFFFFFFF,
-                "doc": doc.trx_soft_bf_on_grp_sel_help,
+                "Doc": Doc.trx_soft_bf_on_grp_sel_help,
             },
             "bf_tx_awv_idx_table": {"group": "bf_tx", "addr": 0x0100, "size": 64, "value": 0x00},
             "bf_tx_awv_idx": {"group": "bf_tx", "addr": 0x0140, "size": 1, "value": 0x00},

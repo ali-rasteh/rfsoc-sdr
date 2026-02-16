@@ -5,7 +5,6 @@ from typing import Any
 import numpy as np
 from numpy.fft import fft
 
-from sigcom_toolkit.signal_utils import AoAKalmanFilter, Signal_Utils, SignalUtilsConfig
 from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 try:

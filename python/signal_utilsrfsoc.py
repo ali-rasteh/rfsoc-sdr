@@ -10,21 +10,21 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
-from matplotlib.cycler import cycler
+from matplotlib.cycler import cycler  # type: ignore
 from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
 
-from serial_comm import Serial_Comm_TurnTable, SerialComTurnTableConfig
-from sigcom_toolkit.plot_utils import Plot_Utils, PlotUtilsConfig
-from sigcom_toolkit.signal_utils import Signal_Utils, SignalUtilsConfig
+from serial_comm import SerialCommTurnTable, SerialComTurnTableConfig
+from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
+from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
 from tcp_comm import (
     PiradioRestComConfig,
-    REST_Com_Piradio,
-    Tcp_Comm_Controller,
-    Tcp_Comm_LinTrack,
-    Tcp_Comm_RFSoC,
+    RESTComPiradio,
     TCPComControllerConfig,
     TCPComLinTrackConfig,
+    TcpCommController,
+    TcpCommLinTrack,
+    TcpCommRFSoC,
     TCPComRFSoCConfig,
 )
 
@@ -68,7 +68,7 @@ class ClientRFSoCConfig(TCPComRFSoCConfig):
     calib_config_path: str = "./calib_config.npz"
 
 
-class ClientRFSoC(Tcp_Comm_RFSoC):
+class ClientRFSoC(TcpCommRFSoC):
     def __init__(self, config: ClientRFSoCConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
@@ -103,7 +103,7 @@ class ClientRFSoC(Tcp_Comm_RFSoC):
             for _ in range(self.calib_iter):
                 rxtd = self.receive_data_rfsoc(mode="once")
                 rxtd = rxtd[0]
-                phase_diff = Signal_Utils.calc_phase_offset(rxtd[0, :], rxtd[1, :])
+                phase_diff = SignalUtils.calc_phase_offset(rxtd[0, :], rxtd[1, :])
                 delay = phase_diff / (2 * np.pi * self.fc)
                 phase_diff_list.append(phase_diff)
                 delay_list.append(delay)
@@ -132,7 +132,7 @@ class PiRadioConfig(PiradioRestComConfig):
     freq_range: list = [6.0, 22.5]
 
 
-class PiRadioFR3Trx(REST_Com_Piradio):
+class PiRadioFR3Trx(RESTComPiradio):
     def __init__(self, config: PiRadioConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
@@ -212,7 +212,7 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     seed_list: list = None
 
 
-class SignalUtilsRfsoc(Signal_Utils):
+class SignalUtilsRfsoc(SignalUtils):
     def __init__(self, config: SignalUtilsRFSoCConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -287,7 +287,7 @@ class SignalUtilsRfsoc(Signal_Utils):
                 rfsoc_config = TCPComRFSoCConfig(server_ip=ip_address).update_from_config(
                     self.config
                 )
-                self._network_objects[name] = Tcp_Comm_RFSoC(rfsoc_config)
+                self._network_objects[name] = TcpCommRFSoC(rfsoc_config)
                 self._network_objects[name].init_tcp_client()
 
             elif item["type"] == "lintrack":
@@ -295,7 +295,7 @@ class SignalUtilsRfsoc(Signal_Utils):
                 lintrack_config = TCPComLinTrackConfig(server_ip=ip_address).update_from_config(
                     self.config
                 )
-                self._network_objects[name] = Tcp_Comm_LinTrack(lintrack_config)
+                self._network_objects[name] = TcpCommLinTrack(lintrack_config)
                 self._network_objects[name].init_tcp_client()
                 # self._network_objects[name].return2home()
                 # self._network_objects[name].go2end()
@@ -307,7 +307,7 @@ class SignalUtilsRfsoc(Signal_Utils):
                 turntable_config = SerialComTurnTableConfig(
                     port=port, baudrate=baudrate, rotation_delay=rotation_delay
                 )
-                self._network_objects[name] = Serial_Comm_TurnTable(turntable_config)
+                self._network_objects[name] = SerialCommTurnTable(turntable_config)
                 try:
                     self._network_objects[name].connect()
                     self._network_objects[name].move_to_position(0)
@@ -331,13 +331,13 @@ class SignalUtilsRfsoc(Signal_Utils):
                     gain_sw_dly=gain_sw_dly,
                     bias_sw_dly=bias_sw_dly,
                 ).update_from_config(self.config)
-                self._network_objects[name] = REST_Com_Piradio(piradio_config)
+                self._network_objects[name] = RESTComPiradio(piradio_config)
                 self._network_objects[name].set_frequency_piradio(fc=self.config.fc)
 
             elif item["type"] == "turtlebot":
                 try:
-                    from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn
-                    from tb4_aoa_viz.snr_bridge import get_publish_snr_fn
+                    from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # noqa: I001
+                    from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # noqa: I001
 
                     self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
                     self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
@@ -353,13 +353,13 @@ class SignalUtilsRfsoc(Signal_Utils):
                 controller_config = TCPComControllerConfig(server_ip=ip_address).update_from_config(
                     self.config
                 )
-                self._network_objects[name] = Tcp_Comm_Controller(controller_config)
+                self._network_objects[name] = TcpCommController(controller_config)
                 self._network_objects[name].init_tcp_client()
                 self._network_objects[name].set_frequency_piradio(self.config.fc)
 
             if "slave" in self.config.host_role:
                 controller_config = TCPComControllerConfig().update_from_config(self.config)
-                self._network_objects["self"] = Tcp_Comm_Controller(controller_config)
+                self._network_objects["self"] = TcpCommController(controller_config)
                 self._network_objects["self"].init_tcp_server()
                 piradio_key = next(
                     (k for k, v in self.network_topology.items() if v["type"] == "piradio"), None
@@ -494,7 +494,7 @@ class SignalUtilsRfsoc(Signal_Utils):
 
         if self.config.rfsoc_mixer_mode == "digital" and self.config.mix_freq_dac != 0:
             for ant_id in range(self.config.n_tx_ant):
-                txtd_s = self.freq_shift(
+                txtd_s = self.shift_freq(
                     txtd_base[ant_id], shift=self.config.mix_freq_dac, fs=self.config.fs_tx
                 )
                 txtd.append(txtd_s)
@@ -895,7 +895,7 @@ class SignalUtilsRfsoc(Signal_Utils):
             rxtd_base = np.zeros_like(rxtd)
             for ant_id in range(self.config.n_rx_ant):
                 for frm_id in range(n_rd_rep):
-                    rxtd_base[frm_id, ant_id, :] = self.freq_shift(
+                    rxtd_base[frm_id, ant_id, :] = self.shift_freq(
                         rxtd[frm_id, ant_id],
                         shift=-1 * self.config.mix_freq_adc,
                         fs=self.config.fs_rx,
@@ -1042,10 +1042,10 @@ class SignalUtilsRfsoc(Signal_Utils):
                 self.sys_response = None
             snr_est = self.db_to_lin(self.config.snr_est_db, mode="pow")
 
-            if "sparse_est" in self.config.rx_chain:
+            if "estimate_sparse_params" in self.config.rx_chain:
                 h = []
                 for frm_id in range(n_rd_rep):
-                    h_est_full, h_est_freq, h_est_freq_max = self.channel_estimate(
+                    h_est_full, h_est_freq, h_est_freq_max = self.estimate_channel(
                         txtd_base,
                         rxtd_pilot_s[frm_id],
                         sys_response=self.sys_response,
@@ -1059,7 +1059,7 @@ class SignalUtilsRfsoc(Signal_Utils):
                 if g is not None:
                     g = g.transpose(2, 0, 1)
                 ndly = 5000
-                sparse_est_params = self.sparse_est(
+                sparse_est_params = self.estimate_sparse_params(
                     h=h,
                     g=g,
                     sc_range_ch=self.config.sc_range_ch,
@@ -1071,7 +1071,7 @@ class SignalUtilsRfsoc(Signal_Utils):
                     n_ignore=self.config.sparse_ch_n_ignore,
                 )
             else:
-                h_est_full, h_est_freq, h_est_freq_max = self.channel_estimate(
+                h_est_full, h_est_freq, h_est_freq_max = self.estimate_channel(
                     txtd_base,
                     rxtd_pilot_s,
                     sys_response=self.sys_response,
@@ -1100,7 +1100,7 @@ class SignalUtilsRfsoc(Signal_Utils):
             h_est_freq = np.ones((self.config.n_rx_ant, self.config.n_tx_ant), dtype=complex)
             h_est_freq_max = h_est_freq.copy()
         if "channel_eq" in self.config.rx_chain and "channel_est" in self.config.rx_chain:
-            rxtd_base = self.channel_equalize(
+            rxtd_base = self.equalize_channel(
                 txtd_base,
                 rxtd_base[plt_frm_id],
                 h_est_full,
@@ -1549,7 +1549,7 @@ class AnimationPlotConfig(PlotUtilsConfig):
     plot_configs: dict = None
 
 
-class AnimatePlot(Plot_Utils):
+class AnimatePlot(PlotUtils):
     def __init__(
         self, config: AnimationPlotConfig, signals_obj: SignalUtilsRfsoc, **overrides: Any
     ):

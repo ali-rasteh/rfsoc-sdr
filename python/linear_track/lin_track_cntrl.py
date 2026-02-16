@@ -1,20 +1,19 @@
+import atexit
 import os
 import time
 from types import SimpleNamespace
-import atexit
 
 import board
-from adafruit_motorkit import MotorKit
 from adafruit_motor import stepper
-
-from tcp_comm import Tcp_Comm_LinTrack
+from adafruit_motorkit import MotorKit
 from general import General
 
+from tcp_comm import TcpCommLinTrack
 
 # TODO add config class and transfer all parameters
 
 
-class Configs_Class(object):
+class Configs_Class:
     def __init__(self):
         # parser = argparse.ArgumentParser()
         # parser.add_argument("--output_mode", type=str, default="dc", help="Type of the Raspberry Pi hat output to use")
@@ -30,8 +29,8 @@ class Configs_Class(object):
 
         if config.overwrite_configs:
             self.output_mode = "dc"
-            self.tcp_localIP = "0.0.0.0"
-            self.tcp_bufferSize = 2**10
+            self.tcp_local_ip = "0.0.0.0"
+            self.tcp_buffer_size = 2**10
             self.TCP_port_Cmd = 8080
             self.TCP_port_Data = 8081
             self.seed = 100
@@ -85,7 +84,7 @@ class LinearTrack(General):
         self.position = self.read_position()
 
         if self.run_tcp_server:
-            self.tcp_comm = Tcp_Comm_LinTrack(config)
+            self.tcp_comm = TcpCommLinTrack(config)
             self.tcp_comm.init_tcp_server()
 
     def run_tcp(self):
@@ -94,7 +93,7 @@ class LinearTrack(General):
         self.tcp_comm.run_tcp_server(self.tcp_comm.parse_and_execute)
 
     def calibrate(self, motor_id=0, mode="start"):
-        self.print("Calibrating the linear track {} with mode {}".format(motor_id, mode), thr=1)
+        self.print(f"Calibrating the linear track {motor_id} with mode {mode}", thr=1)
         while True:
             dis_str = input("Enter the distance to move in mm, empty if need to break: ")
             if dis_str == "":
@@ -111,10 +110,10 @@ class LinearTrack(General):
                 continue
             self.displace(motor_id=motor_id, dis=dis, pos_check=False)
 
-        self.print("Calibration for linear track {} complete".format(motor_id), thr=1)
+        self.print(f"Calibration for linear track {motor_id} complete", thr=1)
 
     def interactive_move(self, motor_id=0):
-        self.print("Starting interactive move for linear track {}".format(motor_id), thr=1)
+        self.print(f"Starting interactive move for linear track {motor_id}", thr=1)
         while True:
             dis_str = input("Enter the distance to move in mm, empty if need to break: ")
             if dis_str == "":
@@ -128,7 +127,7 @@ class LinearTrack(General):
 
     def read_position(self):
         self.position = [0.0] * self.n_motors
-        with open(self.position_file_path, "r") as f:
+        with open(self.position_file_path) as f:
             for i in range(self.n_motors):
                 self.position[i] = float(f.readline())
             # self.position = float(f.readline(4))
@@ -177,7 +176,7 @@ class LinearTrack(General):
         """
         position = self.position[motor_id] + dis
         if position > self.travel_length or position < 0:
-            raise Exception("Gantry plate at linear track {} already at the edge".format(motor_id))
+            raise Exception(f"Gantry plate at linear track {motor_id} already at the edge")
             success = False
         else:
             success = True
@@ -210,7 +209,7 @@ class LinearTrack(General):
         return success, status
 
     def return2home(self, motor_id=0):
-        self.print("Returning to home position on linea track {}".format(motor_id), thr=1)
+        self.print(f"Returning to home position on linea track {motor_id}", thr=1)
         dis_from_home = self.position[motor_id]
 
         success = True
@@ -218,7 +217,7 @@ class LinearTrack(General):
         if dis_from_home > 0:
             success, status = self.displace(motor_id=motor_id, dis=-1 * dis_from_home)
         elif dis_from_home == 0:
-            print("Gantry plate of linear track {} already at home".format(motor_id))
+            print(f"Gantry plate of linear track {motor_id} already at home")
         else:
             raise Exception(
                 "The position status variable is negative. Please check the position file"
@@ -227,7 +226,7 @@ class LinearTrack(General):
         return success, status
 
     def go2end(self, motor_id=0):
-        self.print("Going to the end of the line on linear track {}".format(motor_id), thr=1)
+        self.print(f"Going to the end of the line on linear track {motor_id}", thr=1)
         dis_from_end = self.travel_length - self.position[motor_id]
 
         success = True
@@ -244,7 +243,7 @@ class LinearTrack(General):
         return success, status
 
     def back_and_forth(self, motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=2.0):
-        self.print("Moving linear track {} back and forth".format(motor_id), thr=1)
+        self.print(f"Moving linear track {motor_id} back and forth", thr=1)
         direction = "forward"
         rep_id = 0
 

@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from scipy import constants
 
-from file_utils import File_Utils
+from file_utils import FileUtils
 from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 
@@ -126,7 +126,7 @@ class SounderConfig(SignalUtilsRFSoCConfig):
     rx_chain = [
         "sync_time",
         "channel_est",
-    ]  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, sparse_est, channel_eq
+    ]  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
     channel_limit = True  # If True, limits the channel to a specific range in the frequency domain
     npath_max = [
         20,
@@ -319,7 +319,7 @@ class Sounder(SounderConfig):
         self.signals_inst.gen_tx_signal()
 
     def update_rfsoc_files(self):
-        file_utils = File_Utils(self.config, scp_connect=self.config.update_rfsoc_files)
+        file_utils = FileUtils(self.config, scp_connect=self.config.update_rfsoc_files)
         changed_1 = False
         changed_2 = False
         changed_3 = False
@@ -350,7 +350,7 @@ class Sounder(SounderConfig):
             rfsoc_inst.send_frame(self.signals_inst.txtd)
 
         # Receiving a test frame to verify connection
-        rfsoc_inst.recv_frame_one(n_frame=self.config.n_frame_rd)
+        rfsoc_inst.recv_frame_once(n_frame=self.config.n_frame_rd)
         rfsoc_inst.run_tcp()
 
     def run(self):

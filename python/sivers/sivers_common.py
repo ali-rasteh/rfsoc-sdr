@@ -12,10 +12,7 @@ def int2intlist(x, intmax=256, num_ints=0):
     vals = []
     temp = x
     if num_ints == 0:
-        if x != 0:
-            num_ints = int(ceil(log(x, intmax)))
-        else:
-            num_ints = 1
+        num_ints = int(ceil(log(x, intmax))) if x != 0 else 1
     for i in range(num_ints - 1, -1, -1):
         vals.append(int(temp // intmax**i))
         temp = temp % intmax**i

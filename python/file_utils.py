@@ -14,11 +14,14 @@ Usage:
 """
 
 import os
+import shutil
 from dataclasses import dataclass
 
-from sounder_configs import BaseConfig
-from tcp_comm import Scp_Com, ScpComConfig
+import nbformat
+
 from sigcom_toolkit.general import General, GeneralConfig
+from sounder_configs import BaseConfig
+from tcp_comm import ScpCom, ScpComConfig
 
 
 @dataclass
@@ -34,12 +37,12 @@ class FileUtilsConfig(GeneralConfig):
     files_to_convert: dict = None
 
 
-class File_Utils(General):
+class FileUtils(General):
     def __init__(self, config: FileUtilsConfig, **overrides):
         super().__init__(config, **overrides)
 
         if self.config.scp_connect:
-            self.scp_client = Scp_Com(
+            self.scp_client = ScpCom(
                 config=ScpComConfig(
                     host_ip=self.config.host_ip,
                     username=self.config.username,
@@ -48,6 +51,100 @@ class File_Utils(General):
             )
         else:
             self.scp_client = None
+
+    # Modify a parameter in the Python script
+    def modify_text_file(self, file_path, param_name, new_value):
+        """
+        Modifies the value of a specified parameter in a text file.
+        This method reads the content of the given file, searches for the specified
+        parameter, and updates its value to the new value provided. The parameter
+        is expected to be in the format 'param_name = value'.
+        Args:
+            file_path (str): The path to the text file to be modified.
+            param_name (str): The name of the parameter to be updated.
+            new_value (Any): The new value to set for the parameter.
+        Returns:
+            None
+        Raises:
+            IOError: If the file cannot be read or written.
+        """
+
+        changed = False
+
+        with open(file_path) as file:
+            lines = file.readlines()
+        with open(file_path, "w") as file:
+            for line in lines:
+                if param_name in line and "=" in line:
+                    old_value = line.split("=")[1].strip()
+                    if old_value != repr(new_value):
+                        line = f"{param_name} = {repr(new_value)}\n"
+                        changed = True
+                        self.print(
+                            f"Parameter '{param_name}' updated to '{new_value}' in {file_path}.",
+                            thr=3,
+                        )
+                    else:
+                        changed = False
+                        self.print(
+                            f"Parameter '{param_name}' already set to '{new_value}' in {file_path}.",
+                            thr=5,
+                        )
+
+                file.write(line)
+
+        return changed
+
+    # Convert .py to .ipynb
+    def convert_file_format(self, file_1_path, file_2_path):
+        """
+        Converts a Python script file to a Jupyter notebook file.
+        This method reads the content of a Python script file specified by `file_1_path`,
+        creates a new Jupyter notebook with the script content as a code cell, and writes
+        the notebook to a file specified by `file_2_path`.
+        Args:
+            file_1_path (str): The path to the input Python script file.
+            file_2_path (str): The path to the output Jupyter notebook file.
+        Returns:
+            None
+        """
+
+        with open(file_1_path) as file:
+            code = file.read()
+        notebook = nbformat.v4.new_notebook()
+        notebook.cells.append(nbformat.v4.new_code_cell(code))
+        with open(file_2_path, "w") as file:
+            nbformat.write(notebook, file)
+        self.print(f"Converted {file_1_path} to {file_2_path}.", thr=3)
+
+    def sync_directories(self, base_dir_1, base_dir_2):
+        """Compare and sync files from base_dir_1 to base_dir_2."""
+        changed_files = []
+        for root, _, files in os.walk(base_dir_1):
+            for file in files:
+                path1 = os.path.join(root, file)
+                rel_path = os.path.relpath(path1, base_dir_1)
+                path2 = os.path.join(base_dir_2, rel_path)
+
+                # Ensure target directory exists
+                os.makedirs(os.path.dirname(path2), exist_ok=True)
+
+                if os.path.exists(path2):
+                    hash1 = self.compute_hash(path1)
+                    hash2 = self.compute_hash(path2)
+                    if hash1 != hash2:
+                        shutil.copy2(path1, path2)
+                        changed_files.append(path2)
+                        self.print(f"Overwritten: {path2}", thr=0)
+                else:
+                    shutil.copy2(path1, path2)
+                    changed_files.append(path2)
+                    self.print(f"Copied new file: {path2}", thr=0)
+
+                os.remove(path1)
+                self.print(f"Deleted (same content): {path1}", thr=5)
+
+        return changed_files
 
     def download_files(self):
 
@@ -109,6 +206,6 @@ class File_Utils(General):
 
 if __name__ == "__main__":
     config = BaseConfig()
-    file_utils = File_Utils(config=config)
+    file_utils = FileUtils(config=config)
     file_utils.download_files()
     file_utils.modify_files()

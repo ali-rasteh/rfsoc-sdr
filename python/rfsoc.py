@@ -1,21 +1,21 @@
 import time
 from dataclasses import dataclass
-import numpy as np
-from numpy.fft import fft, ifft
 
-from pynq import Overlay, allocate, GPIO
+import numpy as np
 
 # from pynq.lib import dma
-import xrfclk
-import xrfdc
+import xrfclk  # type: ignore
+import xrfdc  # type: ignore
+from numpy.fft import fft, ifft
+from pynq import GPIO, Overlay, allocate  # type: ignore
 
-from sigcom_toolkit.general import GeneralConfig, General
-from tcp_comm import Tcp_Comm_RFSoC
+from sigcom_toolkit.general import General, GeneralConfig
+from tcp_comm import TcpCommRFSoC
 
 try:
-    from Sivers.siversController import *
+    from sivers.sivers_controller import SiversController
 except Exception as e:
-    print("Error importing siversController class: ", e)
+    print("Error importing sivers_controller class: ", e)
 
 
 @dataclass
@@ -144,10 +144,7 @@ class RFSoCConfig(GeneralConfig):
                 self.n_par_strms_tx = 8
                 self.n_par_strms_rx = 4
         else:
-            if "sounder_bbf" in self.project:
-                self.n_par_strms_tx = 4
-                self.n_par_strms_rx = 4
-            elif "sounder_if" in self.project:
+            if "sounder_bbf" in self.project or "sounder_if" in self.project:
                 self.n_par_strms_tx = 4
                 self.n_par_strms_rx = 4
 
@@ -159,10 +156,7 @@ class RFSoCConfig(GeneralConfig):
                 self.tx_mode = 1
                 self.rx_mode = 1
         else:
-            if "sounder_bbf" in self.project:
-                self.tx_mode = 1
-                self.rx_mode = 1
-            elif "sounder_if" in self.project:
+            if "sounder_bbf" in self.project or "sounder_if" in self.project:
                 self.tx_mode = 1
                 self.rx_mode = 1
 
@@ -176,9 +170,7 @@ class RFSoC(General):
 
         if self.config.RFFE == "sivers":
             self.init_sivers(config=config)
-        elif self.config.RFFE == "piradio":
-            pass
-        elif self.config.RFFE == "none":
+        elif self.config.RFFE == "piradio" or self.config.RFFE == "none":
             pass
 
         self.load_bit_file()
@@ -190,23 +182,23 @@ class RFSoC(General):
         self.init_rfdc()
         if "ddr4" in self.config.project:
             self.config.dac_tiles_sync_hex = 0x0
-            for id in self.config.dac_tiles_sync:
-                self.config.dac_tiles_sync_hex += 0x1 << id
+            for dac_id in self.config.dac_tiles_sync:
+                self.config.dac_tiles_sync_hex += 0x1 << dac_id
             self.config.adc_tiles_sync_hex = 0x0
-            for id in self.config.adc_tiles_sync:
-                self.config.adc_tiles_sync_hex += 0x1 << id
+            for adc_id in self.config.adc_tiles_sync:
+                self.config.adc_tiles_sync_hex += 0x1 << adc_id
             self.init_tile_sync()
             self.sync_tiles(
-                dacTiles=self.config.dac_tiles_sync_hex, adcTiles=self.config.adc_tiles_sync_hex
+                dac_tiles=self.config.dac_tiles_sync_hex, adc_tiles=self.config.adc_tiles_sync_hex
             )
         self.init_dac()
         self.init_adc()
         if "sounder_if" in self.config.project:
             self.set_dac_mixer()
             self.set_adc_mixer()
-        self.dma_init()
+        self.init_dma()
         if self.config.run_tcp_server:
-            self.tcp_comm = Tcp_Comm_RFSoC(config)
+            self.tcp_comm = TcpCommRFSoC(config)
             self.tcp_comm.init_tcp_server()
 
         self.print("rfsoc initialization done", thr=1)
@@ -216,14 +208,14 @@ class RFSoC(General):
 
         self.ol = Overlay(self.config.bit_file_path)
         if verbose:
-            self.ol.ip_dict
+            self.ol.ip_dict  # noqa: B018
             # ol?
 
         self.print("Bit-file loading done", thr=1)
 
     def init_sivers(self, config=None):
         self.print("Starting Sivers EVK controller", thr=1)
-        self.siversControllerObj = siversController(config)
+        self.siversControllerObj = SiversController(config)
         self.siversControllerObj.init()
         self.print("Sivers EVK controller is loaded", thr=1)
 
@@ -306,43 +298,43 @@ class RFSoC(General):
         self.print("RFDC initialization done", thr=1)
 
     def init_tile_sync(self):
-        dacTiles = min(self.config.dac_tiles_sync_hex, 0x1)
-        adcTiles = min(self.config.adc_tiles_sync_hex, 0x1)
-        self.sync_tiles(dacTiles=dacTiles, adcTiles=adcTiles)
+        dac_tiles = min(self.config.dac_tiles_sync_hex, 0x1)
+        adc_tiles = min(self.config.adc_tiles_sync_hex, 0x1)
+        self.sync_tiles(dac_tiles=dac_tiles, adc_tiles=adc_tiles)
         self.ol.clocktreeMTS.clk_wiz_0.mmio.write_reg(
             self.config.CLOCKWIZARD_RESET_ADDRESS, self.config.CLOCKWIZARD_RESET_TOKEN
         )
         time.sleep(0.1)
 
         # for id in self.config.dac_tile_block_dic:
-        for id in list(
+        for dac_id in list(
             set(list(self.config.dac_tile_block_dic.keys()) + self.config.dac_tiles_sync)
         ):
-            self.rfdc.dac_tiles[id].Reset()
+            self.rfdc.dac_tiles[dac_id].Reset()
 
-        for toggleValue in range(0, 1):
+        for toggle_value in range(0, 1):
             # for id in self.config.adc_tile_block_dic:
-            for id in list(
+            for adc_id in list(
                 set(list(self.config.adc_tile_block_dic.keys()) + self.config.adc_tiles_sync)
             ):
-                self.rfdc.adc_tiles[id].SetupFIFO(toggleValue)
+                self.rfdc.adc_tiles[adc_id].SetupFIFO(toggle_value)
         self.print("Tiles sync initialization done", thr=1)
 
-    def sync_tiles(self, dacTiles=0, adcTiles=0):
+    def sync_tiles(self, dac_tiles=0, adc_tiles=0):
         self.rfdc.mts_dac_config.RefTile = 0  # MTS starts at DAC Tile 228
         self.rfdc.mts_adc_config.RefTile = 0  # MTS starts at ADC Tile 224
         self.rfdc.mts_dac_config.Target_Latency = -1
         self.rfdc.mts_adc_config.Target_Latency = -1
-        if dacTiles > 0:
-            self.rfdc.mts_dac_config.Tiles = dacTiles  # group defined in binary 0b1111
+        if dac_tiles > 0:
+            self.rfdc.mts_dac_config.Tiles = dac_tiles  # group defined in binary 0b1111
             self.rfdc.mts_dac_config.SysRef_Enable = 1
             self.rfdc.mts_dac()
         else:
             self.rfdc.mts_dac_config.Tiles = 0x0
             self.rfdc.mts_dac_config.SysRef_Enable = 0
 
-        if adcTiles > 0:
-            self.rfdc.mts_adc_config.Tiles = adcTiles
+        if adc_tiles > 0:
+            self.rfdc.mts_adc_config.Tiles = adc_tiles
             self.rfdc.mts_adc_config.SysRef_Enable = 1
             self.rfdc.mts_adc()
         else:
@@ -351,28 +343,28 @@ class RFSoC(General):
         self.print("Tiles sync done", thr=1)
 
     def init_dac(self):
-        if "sounder_if" in self.config.project and not "ddr4" in self.config.project:
+        if "sounder_if" in self.config.project and "ddr4" not in self.config.project:
             # self.dac_tile.Reset()
             # self.dac_tile.SetupFIFO(True)
 
-            for id in self.config.dac_tile_block_dic:
-                self.rfdc.dac_tiles[id].Reset()
-            for id in self.config.dac_tile_block_dic:
-                self.rfdc.dac_tiles[id].SetupFIFO(True)
+            for dac_id in self.config.dac_tile_block_dic:
+                self.rfdc.dac_tiles[dac_id].Reset()
+            for dac_id in self.config.dac_tile_block_dic:
+                self.rfdc.dac_tiles[dac_id].SetupFIFO(True)
         self.print("DAC init and reset done", thr=1)
 
     def init_adc(self):
-        if "sounder_if" in self.config.project and not "ddr4" in self.config.project:
+        if "sounder_if" in self.config.project and "ddr4" not in self.config.project:
             # # self.adc_tile.Reset()
             # # self.adc_tile.SetupFIFO(True)
-            # for toggleValue in range(0, 1):
-            #     self.adc_tile.SetupFIFO(toggleValue)
+            # for toggle_value in range(0, 1):
+            #     self.adc_tile.SetupFIFO(toggle_value)
 
             # for id in self.config.adc_tile_block_dic:
             #     self.rfdc.adc_tiles[id].Reset()
-            for toggleValue in range(0, 1):
-                for id in self.config.adc_tile_block_dic:
-                    self.rfdc.adc_tiles[id].SetupFIFO(toggleValue)
+            for toggle_value in range(0, 1):
+                for adc_id in self.config.adc_tile_block_dic:
+                    self.rfdc.adc_tiles[adc_id].SetupFIFO(toggle_value)
         self.print("ADC init and reset done", thr=1)
 
     def set_dac_mixer(self, mix_freq=None, do_rfsoc_mixer_settings=None):
@@ -383,9 +375,7 @@ class RFSoC(General):
         if do_rfsoc_mixer_settings is None:
             do_rfsoc_mixer_settings = self.config.do_rfsoc_mixer_settings
 
-        cofig_str = "DAC configs: mix_freq: {}, rfsoc_mix_phase_off: {:.3f}".format(
-            mix_freq, self.config.rfsoc_mix_phase_off
-        )
+        cofig_str = f"DAC configs: mix_freq: {mix_freq}, rfsoc_mix_phase_off: {self.config.rfsoc_mix_phase_off:.3f}"
         cofig_str += ", DynamicPLLConfig: " + str(self.config.DynamicPLLConfig)
         cofig_str += ", do_rfsoc_mixer_settings: " + str(do_rfsoc_mixer_settings)
         self.print(cofig_str, thr=2)
@@ -421,9 +411,7 @@ class RFSoC(General):
         if do_rfsoc_mixer_settings is None:
             do_rfsoc_mixer_settings = self.config.do_rfsoc_mixer_settings
 
-        cofig_str = "ADC configs: mix_freq: {:.2e}, rfsoc_mix_phase_off: {:.2f}".format(
-            mix_freq, self.config.rfsoc_mix_phase_off
-        )
+        cofig_str = f"ADC configs: mix_freq: {mix_freq:.2e}, rfsoc_mix_phase_off: {self.config.rfsoc_mix_phase_off:.2f}"
         cofig_str += ", DynamicPLLConfig: " + str(self.config.DynamicPLLConfig)
         cofig_str += ", do_rfsoc_mixer_settings: " + str(do_rfsoc_mixer_settings)
         self.print(cofig_str, thr=2)
@@ -462,7 +450,7 @@ class RFSoC(General):
 
         return result
 
-    def dma_init(self):
+    def init_dma(self):
         if "ddr4" in self.config.project:
             self.ol.dac_path.axi_dma_0.set_up_tx_channel()
             self.dma_tx = self.ol.dac_path.axi_dma_0.sendchannel
@@ -503,7 +491,7 @@ class RFSoC(General):
                         txtd_dac_ant.real
                     )
                 else:
-                    raise ValueError("Unsupported TX mode: %d" % (self.config.tx_mode))
+                    raise ValueError(f"Unsupported TX mode: {self.config.tx_mode}")
 
         else:
             txtd_dac = txtd_dac.reshape(txtd_dac.shape[0], -1, self.config.n_par_strms_tx)
@@ -530,7 +518,7 @@ class RFSoC(General):
                         txtd_dac[i].real
                     )
                 else:
-                    raise ValueError("Unsupported RX mode: %d" % (self.config.rx_mode))
+                    raise ValueError(f"Unsupported RX mode: {self.config.rx_mode}")
 
         self.dac_tx_buffer[:] = txtd_dac_interleaved.flatten()[:]
 
@@ -555,7 +543,7 @@ class RFSoC(General):
                     + 1j * rx_data[i * 2 :: self.config.n_rx_ant * 2, :]
                 )
             else:
-                raise ValueError("Unsupported RX mode: %d" % (self.config.rx_mode))
+                raise ValueError(f"Unsupported RX mode: {self.config.rx_mode}")
             self.rxtd.append(rx_data_ant.flatten())
 
         self.rxtd = np.array(self.rxtd)
@@ -584,7 +572,7 @@ class RFSoC(General):
         time.sleep(0.1)
         self.print("Frame sent via DAC", thr=1)
 
-    def recv_frame_one(self, n_frame=1):
+    def recv_frame_once(self, n_frame=1):
         # if 'ddr4' in self.config.project:
         #     self.gpio_dic['led'].write(1)
         if "ddr4" in self.config.project:
@@ -631,8 +619,8 @@ class RFSoC(General):
 
         for i, beam_index in enumerate(self.config.beam_test):
             if self.config.RFFE == "sivers":
-                self.siversControllerObj.setBeamIndexRX(beam_index)
-            self.recv_frame_one(n_frame=n_frame)
+                self.siversControllerObj.set_beam_index_rx(beam_index)
+            self.recv_frame_once(n_frame=n_frame)
             rxtd[i, :] = self.rxtd.flatten()
 
         rxfd = fft(rxtd, axis=1)

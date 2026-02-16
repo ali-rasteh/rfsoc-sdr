@@ -1,7 +1,8 @@
 import time
+from dataclasses import dataclass
+
 import serial
 import serial.tools.list_ports
-from dataclasses import dataclass
 
 from sigcom_toolkit.general import General, GeneralConfig
 
@@ -13,7 +14,7 @@ class SerialComConfig(GeneralConfig):
     timeout: float = 1.0
 
 
-class Serial_Comm(General):
+class SerialComm(General):
     def __init__(self, config: SerialComConfig, **overrides):
         """
         Initialize the connection to the Target.
@@ -26,15 +27,17 @@ class Serial_Comm(General):
         super().__init__(config, **overrides)
 
         self.client = None
-        self.print("Serial_Comm Client object created", thr=1)
+        self.print("SerialComm Client object created", thr=1)
 
-    def list_ports(self):
-        """
-        List all available COM ports.
-        """
-        ports = serial.tools.list_ports.comports()
-        for port, desc, hwid in ports:
-            self.print(f"{port}: {desc} [{hwid}]", thr=0)
+    def close(self):
+        """Close the connection to the Target."""
+        if self.client and self.client.is_open:
+            self.client.close()
+            self.print("Client serial closed", thr=1)
+
+    def __del__(self):
+        self.close()
+        self.print("Client object deleted", thr=1)
 
     def connect(self):
         """Establish a connection to the target."""
@@ -47,15 +50,13 @@ class Serial_Comm(General):
         else:
             self.print("Client serial connection failed.", thr=0)
 
-    def close(self):
-        """Close the connection to the Target."""
-        if self.client and self.client.is_open:
-            self.client.close()
-            self.print("Client serial closed", thr=1)
-
-    def __del__(self):
-        self.close()
-        self.print("Client object deleted", thr=1)
+    def list_ports(self):
+        """
+        List all available COM ports.
+        """
+        ports = serial.tools.list_ports.comports()
+        for port, desc, hwid in ports:
+            self.print(f"{port}: {desc} [{hwid}]", thr=0)
 
     def write(self, data):
         """
@@ -97,7 +98,7 @@ class SerialComTurnTableConfig(SerialComConfig):
     rotation_delay: float = 0.0
 
 
-class Serial_Comm_TurnTable(Serial_Comm):
+class SerialCommTurnTable(SerialComm):
     def __init__(self, config: SerialComTurnTableConfig, **overrides):
         """
         Initialize the connection to the Arduino.
@@ -109,7 +110,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
         super().__init__(config, **overrides)
 
         self.position = 0.0
-        self.print("Serial_Comm_TurnTable Client object created", thr=1)
+        self.print("SerialCommTurnTable Client object created", thr=1)
 
         # self.connect()
 
@@ -141,12 +142,12 @@ class Serial_Comm_TurnTable(Serial_Comm):
         self.print("Setting the current position as the home position", thr=2)
         command = "home"
         self.write(command)
-        responses = self.read_lines(max_lines=1)
+        _ = self.read_lines(max_lines=1)
         self.position = 0.0
         self.print("Home position set", thr=3)
 
     def calibrate(self, mode="start"):
-        self.print("Calibrating the turn-table with mode {}".format(mode), thr=1)
+        self.print(f"Calibrating the turn-table with mode {mode}", thr=1)
         self.print("Try to set the angle at zero ...", thr=1)
         while True:
             angle_str = input(
@@ -161,7 +162,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 break
             try:
                 angle = float(angle_str)
-            except:
+            except Exception:
                 self.print("Invalid angle, please enter a valid angle", thr=0)
                 continue
             self.move_to_position(position=angle)
@@ -176,7 +177,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 break
             try:
                 angle = float(angle_str)
-            except:
+            except Exception:
                 self.print("Invalid angle, please enter a valid angle", thr=0)
                 continue
             self.move_to_position(position=angle)

@@ -1,13 +1,14 @@
 import os
-import time
 import pickle
+import time
+from dataclasses import dataclass
 
-from pyftdi.ftdi import Ftdi
-from pyftdi.spi import SpiController
+from pyftdi.ftdi import Ftdi  # type: ignore
+from pyftdi.spi import SpiController  # type: ignore
 
-from .siversCommon import *
-from .siversDefaults import *
-
+from .general import GeneralConfig  # type: ignore
+from .sivers_common import int2intlist, intlist2int
+from .sivers_defaults import SiversDefaults
 
 _THIS_DIR = os.path.dirname(__file__)
 
@@ -17,7 +18,7 @@ class SiversControllerConfig(GeneralConfig):
     pass
 
 
-class siversController(siversDefaults):
+class SiversController(SiversDefaults):
     def __init__(self, config: SiversControllerConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -26,7 +27,7 @@ class siversController(siversDefaults):
         strFTDIdesc = str(allDevices[0][0])
         snStr = strFTDIdesc[strFTDIdesc.find("sn=") + 4 : strFTDIdesc.find("sn=") + 14]
         siverEVKAddr = "ftdi://ftdi:4232:" + snStr
-        self.print("siverEVKAddr: {}".format(siverEVKAddr), thr=1)
+        self.print(f"siverEVKAddr: {siverEVKAddr}", thr=1)
 
         ctrlA = SpiController(cs_count=1)
         ctrlA.configure(siverEVKAddr + "/1")
@@ -115,7 +116,7 @@ class siversController(siversDefaults):
         self.clr("vco_tune_ctrl", 0xFF)
 
         restart = True
-        if restart == True:
+        if restart:
             self.set("vco_tune_ctrl", (1 << 2))
         else:
             self.clr("vco_tune_ctrl", (1 << 2))
@@ -123,7 +124,7 @@ class siversController(siversDefaults):
         self.wr("vco_en", 0x3C)  # Enable VCO
 
         # Set Carrier Frequency
-        self.setFrequency(self.fc)
+        self.set_frequency(self.fc)
 
         # Initialize RX/TX
         self.wr("trx_rx_on", 0x1FFFFF)
@@ -168,13 +169,13 @@ class siversController(siversDefaults):
         )  # this is the gain after RF mixer, [0:3,RF gain]: 0-15 dB, 16 steps, [4:7, BF gain]: 0-15 dB, 16 steps
 
         # Set the AWVs
-        # self.loadDumb('conf',group='bf_rx')
-        # self.loadDumb('conf',group='bf_tx')
+        # self.load_dumb('conf',group='bf_rx')
+        # self.load_dumb('conf',group='bf_tx')
 
-        self.setBeamIndexTX(32)
-        self.setBeamIndexRX(32)
+        self.set_beam_index_tx(32)
+        self.set_beam_index_rx(32)
 
-    def getGainRX(self):
+    def get_gain_rx(self):
         self.print("Getting RX gain", thr=1)
         rx_gain_ctrl_bb1 = self.rd("rx_gain_ctrl_bb1")
         rx_gain_ctrl_bb2 = self.rd("rx_gain_ctrl_bb2")
@@ -192,7 +193,7 @@ class siversController(siversDefaults):
             agc_int_bb3_gain_lvl,
         )
 
-    def setGainRX(self, rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf):
+    def set_gain_rx(self, rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf):
         self.print("Setting RX gain", thr=1)
         if (
             rx_gain_ctrl_bb1 > 255
@@ -216,7 +217,7 @@ class siversController(siversDefaults):
         status = "Success"
         return success, status
 
-    def getGainTX(self):
+    def get_gain_tx(self):
         self.print("Getting TX gain", thr=1)
         tx_bb_gain = self.rd("tx_bb_gain")
         tx_bb_phase = self.rd("tx_bb_phase")
@@ -225,7 +226,7 @@ class siversController(siversDefaults):
         tx_ctrl = self.rd("tx_ctrl")
         return tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl
 
-    def setGainTX(self, tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain):
+    def set_gain_tx(self, tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain):
         self.print("Setting TX gain", thr=1)
         if (
             tx_bb_gain > 255
@@ -249,7 +250,7 @@ class siversController(siversDefaults):
         status = "Success"
         return success, status
 
-    def getMode(self):
+    def get_mode(self):
         self.print("Getting RX/TX mode", thr=1)
         self.mode = self.rd("trx_ctrl") & 0x03
         if self.mode == 0:
@@ -262,8 +263,8 @@ class siversController(siversDefaults):
             mode = "RXen1_TXen1"
         return mode
 
-    def setMode(self, mode):
-        self.print("Setting RX/TX mode to {}".format(mode), thr=1)
+    def set_mode(self, mode):
+        self.print(f"Setting RX/TX mode to {mode}", thr=1)
 
         if mode == "RXen0_TXen0":
             self.wr("trx_ctrl", 0x00)
@@ -279,7 +280,7 @@ class siversController(siversDefaults):
             status = "Success"
         elif mode == "RXen1_TXen1":
             # self.wr('trx_ctrl',0x03) # dangerous case
-            self.print("Error: setMode {} Not performed.".format(mode), thr=0)
+            self.print(f"Error: set_mode {mode} Not performed.", thr=0)
             success = False
             status = "Not implemented"
         else:
@@ -298,22 +299,22 @@ class siversController(siversDefaults):
         self.print("Converting divn to frequency", thr=2)
         return (divn + 36) * 6 * self.freq
 
-    def getFrequency(self):
+    def get_frequency(self):
         self.print("Getting frequency", thr=1)
         divn = self.rd("pll_divn")
         return self.divn_to_freq(divn)
 
-    def setFrequency(self, frequency):
+    def set_frequency(self, frequency):
         if frequency > 70e9 or frequency < 57.51e9:
             self.print("Error: Carrier frequency should be between 57.51 GHz and 70 GHz", thr=0)
             success = False
             status = "ERROR: Invalid carrier frequency"
             return success, status
 
-        self.print("Setting frequency to {} GHz".format(frequency / 1e9), thr=1)
-        start_time = time.time()
+        self.print(f"Setting frequency to {frequency / 1e9} GHz", thr=1)
+        # start_time = time.time()
 
-        self.t = self.getTemperature("K") - 273
+        self.t = self.get_temperature("K") - 273
         # Set vco amplitude according to temperature
         self.alc_th = int(
             (self.alc_th_v + (25 - self.t) * 2.4e-3) / self.dac_ref * 255
@@ -327,7 +328,7 @@ class siversController(siversDefaults):
             self.set("pll_chp", 0x01)
         else:
             self.vtune_th = int((self.t * 67e-4 + 1.066) * 255 / self.dac_ref)
-        self.print("Temperature: " + "%1.3f" % (self.t) + " C", thr=1)
+        self.print(f"Temperature: {self.t:.3f} C", thr=1)
         self.print(
             "vco_vtune_atc_lo_th: "
             + hex(self.vtune_th)
@@ -351,7 +352,7 @@ class siversController(siversDefaults):
         if self.chipType == "Eder B MMF":
             # Set pll_chp to 0x00 if digtune between 28 and 64 or 92 and 128
             digtune = self.rd("vco_tune_dig_tune")
-            if (0x5C < digtune) or (0x1D < digtune < 0x40):
+            if (digtune > 0x5C) or (0x1D < digtune < 0x40):
                 self.clr("pll_chp", 0x03)
         # Check if tuning has succeeded
         if (
@@ -369,60 +370,60 @@ class siversController(siversDefaults):
         status = "Success"
         return success, status
 
-    def setBeamIndexTX(self, index):
+    def set_beam_index_tx(self, index):
         if index > 63 or index < 0:
             self.print("Error: TX beam index should be between 0 and 63", thr=0)
             success = False
             status = "ERROR: TX beam index should be between 0 and 63"
             return success, status
         else:
-            self.print("Setting TX beam index to {}".format(index), thr=1)
+            self.print(f"Setting TX beam index to {index}", thr=1)
             ptr = 0x80 | index
             success = True
             status = "Success"
             self.wr("bf_tx_awv_ptr", ptr)
             return success, status
 
-    def setBeamIndexRX(self, index):
+    def set_beam_index_rx(self, index):
         if index > 63 or index < 0:
             self.print("Error: RX beam index should be between 0 and 63", thr=0)
             success = False
             status = "ERROR: RX beam index should be between 0 and 63"
             return success, status
         else:
-            self.print("Setting RX beam index to {}".format(index), thr=1)
+            self.print(f"Setting RX beam index to {index}", thr=1)
             ptr = 0x80 | index
             success = True
             status = "Success"
             self.wr("bf_rx_awv_ptr", ptr)
             return success, status
 
-    def getBeamIndexTX(self):
+    def get_beam_index_tx(self):
         self.print("Getting TX beam index", thr=1)
         return 0x7F & self.rd("bf_tx_awv_ptr")
 
-    def getBeamIndexRX(self):
+    def get_beam_index_rx(self):
         self.print("Getting RX beam index", thr=1)
         return 0x7F & self.rd("bf_rx_awv_ptr")
 
     ## ADC
-    def getTemperatureRaw(self):
+    def get_temperature_raw(self):
         self.print("Getting raw temperature", thr=5)
-        self.startADC(src1=0x83, src2=None, log2_nsamples=4)
-        temp = self.meanADC()
-        self.stopADC()
+        self.start_adc(src1=0x83, src2=None, log2_nsamples=4)
+        temp = self.mean_adc()
+        self.stop_adc()
         return temp
 
-    def getTemperature(self, unit="C"):
+    def get_temperature(self, unit="C"):
         self.print("Getting temperature", thr=2)
         return (
-            self.getTemperatureRaw() * self.temp_scale
+            self.get_temperature_raw() * self.temp_scale
             - self.temp_comp
             + self.unit_offs[unit]
             + self.temp_calib_offset
         )
 
-    def startADC(self, src1, src2=None, log2_nsamples=4):
+    def start_adc(self, src1, src2=None, log2_nsamples=4):
         # self.lock.acquire()
         if (self.rd("adc_ctrl") & 0x80) == 0x80:
             self.print(
@@ -430,54 +431,54 @@ class siversController(siversDefaults):
             )
             return
         self.print("Starting ADC", thr=1)
-        self.__src_1, self.__src_2 = self.getAMUX()
-        self.setAMUX(src1, src2)
+        self.__src_1, self.__src_2 = self.get_amux()
+        self.set_amux(src1, src2)
         self.wr("adc_num_samples", log2_nsamples)
         self.tgl("adc_ctrl", 0x10)
         while (self.rd("adc_ctrl") & 0x80) == 0:
             pass
 
-    def stopADC(self):
+    def stop_adc(self):
         self.print("Stopping ADC", thr=1)
         self.tgl("adc_ctrl", 0x20)
-        self.setAMUX(self.__src_1, self.__src_2)
+        self.set_amux(self.__src_1, self.__src_2)
 
-    def meanADC(self):
+    def mean_adc(self):
         return self.rd("adc_mean") & 0x0FFF
 
-    def maxADC(self):
+    def max_adc(self):
         return self.rd("adc_max") & 0x0FFF
 
-    def minADC(self):
+    def min_adc(self):
         return self.rd("adc_min") & 0x0FFF
 
-    def diffADC(self):
+    def diff_adc(self):
         return self.rd("adc_diff") & 0x0FFF
 
     ## AMUX
-    def setAMUX(self, src=None, src_2=None):
+    def set_amux(self, src=None, src_2=None):
         """Enables output of source "src" on AMUX-pin.
         src : source for AMUX output
         Example:
         amux.set(dbg.amux_vco)
         """
         self.print("Setting AMUX", thr=1)
-        if src != None:
+        if src is not None:
             self.wr("bist_amux_ctrl", src)
 
-        if src_2 != None:
+        if src_2 is not None:
             if (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_rx_bb:
                 self.wr("rx_bb_test_ctrl", src_2)
             elif (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_vco:
                 self.wr("vco_amux_ctrl", src_2)
             elif (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_otp:
                 self.wr("bist_ot_ctrl", src_2)
-            elif (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_tx_pdet:
-                self.wr("tx_bf_pdet_mux", src_2)
-            elif (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_tx_env_pdet:
+            elif (self.rd("bist_amux_ctrl") & 0x7F) == self.amux_tx_pdet or (
+                self.rd("bist_amux_ctrl") & 0x7F
+            ) == self.amux_tx_env_pdet:
                 self.wr("tx_bf_pdet_mux", src_2)
 
-    def getAMUX(self):
+    def get_amux(self):
         self.print("Getting AMUX", thr=1)
         src = self.rd("bist_amux_ctrl")
         src_2 = None
@@ -487,36 +488,36 @@ class siversController(siversDefaults):
             src_2 = self.rd("vco_amux_ctrl")
         elif (0x7F & src) == (0x7F & self.amux_otp):
             src_2 = self.rd("bist_ot_ctrl")
-        elif (0x7F & src) == (0x7F & self.amux_tx_pdet):
-            src_2 = self.rd("tx_bf_pdet_mux")
-        elif (0x7F & src) == (0x7F & self.amux_tx_env_pdet):
+        elif (0x7F & src) == (0x7F & self.amux_tx_pdet) or (0x7F & src) == (
+            0x7F & self.amux_tx_env_pdet
+        ):
             src_2 = self.rd("tx_bf_pdet_mux")
         return src, src_2
 
-    def enableAMUX(self):
+    def enable_amux(self):
         """Enable output on AMUX-pin."""
         self.print("Enabling AMUX", thr=1)
         self.set("bist_amux_ctrl", 0x80)
 
-    def disableAMUX(self):
+    def disable_amux(self):
         """Disable output on AMUX-pin."""
         self.print("Disabling AMUX", thr=1)
         self.clr("bist_amux_ctrl", 0x80)
 
-    def clrAMUX(self):
+    def clr_amux(self):
         """Disable output on AMUX-pin."""
         self.print("Clearing AMUX", thr=1)
         self.clr("bist_amux_ctrl", 0x80)
 
     ## SPI
-    def getAddressAndSize(self, regKey):
-        address = self.regs[regKey]["addr"]
-        size = self.regs[regKey]["size"]
+    def get_address_and_size(self, reg_key):
+        address = self.regs[reg_key]["addr"]
+        size = self.regs[reg_key]["size"]
         return address, size
 
-    def rd(self, regKey):
-        self.print("Reading register {}".format(regKey), thr=5)
-        address, size = self.getAddressAndSize(regKey)
+    def rd(self, reg_key):
+        self.print(f"Reading register {reg_key}", thr=5)
+        address, size = self.get_address_and_size(reg_key)
         command = int2intlist((address << 3) + self.SPI_RD, 256, 2)
         read_buf = self.spiSiver.exchange(command, 2 + size, start=True, stop=True, duplex=True)
         read_buf = read_buf[2:]
@@ -525,81 +526,83 @@ class siversController(siversDefaults):
         # self.print(hex(int.from_bytes(read_buf,'big', signed=False)), thr=1)
         return intlist2int(list(read_buf))
 
-    def wr(self, regKey, data):
-        self.print("Writing register {} with data {}".format(regKey, hex(data)), thr=5)
-        address, size = self.getAddressAndSize(regKey)
+    def wr(self, reg_key, data):
+        self.print(f"Writing register {reg_key} with data {hex(data)}", thr=5)
+        address, size = self.get_address_and_size(reg_key)
         data = int2intlist(data, num_ints=size)
         command = int2intlist((address << 3) + self.SPI_WR_RAW, 256, 2)
         data.append(0)
         self.spiSiver.write(command + data, start=True, stop=True)
 
-    def clr(self, regKey, data):
-        self.print("Clearing register {} with data {}".format(regKey, hex(data)), thr=5)
-        address, size = self.getAddressAndSize(regKey)
+    def clr(self, reg_key, data):
+        self.print(f"Clearing register {reg_key} with data {hex(data)}", thr=5)
+        address, size = self.get_address_and_size(reg_key)
         command = int2intlist((address << 3) + self.SPI_WR_CLR, 256, 2)
         data = int2intlist(data, num_ints=size)
         data.append(0)
         self.spiSiver.write(command + data, start=True, stop=True)
 
-    def set(self, regKey, data):
-        self.print("Setting register {} with data {}".format(regKey, hex(data)), thr=5)
-        address, size = self.getAddressAndSize(regKey)
+    def set(self, reg_key, data):
+        self.print(f"Setting register {reg_key} with data {hex(data)}", thr=5)
+        address, size = self.get_address_and_size(reg_key)
         command = int2intlist((address << 3) + self.SPI_WR_SET, 256, 2)
         data = int2intlist(data, num_ints=size)
         data.append(0)
         self.spiSiver.write(command + data, start=True, stop=True)
 
-    def tgl(self, regKey, data):
-        self.print("Toggling register {} with data {}".format(regKey, hex(data)), thr=5)
-        address, size = self.getAddressAndSize(regKey)
+    def tgl(self, reg_key, data):
+        self.print(f"Toggling register {reg_key} with data {hex(data)}", thr=5)
+        address, size = self.get_address_and_size(reg_key)
         command = int2intlist((address << 3) + self.SPI_WR_TGL, 256, 2)
         data = int2intlist(data, num_ints=size)
         data.append(0)
         self.spiSiver.write(command + data, start=True, stop=True)
 
-    def dump(self, group="", isDetailed="False"):
+    def dump(self, group="", is_detailed="False"):
         self.print("Dumping registers", thr=2)
         selectedDict = self.regs
         self.print("===========================", thr=2)
         if group != "":
-            for regKey in selectedDict:
-                if selectedDict[regKey]["group"] == group:
-                    data = self.rd(regKey)
-                    self.print(regKey + ":" + hex(data), thr=2)
-                    if isDetailed:
-                        self.print(selectedDict[regKey]["doc"], thr=2)
+            for reg_key in selectedDict:
+                if selectedDict[reg_key]["group"] == group:
+                    data = self.rd(reg_key)
+                    self.print(reg_key + ":" + hex(data), thr=2)
+                    if is_detailed:
+                        self.print(selectedDict[reg_key]["doc"], thr=2)
                         self.print("\n", thr=2)
         else:
-            for regKey in selectedDict:
-                data = self.rd(regKey)
-                self.print(regKey + ":" + hex(int.from_bytes(data, "big", signed=False)), thr=2)
-                if isDetailed:
-                    self.print(selectedDict[regKey]["doc"], thr=2)
+            for reg_key in selectedDict:
+                data = self.rd(reg_key)
+                self.print(reg_key + ":" + hex(int.from_bytes(data, "big", signed=False)), thr=2)
+                if is_detailed:
+                    self.print(selectedDict[reg_key]["doc"], thr=2)
                     self.print("\n", thr=2)
         self.print("\n", thr=2)
 
-    def dumpSave(self, filename, group=""):
+    def dump_save(self, filename, group=""):
         self.print("Dumping registers to file", thr=2)
         save_list = []
         if group != "":
-            for regKey in self.regs:
-                if self.regs[regKey]["group"] == group:
-                    data = self.rd(regKey)
-                    save_list.append([regKey, data])
-            pickle.dump(save_list, open(filename + "_" + group, "wb"))
+            for reg_key in self.regs:
+                if self.regs[reg_key]["group"] == group:
+                    data = self.rd(reg_key)
+                    save_list.append([reg_key, data])
+            with open(filename + "_" + group, "wb") as f:
+                pickle.dump(save_list, f)
         else:
-            for regKey in self.regs:
-                data = self.rd(regKey)
-                save_list.append([regKey, data])
-            pickle.dump(save_list, open(filename + "_allRegs", "wb"))
+            for reg_key in self.regs:
+                data = self.rd(reg_key)
+                save_list.append([reg_key, data])
+            with open(filename + "_allRegs", "wb") as f:
+                pickle.dump(save_list, f)
 
-    def loadDumb(self, filename, group=""):
+    def load_dumb(self, filename, group=""):
         self.print("Loading registers from file", thr=2)
         if group != "":
-            load_list = pickle.load(
-                open(os.path.join(_THIS_DIR, filename + "_" + group), "rb")
-            )  # +'.pkl'
+            with open(os.path.join(_THIS_DIR, filename + "_" + group), "rb") as f:
+                load_list = pickle.load(f)  # +'.pkl'
         else:
-            load_list = pickle.load(open(os.path.join(_THIS_DIR, filename + "_allRegs"), "rb"))
-        for regKey in load_list:
-            self.wr(regKey[0], regKey[1])
+            with open(os.path.join(_THIS_DIR, filename + "_allRegs"), "rb") as f:
+                load_list = pickle.load(f)
+        for reg_key in load_list:
+            self.wr(reg_key[0], reg_key[1])

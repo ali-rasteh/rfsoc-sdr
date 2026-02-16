@@ -45,7 +45,7 @@ unfixable = ["F401"]
 [tool.ruff.lint.isort]
 # 6. Import Sorting Configuration
 # Forces imports to be separated into blocks (Standard Lib, 3rd Party, Local)
-known-first-party = ["python"] # CHANGE THIS to your actual project folder name
+known-first-party = ["sigcom_toolkit"] # CHANGE THIS to your actual project folder name
 combine-as-imports = true
 
 [tool.ruff.format]

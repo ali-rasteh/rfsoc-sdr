@@ -139,14 +139,14 @@ class FR3SpectrumSweepConfig(BaseConfig):
         "host": {"type": "host", "role": "rx", "ip": "192.168.3.100", "protocol": "ssh"},
     }
     action_loop = [
-        f"piradio_rx/set_gain_db_rx/-3:20:20/",
-        f"self/switch_sig_size/[8,16,32,128]/",
-        # f'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
-        # f'self/switch_sig_size/1:256:20:log/',
-        f"self/switch_sig_ss/1:10:10/",
-        # f'self/wait/[1]/',
-        f"rfsoc_rx/capture/[10]/",
-        f'self/save/[1]/["signal"]/m',
+        "piradio_rx/set_gain_db_rx/-3:20:20/",
+        "self/switch_sig_size/[8,16,32,128]/",
+        # 'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
+        # 'self/switch_sig_size/1:256:20:log/',
+        "self/switch_sig_ss/1:10:10/",
+        # 'self/wait/[1]/',
+        "rfsoc_rx/capture/[10]/",
+        'self/save/[1]/["signal"]/m',
     ]
 
 
@@ -184,7 +184,7 @@ class FR3BeamFormConfig(BaseConfig):
     beamforming = True
     steer_rad = [0, 0]
     measurement_configs = [6.5]
-    measurement_configs.append("bf_phi_{}".format(steer_rad[0]))
+    measurement_configs.append(f"bf_phi_{steer_rad[0]}")
 
 
 class FR3NYU3StateConfig(BaseConfig):
