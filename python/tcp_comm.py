@@ -847,7 +847,7 @@ class RESTCom(General):
 
 
 @dataclass
-class PiradioRestComConfig(RestComConfig):
+class RestComPiradioConfig(RestComConfig):
     freq_sw_dly: float = 0.1
     gain_sw_dly: float = 0.1
     bias_sw_dly: float = 0.1
@@ -855,7 +855,7 @@ class PiradioRestComConfig(RestComConfig):
 
 
 class RESTComPiradio(RESTCom):
-    def __init__(self, config: PiradioRestComConfig, **overrides):
+    def __init__(self, config: RestComPiradioConfig, **overrides):
         super().__init__(config, **overrides)
 
         self.print("RESTComPiradio object init done", thr=1)

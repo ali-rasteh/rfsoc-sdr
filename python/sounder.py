@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from scipy import constants
 
-from file_utils import FileUtils
+from file_utils import FileUtils, FileUtilsConfig
 from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 
@@ -319,7 +319,9 @@ class Sounder(SignalUtilsRfsoc):
         self.signals_inst.gen_tx_signal()
 
     def update_rfsoc_files(self):
-        file_utils = FileUtils(self.config, scp_connect=self.config.update_rfsoc_files)
+        file_utils_config = FileUtilsConfig(
+            scp_connect=self.config.update_rfsoc_files).update_from_config(self.config)
+        file_utils = FileUtils(file_utils_config)
         changed_1 = False
         changed_2 = False
         changed_3 = False
@@ -342,12 +344,13 @@ class Sounder(SignalUtilsRfsoc):
             return
 
     def run_rfsoc(self):
-        from rfsoc import RFSoC
+        from rfsoc import RFSoC, RFSoCConfig
 
-        rfsoc_inst = RFSoC(self.config)
-        rfsoc_inst.txtd = self.signals_inst.txtd
+        rfsoc_config = RFSoCConfig().update_from_config(self.config)
+        rfsoc_inst = RFSoC(rfsoc_config)
+        rfsoc_inst.txtd = self.signals_inst.tx_signal.txtd
         if self.config.transmit_signal:
-            rfsoc_inst.send_frame(self.signals_inst.txtd)
+            rfsoc_inst.send_frame(rfsoc_inst.txtd)
 
         # Receiving a test frame to verify connection
         rfsoc_inst.recv_frame_once(n_frame=self.config.n_frame_rd)
@@ -358,5 +361,6 @@ class Sounder(SignalUtilsRfsoc):
         if self.config.running_platform == "rfsoc":
             self.run_rfsoc()
 
-        if "client" in self.config.host_role:
+        elif "client" in self.config.host_role:
+            self.signals_inst.init_objects()
             self.signals_inst.operator()

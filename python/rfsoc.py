@@ -10,7 +10,7 @@ from numpy.fft import fft, ifft
 from pynq import GPIO, Overlay, allocate  # type: ignore
 
 from sigcom_toolkit.general import General, GeneralConfig
-from tcp_comm import TcpCommRFSoC
+from tcp_comm import TcpCommRFSoC, TCPComRFSoCConfig
 
 try:
     from sivers.sivers_controller import SiversController
@@ -43,6 +43,7 @@ class RFSoCConfig(GeneralConfig):
     n_frame_rd: int = 2
     n_tx_ant: int = 2
     n_rx_ant: int = 2
+    n_samples: int = 1024
 
     n_skip: int = 0
     CLOCKWIZARD_LOCK_ADDRESS: int = 0x0004
@@ -198,7 +199,8 @@ class RFSoC(General):
             self.set_adc_mixer()
         self.init_dma()
         if self.config.run_tcp_server:
-            self.tcp_comm = TcpCommRFSoC(config)
+            tcp_config = TCPComRFSoCConfig().update_from_config(self.config)
+            self.tcp_comm = TcpCommRFSoC(tcp_config)
             self.tcp_comm.init_tcp_server()
 
         self.print("rfsoc initialization done", thr=1)
@@ -224,7 +226,7 @@ class RFSoC(General):
         self.tcp_comm.run_tcp_server(self.tcp_comm.parse_and_execute)
 
     def allocate_input(self, n_frame=1):
-        size = self.config.n_rx_ant * n_frame * self.n_samples * 2
+        size = self.config.n_rx_ant * n_frame * self.config.n_samples * 2
         if "ddr4" in self.config.project:
             self.adc_rx_buffer = allocate(shape=(size,), target=self.ol.ddr4_0, dtype=np.int16)
             # self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
@@ -233,7 +235,7 @@ class RFSoC(General):
         self.print("Input buffers allocation done", thr=1)
 
     def allocate_output(self, n_frame=1):
-        size = self.config.n_tx_ant * n_frame * self.n_samples * 2
+        size = self.config.n_tx_ant * n_frame * self.config.n_samples * 2
         self.dac_tx_buffer = allocate(shape=(size,), dtype=np.int16)
         self.print("Output buffers allocation done", thr=1)
 
@@ -578,12 +580,12 @@ class RFSoC(General):
         if "ddr4" in self.config.project:
             # Suspicous code
             self.rx_reg.write(
-                0, self.config.n_rx_ant * self.n_samples // self.config.n_par_strms_rx
+                0, self.config.n_rx_ant * self.config.n_samples // self.config.n_par_strms_rx
             )
-            # self.rx_reg.write(0, self.n_samples // self.config.n_par_strms_rx)
+            # self.rx_reg.write(0, self.config.n_samples // self.config.n_par_strms_rx)
             self.rx_reg.write(4, self.config.n_skip // self.config.n_par_strms_rx)
             self.rx_reg.write(
-                8, self.config.n_rx_ant * n_frame * self.n_samples * 4
+                8, self.config.n_rx_ant * n_frame * self.config.n_samples * 4
             )  # Must have self.config.n_rx_ant multiplier to work correctly
 
             self.gpio_dic["adc_reset"].write(0)
@@ -613,7 +615,7 @@ class RFSoC(General):
 
     def recv_frame(self, n_frame=1):
         rxtd = np.zeros(
-            (len(self.config.beam_test), self.config.n_rx_ant * n_frame * self.n_samples),
+            (len(self.config.beam_test), self.config.n_rx_ant * n_frame * self.config.n_samples),
             dtype="complex",
         )
 

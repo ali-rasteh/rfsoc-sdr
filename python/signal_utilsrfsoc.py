@@ -17,9 +17,10 @@ from scipy import constants
 from serial_comm import SerialCommTurnTable, SerialComTurnTableConfig
 from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
+from sigcom_toolkit.specsense_utils import SpecSenseUtils
 from tcp_comm import (
-    PiradioRestComConfig,
     RESTComPiradio,
+    RestComPiradioConfig,
     TCPComControllerConfig,
     TCPComLinTrackConfig,
     TcpCommController,
@@ -124,7 +125,7 @@ class ClientRFSoC(TcpCommRFSoC):
 
 
 @dataclass
-class PiRadioConfig(PiradioRestComConfig):
+class PiRadioConfig(RestComPiradioConfig):
     stable_fc_piradio: float = 10.0e9
     optimal_gains_path: str = "./optimal_gains.json"
     piradio_gain_sw_dly_default: float = 0.1
@@ -221,8 +222,6 @@ class SignalUtilsRfsoc(SignalUtils):
         self.rx_signal = None
         self.animate_plotter = None
 
-        self.init_objects()
-
         self.print("signals object initialization done", thr=1)
 
     @property
@@ -317,19 +316,19 @@ class SignalUtilsRfsoc(SignalUtils):
                 freq_sw_dly = item.get("freq_sw_dly", 0.1)
                 gain_sw_dly = item.get("gain_sw_dly", 0.1)
                 bias_sw_dly = item.get("bias_sw_dly", 0.1)
-                piradio_config = PiradioRestComConfig(
+                piradio_config = PiRadioConfig(
                     ip_address=ip_address,
                     freq_sw_dly=freq_sw_dly,
                     gain_sw_dly=gain_sw_dly,
                     bias_sw_dly=bias_sw_dly,
                 ).update_from_config(self.config)
-                self._network_objects[name] = RESTComPiradio(piradio_config)
+                self._network_objects[name] = PiRadioFR3Trx(piradio_config)
                 self._network_objects[name].set_frequency_piradio(fc=self.config.fc)
 
             elif item["type"] == "turtlebot":
                 try:
-                    from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # noqa: I001
-                    from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # noqa: I001
+                    from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
+                    from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
 
                     self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
                     self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
@@ -404,7 +403,7 @@ class SignalUtilsRfsoc(SignalUtils):
                     sig_mode=self.config.sig_mode,
                     gen_mode=self.config.sig_gen_mode,
                 )
-            elif "wideband" in self.sig_mode:
+            elif "wideband" in self.config.sig_mode:
                 nsc = self.config.wb_sc_range[1] - self.config.wb_sc_range[0] + 1
                 txtd_base_s = self.generate_wideband(
                     bw_mode=self.config.wb_bw_mode,
@@ -1490,7 +1489,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
                 if action == "switch_sig_ss":
                     client_rfsoc = target_objects[0]
-                    region = self.generate_random_regions(
+                    region = SpecSenseUtils.generate_random_regions(
                         shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size]
                     )
                     self.config.wb_sc_range = [
@@ -1999,9 +1998,7 @@ class AnimatePlot(PlotUtils):
 
                     elif signal_name == "aoa_gauge":
                         self.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
-                        self.gauge_update_needle(
-                            self.ax[i][j], 0, min_val=-90, max_val=90
-                        )
+                        self.gauge_update_needle(self.ax[i][j], 0, min_val=-90, max_val=90)
                         self.ax[i][j].set_xlim(0, 1)
                         self.ax[i][j].set_ylim(0.5, 1)
                         self.ax[i][j].axis("off")

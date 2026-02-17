@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sounder import SounderConfig
 
@@ -30,16 +30,15 @@ class PlotSymbols:
 @dataclass
 class BaseConfig(SounderConfig):
     ant_d_m: tuple = (0.026,)
-    n_rx_ch_eq: int = (1,)
+    n_rx_ch_eq: int = 1
     wb_sc_range: tuple = (-260, 260)
-    rx_same_delay: bool = (False,)
-    n_frame_rd: int = (32,)
-    n_rd_rep: int = (1,)
-    save_parameters: bool = (True,)
-    rx_chain = ["sync_time", "channel_est"]
+    rx_same_delay: bool = False
+    n_frame_rd: int = 32
+    n_rd_rep: int = 1
+    save_parameters: bool = True
+    rx_chain: tuple = ("sync_time", "channel_est")
 
-    plot_configs: dict = (
-        {
+    plot_configs: dict = field(default_factory=lambda: {
             "title_size": 11,
             "title_max_chars": 35,
             "xaxis_size": 10,
@@ -50,20 +49,19 @@ class BaseConfig(SounderConfig):
             "marker_size": 8,
             "hspace": 0.5,
             "wspace": 0.5,
-        },
-    )
+        })
 
-    update_rfsoc_files: bool = (True,)
-    host_files_base_addr: str = ("",)
-    host_ip: str = ("192.168.2.1",)
-    host_username: str = ("",)
-    host_password: str = ("",)
+    update_rfsoc_files: bool = False
+    host_files_base_addr: str = ""
+    host_ip: str = "192.168.2.1"
+    host_username: str = ""
+    host_password: str = ""
 
-    overwrite_level: bool = (False,)
-    plot_level: int = (0,)
-    verbose_level: int = (0,)
+    overwrite_level: bool = True
+    plot_level: int = 0
+    verbose_level: int = 0
 
-    host_role: str = ("client",)
+    host_role: str = "client"
 
     animate_plot_mode = []
     animate_plot_mode.append([PlotSymbols.h00])
@@ -104,8 +102,8 @@ class FR3SpectrumSweepConfig(BaseConfig):
     sig_modulation = "4qam"
     measurement_configs = []
     network_topology = {
-        "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
-        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.3.1", "protocol": "tcp"},
+        "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
         # "lintrack": {"type": "lintrack", "role": "rx", "ip": "192.168.137.100", "protocol": "tcp"},
         # "turntable": {
         #     "type": "turntable",
@@ -139,7 +137,7 @@ class FR3SpectrumSweepConfig(BaseConfig):
         # "host": {"type": "host", "role": "rx", "ip": "192.168.3.100", "protocol": "ssh"},
     }
     action_loop = [
-        # "piradio_rx/set_gain_db_rx/-3:20:20/",
+        # "piradio_rx/set_gain_db_rx/-3:20:1/",
         "self/switch_sig_size/[8,16,32,128]/",
         # 'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
         # 'self/switch_sig_size/1:256:20:log/',
