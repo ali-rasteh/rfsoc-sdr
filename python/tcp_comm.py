@@ -144,7 +144,7 @@ class TcpComm(General):
 @dataclass
 class TCPComRFSoCConfig(TCPComConfig):
     fc: float = 6.0e9
-    beam_test: list = None
+    beam_test: tuple = None
     adc_bits: int = 14
     dac_bits: int = 14
     RFFE: str = None

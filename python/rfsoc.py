@@ -35,7 +35,7 @@ class RFSoCConfig(GeneralConfig):
     mix_freq_dac: float = 1000e6
     mix_freq_adc: float = 1000e6
     rfsoc_mix_phase_off: float = 0.0
-    DynamicPLLConfig: list = None
+    DynamicPLLConfig: tuple = None
     do_rfsoc_mixer_settings: bool = False
     do_rfsoc_pll_settings: bool = False
     run_tcp_server: bool = True

@@ -10,7 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
-from matplotlib.cycler import cycler  # type: ignore
+from matplotlib import cycler  # type: ignore
 from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
 
@@ -50,8 +50,8 @@ class PlotChart:
 @dataclass
 class PlotSignal:
     signal_name: str
-    trx_id: list
-    process_list: list
+    trx_id: tuple
+    process_list: tuple
     x: np.ndarray
     data: np.ndarray
     label: str
@@ -104,7 +104,7 @@ class ClientRFSoC(TcpCommRFSoC):
                 rxtd = self.receive_data_rfsoc(mode="once")
                 rxtd = rxtd[0]
                 phase_diff = SignalUtils.calc_phase_offset(rxtd[0, :], rxtd[1, :])
-                delay = phase_diff / (2 * np.pi * self.fc)
+                delay = phase_diff / (2 * np.pi * self.config.fc)
                 phase_diff_list.append(phase_diff)
                 delay_list.append(delay)
 
@@ -114,7 +114,7 @@ class ClientRFSoC(TcpCommRFSoC):
                 self.config.calib_config_path,
                 rx_phase_offset=self.rx_phase_offset,
                 rx_delay_offset=self.rx_delay_offset,
-                fc=self.fc,
+                fc=self.config.fc,
             )
             self.print(
                 f"Calibrated and saved phase offset between RX ports: {self.rx_phase_offset:0.3f} Rad",
@@ -125,30 +125,21 @@ class ClientRFSoC(TcpCommRFSoC):
 
 @dataclass
 class PiRadioConfig(PiradioRestComConfig):
-    freq_hop_list: list = [10.0e9]
     stable_fc_piradio: float = 10.0e9
     optimal_gains_path: str = "./optimal_gains.json"
     piradio_gain_sw_dly_default: float = 0.1
-    freq_range: list = [6.0, 22.5]
+    freq_range: tuple = (6.0, 22.5)
 
 
 class PiRadioFR3Trx(RESTComPiradio):
     def __init__(self, config: PiRadioConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
-        self.fc_id = 0
-
-    def hop_freq(self, fc_id=None, freq=None, set_opt_losupp=False):
-        if fc_id is None:
-            fc_id = (self.fc_id + 1) % len(self.config.freq_hop_list)
-        fc = freq if freq is not None else self.config.freq_hop_list[int(fc_id)]
+    def hop_freq(self, fc, set_opt_losupp=False):
         if self.fc != fc:
             self.set_frequency_piradio(fc=fc)
-
             if set_opt_losupp:
                 self.set_optimal_losupp_piradio(fc=fc)
-
-            self.fc_id = fc_id
             self.fc = fc
             self.wl = constants.c / self.fc
 
@@ -208,8 +199,9 @@ class PiRadioFR3Trx(RESTComPiradio):
 
 @dataclass
 class SignalUtilsRFSoCConfig(SignalUtilsConfig):
+    freq_hop_list: tuple = (10.0e9,)
     seed: int = None
-    seed_list: list = None
+    seed_list: tuple = None
 
 
 class SignalUtilsRfsoc(SignalUtils):
@@ -284,10 +276,10 @@ class SignalUtilsRfsoc(SignalUtils):
             item = self.network_topology[name]
             if item["type"] == "rfsoc":
                 ip_address = item["ip"]
-                rfsoc_config = TCPComRFSoCConfig(server_ip=ip_address).update_from_config(
+                rfsoc_config = ClientRFSoCConfig(server_ip=ip_address).update_from_config(
                     self.config
                 )
-                self._network_objects[name] = TcpCommRFSoC(rfsoc_config)
+                self._network_objects[name] = ClientRFSoC(rfsoc_config)
                 self._network_objects[name].init_tcp_client()
 
             elif item["type"] == "lintrack":
@@ -657,7 +649,7 @@ class SignalUtilsRfsoc(SignalUtils):
         plot_params_dict["title"] = "System Response vs Frequency at Different Angles"
         plot_params_dict["xlabel"] = "Frequency (GHz)"
         plot_params_dict["ylabel"] = "Normalized Response (dB)"
-        self.set_plot_params(ax, lines, plot_params_dict)
+        self.plotter.set_plot_params(ax, lines, plot_params_dict)
         plt.savefig(os.path.join(self.config.figs_dir, f"sys_response_vs_freq_{postfix}.pdf"))
 
         fixed_freqs = [6.0, 8.0, 10.0, 15.0, 20.0]
@@ -677,7 +669,7 @@ class SignalUtilsRfsoc(SignalUtils):
         plot_params_dict["title"] = "System Response vs Angle at Different Frequencies"
         plot_params_dict["xlabel"] = "Angle (Deg)"
         plot_params_dict["ylabel"] = "Normalized Response (dB)"
-        self.set_plot_params(ax, lines, plot_params_dict)
+        self.plotter.set_plot_params(ax, lines, plot_params_dict)
         plt.show()
         plt.savefig(os.path.join(self.config.figs_dir, f"sys_response_vs_angle_{postfix}.pdf"))
 
@@ -699,7 +691,7 @@ class SignalUtilsRfsoc(SignalUtils):
             plot_params_dict["title"] = f"2D Heat Diagram of System Response for RX {rx_id}"
             plot_params_dict["xlabel"] = "Frequency (GHz)"
             plot_params_dict["ylabel"] = "Angle (Deg)"
-            self.set_plot_params(ax, lines, plot_params_dict)
+            self.plotter.set_plot_params(ax, lines, plot_params_dict)
             plt.savefig(
                 os.path.join(self.config.figs_dir, f"sys_response_2D_{postfix}_RX{rx_id}.pdf")
             )
@@ -792,7 +784,7 @@ class SignalUtilsRfsoc(SignalUtils):
         for frequency in freq_list:
             self.print(f"Finding gains for frequency: {frequency} GHz", thr=1)
             for client in [client_piradio_rx, client_piradio_tx]:
-                client.hop_freq(freq=frequency)
+                client.hop_freq(fc=frequency)
 
             self.optimal_gains[self.tx_rx_distance][frequency] = {}
 
@@ -1457,12 +1449,9 @@ class SignalUtilsRfsoc(SignalUtils):
                     try:
                         frequency = float(param[0])
                         for client in clients:
-                            client.hop_freq(freq=frequency)
+                            client.hop_freq(fc=frequency)
                     except Exception:
-                        for client in clients:
-                            client.hop_freq()
-                        if clients:
-                            frequency = clients[0].fc
+                        self.print("Error hopping frequency", thr=0)
                     if frequency is None:
                         self.print("Saving signals after frequency hop", thr=0)
                     else:
@@ -1545,7 +1534,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
 @dataclass
 class AnimationPlotConfig(PlotUtilsConfig):
-    animate_plot_mode: list = []
+    animate_plot_mode: tuple = ()
     plot_configs: dict = None
 
 
@@ -2009,8 +1998,8 @@ class AnimatePlot(PlotUtils):
                         line_id += 2
 
                     elif signal_name == "aoa_gauge":
-                        self.signals_obj.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
-                        self.signals_obj.gauge_update_needle(
+                        self.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
+                        self.gauge_update_needle(
                             self.ax[i][j], 0, min_val=-90, max_val=90
                         )
                         self.ax[i][j].set_xlim(0, 1)

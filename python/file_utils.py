@@ -20,7 +20,6 @@ from dataclasses import dataclass
 import nbformat
 
 from sigcom_toolkit.general import General, GeneralConfig
-from sounder_configs import BaseConfig
 from tcp_comm import ScpCom, ScpComConfig
 
 
@@ -32,7 +31,7 @@ class FileUtilsConfig(GeneralConfig):
     password: str = "root"
     host_files_base_addr: str = "~/RFSoC_SDR/python/"
     local_base_addr: str = "./"
-    files_to_download: list = None
+    files_to_download: tuple = None
     configs_to_modify: dict = None
     files_to_convert: dict = None
 
@@ -203,9 +202,3 @@ class FileUtils(General):
                 changed = True
         return changed
 
-
-if __name__ == "__main__":
-    config = BaseConfig()
-    file_utils = FileUtils(config=config)
-    file_utils.download_files()
-    file_utils.modify_files()

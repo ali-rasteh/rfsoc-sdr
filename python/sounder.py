@@ -204,7 +204,7 @@ class SounderConfig(SignalUtilsRFSoCConfig):
         if self.n_tx_ant == 1 and self.n_rx_ant == 1:
             self.beamforming = False
 
-        self.fc = self.freq_hop_list[0]
+        self.fc = 10.0e9  # Carrier frequency in Hz
         self.wl = constants.c / self.fc
         self.ant_d = [
             d / self.wl for d in self.ant_d_m
@@ -289,7 +289,7 @@ class SounderConfig(SignalUtilsRFSoCConfig):
             self.files_to_convert = {"sounder.py": "sounder.ipynb"}
 
 
-class Sounder(SounderConfig):
+class Sounder(SignalUtilsRfsoc):
     def __init__(self, config: SounderConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
