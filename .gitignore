@@ -178,3 +178,4 @@ python/other
 *.7z
 *.zip
 python/config/config.json
+.vscode/

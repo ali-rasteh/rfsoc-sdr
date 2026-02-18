@@ -32,36 +32,36 @@ from tcp_comm import (
 
 @dataclass
 class RxSignal:
-    rxtd: np.ndarray
-    rxtd_base: np.ndarray
-    h_est_full: np.ndarray
-    h_est_freq: np.ndarray
-    h_est_freq_max: np.ndarray
-    sparse_est_params: dict
+    rxtd: np.ndarray = None
+    rxtd_base: np.ndarray = None
+    h_est_full: np.ndarray = None
+    h_est_freq: np.ndarray = None
+    h_est_freq_max: np.ndarray = None
+    sparse_est_params: dict = None
 
 
 @dataclass
 class PlotChart:
-    plot_signals: dict
-    title: str
-    x_label: str
-    y_label: str
+    plot_signals: dict = None
+    title: str = ""
+    x_label: str = ""
+    y_label: str = ""
 
 
 @dataclass
 class PlotSignal:
-    signal_name: str
-    trx_id: tuple
-    process_list: tuple
-    x: np.ndarray
-    data: np.ndarray
-    label: str
+    signal_name: str = ""
+    trx_id: tuple = None
+    process_list: tuple = None
+    x: np.ndarray = None
+    data: np.ndarray = None
+    label: str = ""
 
 
 @dataclass
 class TxSignal:
-    txtd: np.ndarray
-    txtd_base: np.ndarray
+    txtd: np.ndarray = None
+    txtd_base: np.ndarray = None
 
 
 @dataclass
@@ -1300,6 +1300,7 @@ class SignalUtilsRfsoc(SignalUtils):
                     rxtd = client_rfsoc.receive_data_rfsoc(
                         n_rd_rep=n_rd_rep, mode="once", verbose=False
                     )
+                    print(rxtd.shape)
                     self.rx_signal = RxSignal(
                         rxtd=rxtd,
                     )

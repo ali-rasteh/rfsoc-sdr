@@ -141,9 +141,9 @@ class FR3SpectrumSweepConfig(BaseConfig):
         "self/switch_sig_size/[8,16,32,128]/",
         # 'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
         # 'self/switch_sig_size/1:256:20:log/',
-        "self/switch_sig_ss/1:10:10/",
+        "rfsoc_tx/switch_sig_ss/1:10:10/",
         # 'self/wait/[1]/',
-        "rfsoc_rx/capture/[10]/",
+        "rfsoc_rx/capture/[256]/",
         'self/save/[1]/["signal"]/m',
     ]
 

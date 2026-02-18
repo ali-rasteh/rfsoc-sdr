@@ -44,6 +44,8 @@ class RFSoCConfig(GeneralConfig):
     n_tx_ant: int = 2
     n_rx_ant: int = 2
     n_samples: int = 1024
+    n_samples_tx: int = 1024
+    n_samples_rx: int = 1024
 
     n_skip: int = 0
     CLOCKWIZARD_LOCK_ADDRESS: int = 0x0004

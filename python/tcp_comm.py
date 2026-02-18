@@ -267,6 +267,7 @@ class TcpCommRFSoC(TcpComm):
                 self.print(f"Reading iteration: {i + 1}", thr=0)
             rxtd_ = self.receive_data_rfsoc_once(mode=mode)
             rxtd_ = rxtd_.squeeze(axis=0)
+            print(rxtd_.shape)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
         self.last_rxtd = rxtd.copy()
@@ -278,9 +279,9 @@ class TcpCommRFSoC(TcpComm):
 
         if clientMsgParsed[0] == "receiveSamplesOnce":
             if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.obj_rfsoc.n_frame_rd)
+                iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.obj_rfsoc.config.n_frame_rd)
                 iq_data = np.array(iq_data).flatten()
-                iq_data = iq_data * (2 ** (self.obj_rfsoc.adc_bits + 1) - 1)
+                iq_data = iq_data * (2 ** (self.obj_rfsoc.config.adc_bits + 1) - 1)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
@@ -290,7 +291,7 @@ class TcpCommRFSoC(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.obj_rfsoc.n_frame_rd)
+                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.obj_rfsoc.config.n_frame_rd)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
@@ -306,7 +307,7 @@ class TcpCommRFSoC(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "transmitSamples":
             if len(clientMsgParsed) == 1:
-                nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
+                nread = self.obj_rfsoc.config.n_tx_ant * self.obj_rfsoc.config.n_samples_tx
                 nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 
@@ -314,9 +315,9 @@ class TcpCommRFSoC(TcpComm):
                     data = self.connectionData.recv(nbytes)
                     buf.extend(data)
                 data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.obj_rfsoc.dac_bits + 1) - 1)
+                data = data / (2 ** (self.obj_rfsoc.config.dac_bits + 1) - 1)
                 txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.obj_rfsoc.n_tx_ant, nread // self.obj_rfsoc.n_tx_ant)
+                txtd = txtd.reshape(self.obj_rfsoc.config.n_tx_ant, nread // self.obj_rfsoc.config.n_tx_ant)
 
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = "Success"
@@ -636,7 +637,7 @@ class TcpCommController(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "transmitSamplesRfsoc":
             if len(clientMsgParsed) == 1:
-                nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
+                nread = self.obj_rfsoc.config.n_tx_ant * self.obj_rfsoc.config.n_samples_tx
                 nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 
@@ -644,9 +645,9 @@ class TcpCommController(TcpComm):
                     data = self.connectionData.recv(nbytes)
                     buf.extend(data)
                 data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.obj_rfsoc.dac_bits + 1) - 1)
+                data = data / (2 ** (self.obj_rfsoc.config.dac_bits + 1) - 1)
                 txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.obj_rfsoc.n_tx_ant, nread // self.obj_rfsoc.n_tx_ant)
+                txtd = txtd.reshape(self.obj_rfsoc.config.n_tx_ant, nread // self.obj_rfsoc.config.n_tx_ant)
 
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = "Success"
