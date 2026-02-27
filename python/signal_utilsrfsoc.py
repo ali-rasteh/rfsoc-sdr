@@ -14,7 +14,12 @@ from matplotlib import cycler  # type: ignore
 from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
 
-from serial_comm import SerialCommTurnTable, SerialComTurnTableConfig
+from serial_comm import (
+    SerialComD48PTU,
+    SerialComD48PTUConfig,
+    SerialComTurnTable,
+    SerialComTurnTableConfig,
+)
 from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
 from sigcom_toolkit.specsense_utils import SpecSenseUtils
@@ -28,6 +33,7 @@ from tcp_comm import (
     TcpCommRFSoC,
     TCPComRFSoCConfig,
 )
+from turtlebot.map_motion_api import MapMotionAPI
 
 
 @dataclass
@@ -298,7 +304,7 @@ class SignalUtilsRfsoc(SignalUtils):
                 turntable_config = SerialComTurnTableConfig(
                     port=port, baudrate=baudrate, rotation_delay=rotation_delay
                 )
-                self._network_objects[name] = SerialCommTurnTable(turntable_config)
+                self._network_objects[name] = SerialComTurnTable(turntable_config)
                 try:
                     self._network_objects[name].connect()
                     self._network_objects[name].move_to_position(0)
@@ -338,6 +344,23 @@ class SignalUtilsRfsoc(SignalUtils):
                     )
                     self.publish_aoa_turtlebot = lambda x: None
                     self.publish_snr_turtlebot = lambda x: None
+
+                try:
+                    self.turtlebot_motion_api = MapMotionAPI(
+                        cmd_topic="/cmd_vel_unstamped",
+                        odom_topic="/odom",
+                        rate=10.0,
+                        max_linear=0.50,
+                        max_angular=0.25,
+                        source_frame="base_link",      # change to "base_footprint" if your TF uses that
+                        lin_accel_limit=0.05,
+                        ang_accel_limit=0.8,
+                    )
+                except Exception:
+                    self.print(
+                        "Failed to initialize MapMotionAPI, turtlebot motion control disabled", thr=0
+                    )
+                    self.turtlebot_motion_api = None
 
             elif item["type"] == "controller":
                 ip_address = item["ip"]
