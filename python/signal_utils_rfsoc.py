@@ -215,200 +215,13 @@ class SignalUtilsRfsoc(SignalUtils):
     def __init__(self, config: SignalUtilsRFSoCConfig, **overrides):
         super().__init__(config, **overrides)
 
-        # self.import_attributes(config)
-        self._network_topology = self.config.network_topology
-        self._network_objects = {}
-
         self.rx_phase_list = []
-        self.rot_angle_id = 0
         self.aoa_list = []
-        self.lin_track_dir = "forward"
         self.tx_rx_distance = 3.0
         self.tx_signal = None
         self.rx_signal = None
-        self.animate_plotter = None
 
         self.print("signals object initialization done", thr=1)
-
-    @property
-    def network_topology(self):
-        return self._network_topology
-
-    @property
-    def network_objects(self):
-        return self._network_objects
-
-    @property
-    def rfsoc_tx_list(self):
-        rfsoc_tx_list = []
-        for name in self.network_topology:
-            item = self.network_topology[name]
-            if item["type"] in ["rfsoc", "controller"] and item["role"] == "tx":
-                rfsoc_tx_list.append(name)
-        return rfsoc_tx_list
-
-    @property
-    def piradio_tx_list(self):
-        piradio_tx_list = []
-        for name in self.network_topology:
-            item = self.network_topology[name]
-            if item["type"] in ["piradio", "controller"] and item["role"] == "tx":
-                piradio_tx_list.append(name)
-        return piradio_tx_list
-
-    @property
-    def rfsoc_rx_list(self):
-        rfsoc_rx_list = []
-        for name in self.network_topology:
-            item = self.network_topology[name]
-            if item["type"] in ["rfsoc", "controller"] and item["role"] == "rx":
-                rfsoc_rx_list.append(name)
-        return rfsoc_rx_list
-
-    @property
-    def piradio_rx_list(self):
-        piradio_rx_list = []
-        for name in self.network_topology:
-            item = self.network_topology[name]
-            if item["type"] in ["piradio", "controller"] and item["role"] == "rx":
-                piradio_rx_list.append(name)
-        return piradio_rx_list
-
-    def init_objects(self):
-        self._network_objects = {}
-
-        for name in self.network_topology:
-            item = self.network_topology[name]
-            if item["type"] == "rfsoc":
-                ip_address = item["ip"]
-                rfsoc_config = ClientRFSoCConfig(server_ip=ip_address).update_from_config(
-                    self.config
-                )
-                self._network_objects[name] = ClientRFSoC(rfsoc_config)
-                self._network_objects[name].init_tcp_client()
-
-            elif item["type"] == "lintrack":
-                ip_address = item["ip"]
-                lintrack_config = TCPComLinTrackConfig(server_ip=ip_address).update_from_config(
-                    self.config
-                )
-                self._network_objects[name] = TcpCommLinTrack(lintrack_config)
-                self._network_objects[name].init_tcp_client()
-                # self._network_objects[name].return2home()
-                # self._network_objects[name].go2end()
-
-            elif item["type"] == "turntable":
-                port = item.get("port", "COM6")
-                baudrate = item.get("baudrate", 115200)
-                rotation_delay = item.get("rotation_delay", 0.0)
-                turntable_config = SerialComTurnTableConfig(
-                    port=port, baudrate=baudrate, rotation_delay=rotation_delay
-                )
-                self._network_objects[name] = SerialComTurnTable(turntable_config)
-                try:
-                    self._network_objects[name].connect()
-                    self._network_objects[name].move_to_position(0)
-                    if "calibrate" in item and item["calibrate"]:
-                        self._network_objects[name].calibrate()
-                    self._network_objects[name].interactive_move()
-                except Exception:
-                    self._network_objects[name].list_ports()
-                    raise Exception(
-                        "Turntable not connected or wrong port, please check the port list"
-                    ) from None
-
-            elif item["type"] == "piradio":
-                ip_address = item["ip"]
-                freq_sw_dly = item.get("freq_sw_dly", 0.1)
-                gain_sw_dly = item.get("gain_sw_dly", 0.1)
-                bias_sw_dly = item.get("bias_sw_dly", 0.1)
-                piradio_config = PiRadioConfig(
-                    ip_address=ip_address,
-                    freq_sw_dly=freq_sw_dly,
-                    gain_sw_dly=gain_sw_dly,
-                    bias_sw_dly=bias_sw_dly,
-                ).update_from_config(self.config)
-                self._network_objects[name] = PiRadioFR3Trx(piradio_config)
-                self._network_objects[name].set_frequency_piradio(fc=self.config.fc)
-
-            elif item["type"] == "turtlebot":
-                try:
-                    from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
-                    from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
-
-                    self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
-                    self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
-                except ImportError:
-                    self.print(
-                        "tb4_aoa_viz package not found, turtlebot publishing disabled", thr=0
-                    )
-                    self.publish_aoa_turtlebot = lambda x: None
-                    self.publish_snr_turtlebot = lambda x: None
-
-                try:
-                    self.turtlebot_motion_api = MapMotionAPI(
-                        cmd_topic="/cmd_vel_unstamped",
-                        odom_topic="/odom",
-                        rate=10.0,
-                        max_linear=0.50,
-                        max_angular=0.25,
-                        source_frame="base_link",      # change to "base_footprint" if your TF uses that
-                        lin_accel_limit=0.05,
-                        ang_accel_limit=0.8,
-                    )
-                except Exception:
-                    self.print(
-                        "Failed to initialize MapMotionAPI, turtlebot motion control disabled", thr=0
-                    )
-                    self.turtlebot_motion_api = None
-
-            elif item["type"] == "controller":
-                ip_address = item["ip"]
-                controller_config = TCPComControllerConfig(server_ip=ip_address).update_from_config(
-                    self.config
-                )
-                self._network_objects[name] = TcpCommController(controller_config)
-                self._network_objects[name].init_tcp_client()
-                self._network_objects[name].set_frequency_piradio(self.config.fc)
-
-            if "slave" in self.config.host_role:
-                controller_config = TCPComControllerConfig().update_from_config(self.config)
-                self._network_objects["self"] = TcpCommController(controller_config)
-                self._network_objects["self"].init_tcp_server()
-                piradio_key = next(
-                    (k for k, v in self.network_topology.items() if v["type"] == "piradio"), None
-                )
-                rfsoc_key = next(
-                    (k for k, v in self.network_topology.items() if v["type"] == "rfsoc"), None
-                )
-                if not piradio_key or not rfsoc_key:
-                    raise ValueError(
-                        "Slave mode requires at least one piradio and one rfsoc in network_topology"
-                    )
-                self._network_objects["self"].obj_piradio = self._network_objects[piradio_key]
-                self._network_objects["self"].obj_rfsoc = self._network_objects[rfsoc_key]
-                self._network_objects["self"].run_tcp_server(
-                    self._network_objects["self"].parse_and_execute
-                )
-
-        for item in self.rfsoc_rx_list:
-            client_rfsoc = self.network_objects[item]
-            # client_rfsoc.set_frequency_mixer_rfsoc(self.config.mix_freq_dac, self.config.mix_freq_adc)
-            if self.config.RFFE == "sivers":
-                client_rfsoc.set_frequency_sivers(self.config.fc)
-                client_rfsoc.set_mode_sivers("RXen1_TXen0")
-                client_rfsoc.set_rx_gain_sivers()
-            client_rfsoc.calibrate_rx_phase_offset()
-
-        for item in self.rfsoc_tx_list:
-            client_rfsoc = self._network_objects[item]
-            # client_rfsoc.set_frequency_mixer_rfsoc(self.config.mix_freq_dac, self.config.mix_freq_adc)
-            if self.config.RFFE == "sivers":
-                client_rfsoc.set_frequency_sivers(self.config.fc)
-                client_rfsoc.set_mode_sivers("RXen0_TXen1")
-                client_rfsoc.set_tx_gain_sivers()
-
-        self.print("signals object init done", thr=1)
 
     def gen_tx_signal(self):
         txtd_base = []
@@ -1207,43 +1020,333 @@ class SignalUtilsRfsoc(SignalUtils):
 
         return sig, title
 
-    def operator(self):
-        measurement = {}
-        save_id = 1
-        phys_config = None
-        phys_config_id = 0
-        # angle_id = 0
-        # freq_id = 0
-        read_id = 0
 
-        def parse_action(spec):
-            spec_list = spec.split("/")
-            target = spec_list[0]
-            action = spec_list[1]
-            rng = spec_list[2]
+@dataclass
+class ExperimentOperatorConfig(SignalUtilsRFSoCConfig):
+    pass
 
-            param = None if len(spec_list) <= 3 else [p for p in spec_list[3:] if p != ""]
+class ExperimentOperator(SignalUtilsRfsoc):
+    def __init__(self, config: ExperimentOperatorConfig, **overrides):
+        super().__init__(config, **overrides)
 
+        self._network_topology = self.config.network_topology
+        self._network_objects = {}
+
+        self.animate_plotter = None
+
+
+        self.print("signals object initialization done", thr=1)
+
+    @property
+    def network_topology(self):
+        return self._network_topology
+
+    @property
+    def network_objects(self):
+        return self._network_objects
+
+    @property
+    def rfsoc_tx_list(self):
+        rfsoc_tx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item["type"] in ["rfsoc", "controller"] and item["role"] == "tx":
+                rfsoc_tx_list.append(name)
+        return rfsoc_tx_list
+
+    @property
+    def piradio_tx_list(self):
+        piradio_tx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item["type"] in ["piradio", "controller"] and item["role"] == "tx":
+                piradio_tx_list.append(name)
+        return piradio_tx_list
+
+    @property
+    def rfsoc_rx_list(self):
+        rfsoc_rx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item["type"] in ["rfsoc", "controller"] and item["role"] == "rx":
+                rfsoc_rx_list.append(name)
+        return rfsoc_rx_list
+
+    @property
+    def piradio_rx_list(self):
+        piradio_rx_list = []
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item["type"] in ["piradio", "controller"] and item["role"] == "rx":
+                piradio_rx_list.append(name)
+        return piradio_rx_list
+
+    def init_objects(self):
+        self._network_objects = {}
+
+        for name in self.network_topology:
+            item = self.network_topology[name]
+            if item["type"] == "rfsoc":
+                ip_address = item["ip"]
+                rfsoc_config = ClientRFSoCConfig(server_ip=ip_address).update_from_config(
+                    self.config
+                )
+                rfsoc = ClientRFSoC(rfsoc_config)
+                rfsoc.init_tcp_client()
+                self._network_objects[name] = rfsoc
+
+            elif item["type"] == "lintrack":
+                ip_address = item["ip"]
+                lintrack_config = TCPComLinTrackConfig(server_ip=ip_address).update_from_config(
+                    self.config
+                )
+                lintrack = TcpCommLinTrack(lintrack_config)
+                lintrack.init_tcp_client()
+                # lintrack.return2home()
+                # lintrack.go2end()
+                self._network_objects[name] = lintrack
+
+            elif item["type"] == "turntable":
+                port = item.get("port", "COM6")
+                baudrate = item.get("baudrate", 115200)
+                rotation_delay = item.get("rotation_delay", 0.0)
+                turntable_config = SerialComTurnTableConfig(
+                    port=port, baudrate=baudrate, rotation_delay=rotation_delay
+                )
+                turntable = SerialComTurnTable(turntable_config)
+                try:
+                    turntable.connect()
+                    turntable.move_to_position(0)
+                    if "calibrate" in item and item["calibrate"]:
+                        turntable.calibrate()
+                    turntable.interactive_move()
+                    self._network_objects[name] = turntable
+                except Exception:
+                    turntable.list_ports()
+                    raise Exception(
+                        "Turntable not connected or wrong port, please check the port list"
+                    ) from None
+
+            elif item["type"] == "D48PTU":
+                port = item.get("port", "/dev/ttyUSB0")
+                baudrate = item.get("baudrate", 9600)
+                rotation_delay = item.get("rotation_delay", 0.0)
+                gimbal_config = SerialComD48PTUConfig(
+                    port=port, baudrate=baudrate,
+                )
+                D48PTU = SerialComD48PTU(gimbal_config)
+                try:
+                    D48PTU.connect()
+                    D48PTU.set_deg([0., 0.])
+                    self._network_objects[name] = D48PTU
+                except Exception:
+                    D48PTU.list_ports()
+                    raise Exception(
+                        "D48PTU not connected or wrong port, please check the port list"
+                    ) from None
+
+            elif item["type"] == "piradio":
+                ip_address = item["ip"]
+                freq_sw_dly = item.get("freq_sw_dly", 0.1)
+                gain_sw_dly = item.get("gain_sw_dly", 0.1)
+                bias_sw_dly = item.get("bias_sw_dly", 0.1)
+                piradio_config = PiRadioConfig(
+                    ip_address=ip_address,
+                    freq_sw_dly=freq_sw_dly,
+                    gain_sw_dly=gain_sw_dly,
+                    bias_sw_dly=bias_sw_dly,
+                ).update_from_config(self.config)
+                piradio = PiRadioFR3Trx(piradio_config)
+                piradio.set_frequency_piradio(fc=self.config.fc)
+                self._network_objects[name] = piradio
+
+            elif item["type"] == "turtlebot":
+                # try:
+                #     from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
+                #     from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
+
+                #     self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
+                #     self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
+                # except ImportError:
+                #     self.print(
+                #         "tb4_aoa_viz package not found, turtlebot publishing disabled", thr=0
+                #     )
+                #     self.publish_aoa_turtlebot = lambda x: None
+                #     self.publish_snr_turtlebot = lambda x: None
+
+                try:
+                    turtlebot = MapMotionAPI(
+                        cmd_topic="/cmd_vel_unstamped",
+                        odom_topic="/odom",
+                        rate=10.0,
+                        max_linear=0.50,
+                        max_angular=0.25,
+                        source_frame="base_link",      # change to "base_footprint" if your TF uses that
+                        lin_accel_limit=0.05,
+                        ang_accel_limit=0.8,
+                    )
+                    self._network_objects[name] = turtlebot
+                except Exception:
+                    self.print(
+                        "Failed to initialize MapMotionAPI, turtlebot motion control disabled", thr=0
+                    )
+
+            elif item["type"] == "controller":
+                ip_address = item["ip"]
+                controller_config = TCPComControllerConfig(server_ip=ip_address).update_from_config(
+                    self.config
+                )
+                controller = TcpCommController(controller_config)
+                controller.init_tcp_client()
+                controller.set_frequency_piradio(self.config.fc)
+                self._network_objects[name] = controller
+
+            if "slave" in self.config.host_role:
+                controller_config = TCPComControllerConfig().update_from_config(self.config)
+                controller = TcpCommController(controller_config)
+                controller.init_tcp_server()
+                piradio_key = next(
+                    (k for k, v in self.network_topology.items() if v["type"] == "piradio"), None
+                )
+                rfsoc_key = next(
+                    (k for k, v in self.network_topology.items() if v["type"] == "rfsoc"), None
+                )
+                if not piradio_key or not rfsoc_key:
+                    raise ValueError(
+                        "Slave mode requires at least one piradio and one rfsoc in network_topology"
+                    )
+                controller.obj_piradio = self._network_objects[piradio_key]
+                controller.obj_rfsoc = self._network_objects[rfsoc_key]
+                self._network_objects["self"] = controller
+                controller.run_tcp_server(
+                    controller.parse_and_execute
+                )
+
+        for item in self.rfsoc_rx_list:
+            client_rfsoc = self._network_objects[item]
+            # client_rfsoc.set_frequency_mixer_rfsoc(self.config.mix_freq_dac, self.config.mix_freq_adc)
+            if self.config.RFFE == "sivers":
+                client_rfsoc.set_frequency_sivers(self.config.fc)
+                client_rfsoc.set_mode_sivers("RXen1_TXen0")
+                client_rfsoc.set_rx_gain_sivers()
+            client_rfsoc.calibrate_rx_phase_offset()
+
+        for item in self.rfsoc_tx_list:
+            client_rfsoc = self._network_objects[item]
+            # client_rfsoc.set_frequency_mixer_rfsoc(self.config.mix_freq_dac, self.config.mix_freq_adc)
+            if self.config.RFFE == "sivers":
+                client_rfsoc.set_frequency_sivers(self.config.fc)
+                client_rfsoc.set_mode_sivers("RXen0_TXen1")
+                client_rfsoc.set_tx_gain_sivers()
+
+        self.print("signals object init done", thr=1)
+
+    def _parse_action_spec(self, spec):
+        """Parses dict-based action specs."""
+        if not isinstance(spec, dict):
+            raise ValueError(f"Invalid action_loop spec type: {type(spec)}")
+
+        targets = spec.get("targets", [])
+        actions = spec.get("actions", [])
+        values = spec.get("values", [None])
+        params = spec.get("params", {})
+
+        if isinstance(targets, str):
+            targets = [targets]
+        if isinstance(actions, str):
+            actions = [actions]
+        if isinstance(values, str):
+            values = [values]
+        if isinstance(params, str):
+            params = {"default": params}
+
+        if not actions:
+            raise ValueError(f"Action spec is missing valid action: {spec}")
+
+        rng = self._parse_range(values)
+        return targets, actions, rng, params
+
+    def _parse_range(self, values):
+        """Handles step/count/log syntaxes, lists, and scalar values safely without eval()."""
+        if isinstance(values, np.ndarray):
+            return values
+
+        if isinstance(values, (list, tuple)):
+            return np.array(values)
+
+        if isinstance(values, (int, float)):
+            return np.array([values])
+
+        if isinstance(values, str):
+            # Handle range syntax: start:stop:step or start:stop:count:log
+            if values.count(":") >= 2:
+                parts = values.split(":")
+                start = float(parts[0])
+                stop = float(parts[1])
+                third = float(parts[2])
+
+                if len(parts) > 3 and "log" in values:
+                    count = int(third)
+                    return np.logspace(np.log10(start), np.log10(stop), count)
+
+                if third == 0:
+                    raise ValueError(f"Invalid zero step/count in values: {values}")
+
+                span = stop - start
+                is_integer_like_step = np.isclose(span / third, round(span / third))
+                use_step_mode = abs(span) >= abs(third) and is_integer_like_step
+
+                if use_step_mode:
+                    step = third
+                    step_sign = np.sign(step)
+                    if step_sign == 0:
+                        raise ValueError(f"Invalid step in values: {values}")
+                    if np.sign(span) != step_sign and not np.isclose(span, 0.0):
+                        raise ValueError(
+                            f"Step sign does not move from start to stop in values: {values}"
+                        )
+                    stop_inclusive = stop + (step * 0.5)
+                    return np.arange(start, stop_inclusive, step)
+
+                count = int(third)
+                return np.linspace(start, stop, count)
+
+            # Safely evaluate lists or numbers encoded as strings
             try:
-                rng = eval(rng)
-                if not isinstance(rng, (int, float, np.integer, np.floating)):
-                    rng = np.array(rng) if hasattr(rng, "__len__") else np.array([float(rng)])
-                else:
-                    rng = np.array([rng])
-            except Exception:
-                if rng.count(":") < 2:
-                    rng = None
-                else:
-                    start, stop, count = map(float, rng.split(":")[:3])
-                    if "log" in rng:
-                        rng = np.logspace(np.log10(start), np.log10(stop), int(count))
-                    else:
-                        rng = np.linspace(start, stop, int(count))
+                val = ast.literal_eval(values)
+                if isinstance(val, list):
+                    return np.array(val)
+                if isinstance(val, (int, float)):
+                    return np.array([val])
+            except (ValueError, SyntaxError):
+                pass
 
-            print(target, action, rng, param)
-            return (target, action, rng, param)
+        return np.array([None])
 
-        loop_list = [parse_action(item) for item in self.config.action_loop]
+    def _get_target_objects(self, targets_list):
+        """Resolves target strings into actual objects."""
+        if isinstance(targets_list, str):
+            targets_list = [targets_list]
+
+        objects = []
+        for target in targets_list:
+            obj = self.network_objects.get(target)
+            if not obj:
+                raise ValueError(f"Invalid target object: {target}")
+            objects.append(obj)
+        return objects
+
+    def run_operator(self):
+        self.measurement = {}
+        self.save_id = 1
+        self.phys_config = None
+        self.phys_config_id = 0
+        # self.angle_id = 0
+        # self.freq_id = 0
+        self.read_id = 0
+
+        loop_list = [self._parse_action_spec(spec) for spec in self.config.action_loop]
+
         targets = [item[0] for item in loop_list]
         actions = [item[1] for item in loop_list]
         ranges = [item[2] for item in loop_list]
@@ -1251,8 +1354,9 @@ class SignalUtilsRfsoc(SignalUtils):
 
         prev = None
         default_actions = ["capture", "save", "wait"]
+
         for values in itertools.product(*ranges):
-            print(values)
+            print(f"Current Sweep Values: {values}")
             if prev is None:
                 changed_idxs = range(len(values))  # first iteration: everything is "changed"
             else:
@@ -1266,293 +1370,251 @@ class SignalUtilsRfsoc(SignalUtils):
 
             # process only the actions whose value changed
             for i in changed_idxs:
-                target_spec = targets[i]
-                action = actions[i]
+                target_objects = self._get_target_objects(targets[i])
+                action_names = actions[i]
                 value = values[i]
-                param = params[i]
+                kwargs = params[i]
 
-                if isinstance(target_spec, str) and target_spec.strip().startswith(("[", "(")):
-                    targets_list = ast.literal_eval(target_spec)
-                else:
-                    targets_list = [target_spec]
-                if not isinstance(targets_list, list):
-                    targets_list = [targets_list]
-                target_objects = []
-                for target in targets_list:
-                    target_object = self.network_objects.get(target, None)
-                    if target_object is None and target not in ["self"]:
-                        raise ValueError(f"Invalid target object: {target}")
-                    target_objects.append(target_object)
+                if isinstance(action_names, str):
+                    action_names = [action_names]
 
-                if action == "change_phys_config":
-                    if not self.config.measurement_configs:
-                        raise ValueError(
-                            "measurement_configs is empty; cannot change physical configuration"
-                        )
-                    phys_config = self.config.measurement_configs[phys_config_id]
-                    self.print(f"Please change the physical configuration to: {phys_config}", thr=0)
-                    phys_config_id = (phys_config_id + 1) % len(self.config.measurement_configs)
+                for action_name in action_names:
+                    # DYNAMIC DISPATCH: Look for a method named `action_<action_name>`
+                    method_name = f"action_{action_name}"
+                    action_method = getattr(self, method_name, None)
 
-                if action == "change_tx_rx_distance":
-                    tx_rx_distance = input(
-                        "Please enter the TX to RX distance in meters (empty for default): "
-                    )
-                    if tx_rx_distance != "":
-                        try:
-                            tx_rx_distance = float(tx_rx_distance)
-                        except Exception:
-                            raise ValueError(f"Invalid distance value: {tx_rx_distance}") from None
-                        self.tx_rx_distance = tx_rx_distance
-
-                if action == "transmit_signal":
-                    client_rfsoc = target_objects[0]
-                    client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
-
-                if action == "capture":
-                    client_rfsoc = target_objects[0]
-                    process_signal = param and param[0] == "process"
-
-                    rxtd_save = []
-
-                    if process_signal:
-                        # n_rd_rep = self.n_save
-                        n_rd_rep = int(value)
+                    if action_method:
+                        action_method(target_objects, value, **kwargs)
                     else:
-                        # n_rd_rep = self.n_save//self.n_frame_rd
-                        n_rd_rep = int(value) // self.config.n_frame_rd
-                    rxtd = client_rfsoc.receive_data_rfsoc(
-                        n_rd_rep=n_rd_rep, mode="once", verbose=False
-                    )
-                    print(rxtd.shape)
-                    self.rx_signal = RxSignal(
-                        rxtd=rxtd,
-                    )
-
-                    if process_signal:
-                        for i in range(self.config.n_save):
-                            self.print(f"Channel Save Iteration: {i + 1}", thr=0)
-                            rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once")
-
-                            # to handle the dimenstion needed for read repeat
-                            rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
-                            rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd_frame)
-                            self.rx_signal = rx_signal
-
-                            rxtd_save.append(rx_signal.rxtd_base)
-                    else:
-                        rxtd_save = np.empty(
-                            (self.config.n_save, self.config.n_rx_ant, self.config.n_samples_tx),
-                            dtype=rxtd.dtype,
-                        )
-                        for i in range(self.config.n_frame_rd):
-                            rxtd_save[i :: self.config.n_frame_rd] = rxtd[
-                                :,
-                                :,
-                                i * self.config.n_samples_tx : (i + 1) * self.config.n_samples_tx,
-                            ]
-
-                    txtd_save = np.expand_dims(self.tx_signal.txtd_base, axis=0)
-                    rxtd_save = np.array(rxtd_save)
-
-                    self.validate_saved_signals(rxtd=rxtd_save)
-
-                if action == "capture_from_file":
-                    sig_path = os.path.join(self.config.sig_dir, str(param[0]))
-                    sigs_save = np.load(sig_path)
-
-                    rxtd = sigs_save[f"rxtd_{self.config.fc / 1e9:.1f}"][
-                        read_id * self.config.n_rd_rep : (read_id + 1) * self.config.n_rd_rep
-                    ]
-                    txtd_base = sigs_save["txtd"][0]
-
-                    rx_signal = self.rx_operations(txtd_base, rxtd)
-                    self.rx_signal = rx_signal
-                    tx_signal = TxSignal(
-                        txtd_base=txtd_base,
-                    )
-                    read_id += 1
-
-                if action == "update_plot":
-                    if self.animate_plotter is None:
-                        self.animate_plotter = AnimatePlot(self.config, self)
-
-                    rx_signal = self.rx_signal
-                    if rx_signal is None:
-                        raise ValueError(
-                            "update_plot requires a valid rx_signal; run capture first"
+                        raise NotImplementedError(
+                            f"Action handler '{method_name}' is not defined."
                         )
 
-                    self.animate_plotter.update_once(rx_signal)
+    def action_change_phys_config(self, target_objs, value, **kwargs):
+        if not self.config.measurement_configs:
+            raise ValueError(
+                "measurement_configs is empty; cannot change physical configuration"
+            )
+        phys_config = self.config.measurement_configs[self.phys_config_id]
+        self.print(f"Please change the physical configuration to: {phys_config}", thr=0)
+        self.phys_config_id = (self.phys_config_id + 1) % len(self.config.measurement_configs)
 
-                if action == "save":
-                    # self.print("Starting to save signals for configuration: {}".format(phys_config), thr=0)
-                    if not param or len(param) < 2:
-                        raise ValueError(
-                            "save action requires at least two params: save_list and save_prefix"
-                        )
-                    save_list = eval(param[0])  # e.g., ['signal', 'channel']
+    def action_change_tx_rx_distance(self, target_objs, value, **kwargs):
+        tx_rx_distance = input(
+            "Please enter the TX to RX distance in meters (empty for default): "
+        )
+        if tx_rx_distance != "":
+            try:
+                tx_rx_distance = float(tx_rx_distance)
+            except Exception:
+                raise ValueError(f"Invalid distance value: {tx_rx_distance}") from None
+            self.tx_rx_distance = tx_rx_distance
 
-                    save_prefix = param[1]
-                    save_postfix = phys_config if phys_config is not None else ""
-                    save_name = f"{save_prefix}_{save_postfix}_{save_id}.{self.config.save_format}"
+    def action_transmit_signal(self, target_objects, value, **kwargs):
+        client_rfsoc = target_objects[0]
+        client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
 
-                    measurement["id"] = save_id
-                    if "signal" in save_list:
-                        measurement["txtd"] = txtd_save.copy()
-                        measurement[f"rxtd_{self.config.fc / 1e9}"] = rxtd_save.copy()
+    def action_capture(self, target_objects, value, **kwargs):
+        client_rfsoc = target_objects[0]
+        process_signal = kwargs.get("process", False)
 
-                    measurement["sig_interval"] = [
-                        self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
-                        self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
-                    ]
-                    # measurement['tx_gain_db'] = tx_gain_db
-                    # measurement['rx_gain_db'] = rx_gain_db
+        rxtd_save = []
 
-                    if "signal" in save_list:
-                        sig_save_path = os.path.join(self.config.sig_dir, save_name)
-                        if self.config.save_format == "npz":
-                            np.savez(sig_save_path, **measurement)
-                        elif self.config.save_format == "mat":
-                            scipy.io.savemat(sig_save_path, measurement)
+        n_rd_rep = int(value) if process_signal else int(value) // self.config.n_frame_rd
+        rxtd = client_rfsoc.receive_data_rfsoc(
+            n_rd_rep=n_rd_rep, mode="once", verbose=False
+        )
+        print(rxtd.shape)
+        self.rx_signal = RxSignal(
+            rxtd=rxtd,
+        )
 
-                    save_id += 1
+        if process_signal:
+            for i in range(self.config.n_save):
+                self.print(f"Channel Save Iteration: {i + 1}", thr=0)
+                rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
-                if action == "wait":
-                    wait_time = float(value)
-                    self.print(f"Waiting for {wait_time} seconds...", thr=2)
-                    time.sleep(wait_time)
+                # to handle the dimenstion needed for read repeat
+                rxtd_frame = rxtd[0] if rxtd.ndim == 3 else rxtd
+                rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd_frame)
+                self.rx_signal = rx_signal
 
-                # TODO
-                if action == "report_time":
-                    # freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
-                    # remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
-                    # self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
-                    # angle_id += 1
-                    pass
+                rxtd_save.append(rx_signal.rxtd_base)
+        else:
+            rxtd_save = np.empty(
+                (self.config.n_save, self.config.n_rx_ant, self.config.n_samples_tx),
+                dtype=rxtd.dtype,
+            )
+            for i in range(self.config.n_frame_rd):
+                rxtd_save[i :: self.config.n_frame_rd] = rxtd[
+                    :,
+                    :,
+                    i * self.config.n_samples_tx : (i + 1) * self.config.n_samples_tx,
+                ]
 
-                if action == "rotate_table":
-                    client_turntable = target_objects[0]
-                    angle = float(value)
-                    self.print(f"Rotating to angle: {angle}", thr=0)
+        self.txtd_save = np.expand_dims(self.tx_signal.txtd_base, axis=0)
+        self.rxtd_save = np.array(rxtd_save)
 
-                    start_time = time.time()
-                    client_turntable.move_to_position(angle)
-                    rotation_time = time.time() - start_time
-                    self.print(f"Time taken to rotate: {rotation_time:0.3f} s", thr=2)
+        self.validate_saved_signals(rxtd=rxtd_save)
 
-                if action == "move_lin_track":
-                    client_lintrack = target_objects[0]
-                    distance = float(value)
-                    client_lintrack.move(lin_track_id=0, distance=distance)
+    def action_capture_from_file(self, target_objects, value, **kwargs):
+        sig_path = os.path.join(self.config.sig_dir, str(kwargs.get("sig_name", value)))
+        sigs_save = np.load(sig_path)
 
-                if action == "return_lin_track_home":
-                    client_lintrack = target_objects[0]
-                    client_lintrack.return2home(lin_track_id=0)
+        rxtd = sigs_save[f"rxtd_{self.config.fc / 1e9:.1f}"][
+            self.read_id * self.config.n_rd_rep : (self.read_id + 1) * self.config.n_rd_rep
+        ]
+        txtd_base = sigs_save["txtd"][0]
 
-                if action == "publish_aoa_ros2":
-                    aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
-                    self.publish_aoa_turtlebot(aoa)
+        rx_signal = self.rx_operations(txtd_base, rxtd)
+        self.rx_signal = rx_signal
+        self.tx_signal = TxSignal(
+            txtd_base=txtd_base,
+        )
+        self.read_id += 1
 
-                if action == "publish_snr_ros2":
-                    snr = self.calculate_snr(
-                        sig_td=self.rx_signal.rxtd[0, :, : self.config.n_samples_trx],
-                        sig_sc_range=self.config.sc_range,
-                    )
-                    snr_db = self.lin_to_db(snr, mode="pow")
-                    self.publish_snr_turtlebot(snr_db)
+    def action_update_plot(self, target_objects, value, **kwargs):
+        if self.animate_plotter is None:
+            self.animate_plotter = AnimatePlot(self.config, self)
 
-                if action == "hop_freq":
-                    clients = []
-                    client_piradio_rx = target_objects[0]
-                    clients.append(client_piradio_rx)
-                    if len(target_objects) > 1:
-                        client_piradio_tx = target_objects[1]
-                        clients.append(client_piradio_tx)
-                    frequency = None
-                    try:
-                        frequency = float(param[0])
-                        for client in clients:
-                            client.hop_freq(fc=frequency)
-                    except Exception:
-                        self.print("Error hopping frequency", thr=0)
-                    if frequency is None:
-                        self.print("Saving signals after frequency hop", thr=0)
-                    else:
-                        self.print(f"Saving signals for Freq: {frequency / 1e9} GHz", thr=0)
+        rx_signal = self.rx_signal
+        if rx_signal is None:
+            raise ValueError(
+                "update_plot requires a valid rx_signal; run capture first"
+            )
 
-                if action == "set_gain_db_tx":
-                    client_piradio = target_objects[0]
-                    gain_db = int(value)
-                    client_piradio.set_gain_piradio(trx="tx", chan=0, gain_db=gain_db)
-                    client_piradio.set_gain_piradio(trx="tx", chan=1, gain_db=gain_db)
+        self.animate_plotter.update_once(rx_signal)
 
-                if action == "set_gain_db_rx":
-                    client_piradio = target_objects[0]
-                    gain_db = int(value)
-                    client_piradio.set_gain_piradio(trx="rx", chan=0, gain_db=gain_db)
-                    client_piradio.set_gain_piradio(trx="rx", chan=1, gain_db=gain_db)
+    def action_save(self, target_objects, value, **kwargs):
+        # self.print("Starting to save signals for configuration: {}".format(phys_config), thr=0)
+        save_list = kwargs.get("save_list", [])  # e.g., ['signal', 'channel']
 
-                if action == "find_optimal_gain_piradio":
-                    client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
-                    self.find_optimal_gain_piradio(
-                        client_rfsoc_rx, client_piradio_rx, client_piradio_tx
-                    )
+        save_prefix = kwargs.get("save_prefix", "m")
+        save_postfix = self.phys_config if self.phys_config is not None else ""
+        save_name = f"{save_prefix}_{save_postfix}_{self.save_id}.{self.config.save_format}"
 
-                if action == "set_optimal_gain_piradio":
-                    client_piradio_rx, client_piradio_tx = target_objects
-                    client_piradio_rx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
-                    client_piradio_tx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
+        self.measurement["id"] = self.save_id
+        if "signal" in save_list:
+            self.measurement["txtd"] = self.txtd_save.copy()
+            self.measurement[f"rxtd_{self.config.fc / 1e9}"] = self.rxtd_save.copy()
 
-                if action == "set_optimal_losupp_piradio":
-                    client_piradio_rx, client_piradio_tx = target_objects
-                    client_piradio_rx.set_optimal_losupp_piradio()
-                    client_piradio_tx.set_optimal_losupp_piradio()
+        self.measurement["sig_interval"] = [
+            self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
+            self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
+        ]
+        # measurement['tx_gain_db'] = tx_gain_db
+        # measurement['rx_gain_db'] = rx_gain_db
 
-                if action == "switch_sig_size":
-                    sig_size = int(value)
+        if "signal" in save_list:
+            sig_save_path = os.path.join(self.config.sig_dir, save_name)
+            if self.config.save_format == "npz":
+                np.savez(sig_save_path, **self.measurement)
+            elif self.config.save_format == "mat":
+                scipy.io.savemat(sig_save_path, self.measurement)
 
-                if action == "switch_sig_ss":
-                    client_rfsoc = target_objects[0]
-                    region = SpecSenseUtils.generate_random_regions(
-                        shape=(1024,), n_regions=1, min_size=[sig_size], max_size=[sig_size]
-                    )
-                    self.config.wb_sc_range = [
-                        region[0][0].start - (self.config.nfft_tx >> 1),
-                        region[0][0].stop - 1 - (self.config.nfft_tx >> 1),
-                    ]
-                    tx_signal = self.gen_tx_signal()
-                    client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
+        self.save_id += 1
 
-    def stream_rx_td_to_matlab(self, rxtd, freq):
-        import io
-        import socket
+    def action_wait(self, target_objects, value, **kwargs):
+        wait_time = float(value)
+        self.print(f"Waiting for {wait_time} seconds...", thr=2)
+        time.sleep(wait_time)
 
-        import scipy.io
+    # TODO
+    def action_report_time(self, target_objects, value, **kwargs):
+        # freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
+        # remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
+        # self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
+        # angle_id += 1
+        pass
 
-        matlab_stream_ip = "10.20.38.213"  # IP address for the MATLAB data transfer
-        matlab_stream_port = 50007  # Port for the MATLAB data transfer
+    def action_rotate_table(self, target_objects, value, **kwargs):
+        client_turntable = target_objects[0]
+        angle = float(value)
+        self.print(f"Rotating to angle: {angle}", thr=0)
 
+        start_time = time.time()
+        client_turntable.move_to_position(angle)
+        rotation_time = time.time() - start_time
+        self.print(f"Time taken to rotate: {rotation_time:0.3f} s", thr=2)
+
+    def action_move_lin_track(self, target_objects, value, **kwargs):
+        client_lintrack = target_objects[0]
+        distance = float(value)
+        client_lintrack.move(lin_track_id=0, distance=distance)
+
+    def action_return_lin_track_home(self, target_objects, value, **kwargs):
+        client_lintrack = target_objects[0]
+        client_lintrack.return2home(lin_track_id=0)
+
+    def action_publish_aoa_ros2(self, target_objects, value, **kwargs):
+        aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
+        self.publish_aoa_turtlebot(aoa)
+
+    def action_publish_snr_ros2(self, target_objects, value, **kwargs):
+        snr = self.calculate_snr(
+            sig_td=self.rx_signal.rxtd[0, :, : self.config.n_samples_trx],
+            sig_sc_range=self.config.sc_range,
+        )
+        snr_db = self.lin_to_db(snr, mode="pow")
+        self.publish_snr_turtlebot(snr_db)
+
+    def action_hop_freq(self, target_objects, value, **kwargs):
+        clients = []
+        client_piradio_rx = target_objects[0]
+        clients.append(client_piradio_rx)
+        if len(target_objects) > 1:
+            client_piradio_tx = target_objects[1]
+            clients.append(client_piradio_tx)
+        frequency = float(value)
         try:
-            buf = io.BytesIO()
-            scipy.io.savemat(buf, {"rxtd": rxtd}, do_compression=True)
-            scipy.io.savemat(buf, {"freq": freq}, do_compression=True)
-            data = buf.getvalue()
-            print(len(data), "bytes of rxtd data to be sent to MATLAB stream")
+            for client in clients:
+                client.hop_freq(fc=frequency)
+        except Exception:
+            self.print("Error hopping frequency", thr=0)
 
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(0.1)
-                sock.connect((matlab_stream_ip, matlab_stream_port))
-                sock.sendall(
-                    len(data).to_bytes(8, byteorder="big")
-                )  # Send the length of the data first
-                sock.sendall(data)
-                self.print(
-                    f"rxtd data sent to MATLAB stream at {matlab_stream_ip}:{matlab_stream_port}",
-                    thr=1,
-                )
+    def action_set_gain_db_tx(self, target_objects, value, **kwargs):
+        client_piradio = target_objects[0]
+        gain_db = int(value)
+        client_piradio.set_gain_piradio(trx="tx", chan=0, gain_db=gain_db)
+        client_piradio.set_gain_piradio(trx="tx", chan=1, gain_db=gain_db)
 
-        except Exception as e:
-            self.print(f"Error in streaming rxtd to MATLAB: {e}", thr=0)
+    def action_set_gain_db_rx(self, target_objects, value, **kwargs):
+        client_piradio = target_objects[0]
+        gain_db = int(value)
+        client_piradio.set_gain_piradio(trx="rx", chan=0, gain_db=gain_db)
+        client_piradio.set_gain_piradio(trx="rx", chan=1, gain_db=gain_db)
+
+    def action_find_optimal_gain_piradio(self, target_objects, value, **kwargs):
+        client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
+        self.find_optimal_gain_piradio(
+            client_rfsoc_rx, client_piradio_rx, client_piradio_tx
+        )
+
+    def action_set_optimal_gain_piradio(self, target_objects, value, **kwargs):
+        client_piradio_rx, client_piradio_tx = target_objects
+        client_piradio_rx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
+        client_piradio_tx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance)
+
+    def action_set_optimal_losupp_piradio(self, target_objects, value, **kwargs):
+        client_piradio_rx, client_piradio_tx = target_objects
+        client_piradio_rx.set_optimal_losupp_piradio()
+        client_piradio_tx.set_optimal_losupp_piradio()
+
+    def action_switch_sig_size(self, target_objects, value, **kwargs):
+        self.sig_size = int(value)
+
+    def action_switch_sig_ss(self, target_objects, value, **kwargs):
+        client_rfsoc = target_objects[0]
+        region = SpecSenseUtils.generate_random_regions(
+            shape=(1024,), n_regions=1, min_size=[self.sig_size], max_size=[self.sig_size]
+        )
+        self.config.wb_sc_range = [
+            region[0][0].start - (self.config.nfft_tx >> 1),
+            region[0][0].stop - 1 - (self.config.nfft_tx >> 1),
+        ]
+        tx_signal = self.gen_tx_signal()
+        client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
+
 
 
 @dataclass

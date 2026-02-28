@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 from numpy.fft import fft
 
-from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
+from signal_utils_rfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 try:
     from sigcom_toolkit.near_field import RoomModel, Sim as Near_Field_Model

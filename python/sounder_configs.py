@@ -137,14 +137,14 @@ class FR3SpectrumSweepConfig(BaseConfig):
         # "host": {"type": "host", "role": "rx", "ip": "192.168.3.100", "protocol": "ssh"},
     }
     action_loop = [
-        # "piradio_rx/set_gain_db_rx/-3:20:1/",
-        "self/switch_sig_size/[8,16,32,128]/",
-        # 'piradio_rx/set_gain_db_rx/[3,7,10,17]/',
-        # 'self/switch_sig_size/1:256:20:log/',
-        "rfsoc_tx/switch_sig_ss/1:10:10/",
-        # 'self/wait/[1]/',
-        "rfsoc_rx/capture/[256]/",
-        'self/save/[1]/["signal"]/m',
+        {"targets": ["piradio_rx"], "actions": ["set_gain_db_rx"], "values": "-3:20:1"},
+        {"targets": ["self"], "actions": ["switch_sig_size"], "values": [8, 16, 32, 128]},
+        # {"targets": ["piradio_rx"], "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
+        # {"targets": ["self"], "actions": ["switch_sig_size"], "values": "1:256:20:log"},
+        {"targets": ["rfsoc_tx"], "actions": ["switch_sig_ss"], "values": "1:10:10"},
+        # {"targets": ["self"], "actions": ["wait"], "values": [1]},
+        {"targets": ["rfsoc_rx"], "actions": ["capture"], "values": [256]},
+        {"targets": ["self"], "actions": ["save"], "values": [1], "params": {"save_list": ["signal"]}},
     ]
 
 

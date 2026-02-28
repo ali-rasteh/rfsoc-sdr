@@ -7,11 +7,11 @@ import numpy as np
 from scipy import constants
 
 from file_utils import FileUtils, FileUtilsConfig
-from signal_utilsrfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
+from signal_utils_rfsoc import ExperimentOperator, ExperimentOperatorConfig
 
 
 @dataclass
-class SounderConfig(SignalUtilsRFSoCConfig):
+class SounderConfig(ExperimentOperatorConfig):
     # Constant parameters
     seed = 100
 
@@ -289,7 +289,7 @@ class SounderConfig(SignalUtilsRFSoCConfig):
             self.files_to_convert = {"sounder.py": "sounder.ipynb"}
 
 
-class Sounder(SignalUtilsRfsoc):
+class Sounder(ExperimentOperator):
     def __init__(self, config: SounderConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
@@ -315,12 +315,12 @@ class Sounder(SignalUtilsRfsoc):
         ):
             self.update_rfsoc_files()
 
-        self.signals_inst = SignalUtilsRfsoc(self.config)
-        self.signals_inst.gen_tx_signal()
+        self.gen_tx_signal()
 
     def update_rfsoc_files(self):
         file_utils_config = FileUtilsConfig(
-            scp_connect=self.config.update_rfsoc_files).update_from_config(self.config)
+            scp_connect=self.config.update_rfsoc_files
+        ).update_from_config(self.config)
         file_utils = FileUtils(file_utils_config)
         changed_1 = False
         changed_2 = False
@@ -348,7 +348,7 @@ class Sounder(SignalUtilsRfsoc):
 
         rfsoc_config = RFSoCConfig().update_from_config(self.config)
         rfsoc_inst = RFSoC(rfsoc_config)
-        rfsoc_inst.txtd = self.signals_inst.tx_signal.txtd
+        rfsoc_inst.txtd = self.tx_signal.txtd
         if self.config.transmit_signal:
             rfsoc_inst.send_frame(rfsoc_inst.txtd)
 
@@ -362,5 +362,5 @@ class Sounder(SignalUtilsRfsoc):
             self.run_rfsoc()
 
         elif "client" in self.config.host_role:
-            self.signals_inst.init_objects()
-            self.signals_inst.operator()
+            self.init_objects()
+            self.run_operator()
