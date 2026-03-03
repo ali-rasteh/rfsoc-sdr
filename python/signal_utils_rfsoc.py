@@ -22,6 +22,7 @@ from serial_comm import (
 )
 from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
+from sigcom_toolkit.general import GeneralConfig, General
 from sigcom_toolkit.specsense_utils import SpecSenseUtils
 from tcp_comm import (
     RESTComPiradio,
@@ -202,6 +203,43 @@ class PiRadioFR3Trx(RESTComPiradio):
             tx_gain_optimal = self.optimal_gains[tx_rx_distance][nearest_fc]["tx_gain"]
             self.set_gain_piradio(trx="tx", chan=0, gain_db=tx_gain_optimal)
             self.set_gain_piradio(trx="tx", chan=1, gain_db=tx_gain_optimal)
+
+
+@dataclass
+class TurtlebotConfig(GeneralConfig):
+    cmd_topic: str = "/cmd_vel_unstamped",
+    odom_topic: str = "/odom",
+    rate: float = 10.0,
+    max_linear: float = 0.50,
+    max_angular: float = 0.25,
+    target_frame: str = "map",
+    source_frame: str = "base_link",
+    tf_timeout: float = 20.0,
+    lin_accel_limit: float = 0.05,
+    ang_accel_limit: float = 0.8,
+
+
+class Turtlebot(General):
+    def __init__(self, config: TurtlebotConfig, **overrides: Any):
+        super().__init__(config, **overrides)
+        self.map_motion_api = MapMotionAPI(
+            cmd_topic = self.config.cmd_topic,
+            odom_topic = self.config.odom_topic,
+            rate = self.config.rate,
+            max_linear = self.config.max_linear,
+            max_angular = self.config.max_angular,
+            target_frame = self.config.target_frame,
+            source_frame = self.config.source_frame,
+            tf_timeout = self.config.tf_timeout,
+            lin_accel_limit = self.config.lin_accel_limit,
+            ang_accel_limit = self.config.ang_accel_limit,
+        )
+
+    def close(self):
+        self.map_motion_api.shutdown()
+
+    def __del__(self):
+        self.close()
 
 
 @dataclass
@@ -1175,20 +1213,12 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 #     self.publish_snr_turtlebot = lambda x: None
 
                 try:
-                    turtlebot = MapMotionAPI(
-                        cmd_topic="/cmd_vel_unstamped",
-                        odom_topic="/odom",
-                        rate=10.0,
-                        max_linear=0.50,
-                        max_angular=0.25,
-                        source_frame="base_link",      # change to "base_footprint" if your TF uses that
-                        lin_accel_limit=0.05,
-                        ang_accel_limit=0.8,
-                    )
+                    turtlebot_config = TurtlebotConfig().update_from_config(self.config)
+                    turtlebot = Turtlebot(turtlebot_config)
                     self._network_objects[name] = turtlebot
                 except Exception:
                     self.print(
-                        "Failed to initialize MapMotionAPI, turtlebot motion control disabled", thr=0
+                        "Failed to initialize Turtlebot, turtlebot motion control disabled", thr=0
                     )
 
             elif item["type"] == "controller":
@@ -1414,10 +1444,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         client_rfsoc = target_objects[0]
         client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
 
-    def action_capture(self, target_objects, value, **kwargs):
+    def action_capture(self, target_objects, value, process_signal=False, **kwargs):
         client_rfsoc = target_objects[0]
-        process_signal = kwargs.get("process", False)
-
         rxtd_save = []
 
         n_rd_rep = int(value) if process_signal else int(value) // self.config.n_frame_rd
@@ -1457,8 +1485,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self.validate_saved_signals(rxtd=rxtd_save)
 
-    def action_capture_from_file(self, target_objects, value, **kwargs):
-        sig_path = os.path.join(self.config.sig_dir, str(kwargs.get("sig_name", value)))
+    def action_capture_from_file(self, target_objects, value, sig_name="", **kwargs):
+        sig_name = sig_name if sig_name else value
+        sig_path = os.path.join(self.config.sig_dir, sig_name)
         sigs_save = np.load(sig_path)
 
         rxtd = sigs_save[f"rxtd_{self.config.fc / 1e9:.1f}"][
@@ -1485,11 +1514,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self.animate_plotter.update_once(rx_signal)
 
-    def action_save(self, target_objects, value, **kwargs):
-        # self.print("Starting to save signals for configuration: {}".format(phys_config), thr=0)
-        save_list = kwargs.get("save_list", [])  # e.g., ['signal', 'channel']
-
-        save_prefix = kwargs.get("save_prefix", "m")
+    def action_save(self, target_objects, value, save_list=("signal",), save_prefix="m", **kwargs):
         save_postfix = self.phys_config if self.phys_config is not None else ""
         save_name = f"{save_prefix}_{save_postfix}_{self.save_id}.{self.config.save_format}"
 
@@ -1614,6 +1639,29 @@ class ExperimentOperator(SignalUtilsRfsoc):
         ]
         tx_signal = self.gen_tx_signal()
         client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
+
+    def action_move_turtlebot(self, target_objects, value, **kwargs):
+        client_turtlebot = target_objects[0]
+        turtlebot_api = client_turtlebot.map_motion_api()
+
+        cur_x, cur_y, yaw = turtlebot_api.read_pos()
+        tgt_pos = [0.0,0.0]
+        mv_yaw, mv_dis = turtlebot_api.compute_yaw_distance_to_target(
+            [cur_x,cur_y], tgt_pos)
+        turtlebot_api.move(yaw=mv_yaw, distance=mv_dis)
+        time.sleep(1.0)
+
+    def action_set_gimbal_az(self, target_objects, value, **kwargs):
+        client_gimbal = target_objects[0]
+        az = float(value)
+        current_deg = client_gimbal.get_deg()
+        client_gimbal.set_deg([az, current_deg[1]])
+
+    def action_set_gimbal_el(self, target_objects, value, **kwargs):
+        client_gimbal = target_objects[0]
+        el = float(value)
+        current_deg = client_gimbal.get_deg()
+        client_gimbal.set_deg([current_deg[0], el])
 
 
 

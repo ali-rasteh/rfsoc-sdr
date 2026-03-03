@@ -1,76 +1,41 @@
 import atexit
 import os
 import time
-from types import SimpleNamespace
 
-import board
-from adafruit_motor import stepper
-from adafruit_motorkit import MotorKit
-from general import General
-
+import board  # type: ignore
+from adafruit_motor import stepper  # type: ignore
+from adafruit_motorkit import MotorKit  # type: ignore
+from sigcom_toolkit.general import General, GeneralConfig
 from tcp_comm import TcpCommLinTrack
 
-# TODO add config class and transfer all parameters
 
+class LinearTrackControllerConfig(GeneralConfig):
+    output_mode: str = "dc"  # "stepper" or "dc"
+    dis_per_rev: float = 8.0  # distance per revolution in mm
+    pulse_per_rev: int = 400  # number of pulses per revolution
+    pulse_freq: int = 1600  # frequency of the pulse in Hz
+    dis_coeff: float = 0.972  # coefficient to convert the distance to time
+    overhead_time: float = 0.0018 + 0.0061 + 0.0001  # overhead time for the motor to start and stop in seconds
+    position_file_path: str = os.path.join(os.getcwd(), "lintrack_position.txt")  # file path to store the position of the linear track
+    n_motors: int = 2  # number of motors to control
 
-class Configs_Class:
-    def __init__(self):
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument("--output_mode", type=str, default="dc", help="Type of the Raspberry Pi hat output to use")
-        # parser.add_argument("--dis_per_rev", type=int, default=8, help="Distance on the linear track per stepper motor revolution")
-        # parser.add_argument("--pulse_per_rev", type=int, default=400, help="Pulse needed on the logic for each revolution of the stepper motor")
-        # parser.add_argument("--pulse_freq", type=float, default=1600, help="Pulse frequency of the logic circuit")
-        # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
-        # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
-        # parser.add_argument("--run_tcp_server", action="store_true", default=False, help="If true, runs the TCP server")
-        # config = parser.parse_args()
-        config = SimpleNamespace()
-        config.overwrite_configs = True
+    total_length = 1500  # length of the linear track in mm
+    plate_length = 125
+    margin2edge = 5
 
-        if config.overwrite_configs:
-            self.output_mode = "dc"
-            self.tcp_local_ip = "0.0.0.0"
-            self.tcp_buffer_size = 2**10
-            self.TCP_port_Cmd = 8080
-            self.TCP_port_Data = 8081
-            self.seed = 100
-            self.run_tcp_server = True
-            self.position_file_path = os.path.join(os.getcwd(), "position.txt")
-            self.dis_coeff = 0.972
-            self.overhead_time = 0.0018 + 0.0061 + 0.0001
-            self.n_motors = 2
-
-            self.dis_per_rev = 8
-            self.pulse_per_rev = 400
-            self.pulse_freq = 1600
-            self.verbose_level = 4
-            self.plot_level = 5
-
-
-class LinearTrack(General):
-    def __init__(self, config):
-        super().__init__(config)
-
-        self.run_tcp_server = config.run_tcp_server
-        self.output_mode = config.output_mode
-        self.dis_per_rev = config.dis_per_rev
-        self.pulse_per_rev = config.pulse_per_rev
-        self.pulse_freq = config.pulse_freq
-        self.dis_coeff = config.dis_coeff
-        self.overhead_time = config.overhead_time
-        self.position_file_path = config.position_file_path
-        self.n_motors = config.n_motors
-        self.total_length = 1500  # length of the linear track in mm
-        self.plate_length = 125
+    def __post_init__(self):
         self.travel_length = self.total_length - self.plate_length
-        self.margin2edge = 5
-
         self.travel_length -= 2 * self.margin2edge
 
-        if self.output_mode == "stepper":
+
+class LinearTrackController(General):
+    def __init__(self, config: LinearTrackControllerConfig, **overrides):
+        super().__init__(config, **overrides)
+
+        if self.config.output_mode == "stepper":
             self.kit = stepper.StepperMotor(microsteps=2)
-        elif self.output_mode == "dc":
-            self.kit = MotorKit(i2c=board.I2C(), pwm_frequency=self.pulse_freq)
+        elif self.config.output_mode == "dc":
+            self.kit = MotorKit(i2c=board.I2C(), pwm_frequency=self.config.pulse_freq)
 
         self.pulse_pwm_1 = self.kit.motor1
         self.pulse_pwm_2 = self.kit.motor2
@@ -80,12 +45,10 @@ class LinearTrack(General):
         self.direction_out = [self.direction_out_1, self.direction_out_2]
 
         self.reset()
-
         self.position = self.read_position()
 
-        if self.run_tcp_server:
-            self.tcp_comm = TcpCommLinTrack(config)
-            self.tcp_comm.init_tcp_server()
+        self.tcp_comm = TcpCommLinTrack(config)
+        self.tcp_comm.init_tcp_server()
 
     def run_tcp(self):
         self.print("Running TCP server", thr=1)
@@ -100,12 +63,12 @@ class LinearTrack(General):
                 if mode == "start":
                     self.position[motor_id] = 0.0
                 elif mode == "end":
-                    self.position[motor_id] = self.travel_length
+                    self.position[motor_id] = self.config.travel_length
                 self.write_position(self.position)
                 break
             try:
                 dis = float(dis_str)
-            except:
+            except Exception:
                 self.print("Invalid distance entered", thr=0)
                 continue
             self.displace(motor_id=motor_id, dis=dis, pos_check=False)
@@ -120,22 +83,22 @@ class LinearTrack(General):
                 break
             try:
                 dis = float(dis_str)
-            except:
+            except Exception:
                 self.print("Invalid distance entered", thr=0)
                 continue
             self.displace(motor_id=motor_id, dis=dis)
 
     def read_position(self):
-        self.position = [0.0] * self.n_motors
-        with open(self.position_file_path) as f:
-            for i in range(self.n_motors):
+        self.position = [0.0] * self.config.n_motors
+        with open(self.config.position_file_path) as f:
+            for i in range(self.config.n_motors):
                 self.position[i] = float(f.readline())
             # self.position = float(f.readline(4))
         return self.position
 
     def write_position(self, position):
-        with open(self.position_file_path, "w") as f:
-            for i in range(self.n_motors):
+        with open(self.config.position_file_path, "w") as f:
+            for i in range(self.config.n_motors):
                 f.write(str(position[i]))
                 f.write("\n")
             # f.write(str(position))
@@ -148,7 +111,7 @@ class LinearTrack(General):
 
     def move(self, motor_id=0, move_time=0.0):
         self.pulse_pwm[motor_id].throttle = 0.5
-        sleep_time = max(move_time - self.overhead_time, 0.0)
+        sleep_time = max(move_time - self.config.overhead_time, 0.0)
         time.sleep(sleep_time)
         self.stop(motor_id=motor_id)
 
@@ -159,13 +122,13 @@ class LinearTrack(General):
     #         time.sleep(delay)
 
     def dis2time(self, dis=0.0):
-        dis = self.dis_coeff * dis
-        t = dis * (self.pulse_per_rev) / (self.pulse_freq * self.dis_per_rev)
+        dis = self.config.dis_coeff * dis
+        t = dis * (self.config.pulse_per_rev) / (self.config.pulse_freq * self.config.dis_per_rev)
         return t
 
     def time2dis(self, t=0.0):
-        dis = t * (self.pulse_freq * self.dis_per_rev) / (self.pulse_per_rev)
-        dis = dis / self.dis_coeff
+        dis = t * (self.config.pulse_freq * self.config.dis_per_rev) / (self.config.pulse_per_rev)
+        dis = dis / self.config.dis_coeff
         return dis
 
     def position_check(self, motor_id=0, dis=0.0):
@@ -175,7 +138,7 @@ class LinearTrack(General):
         be used to bring the plate back to home position(if needed)
         """
         position = self.position[motor_id] + dis
-        if position > self.travel_length or position < 0:
+        if position > self.config.travel_length or position < 0:
             raise Exception(f"Gantry plate at linear track {motor_id} already at the edge")
             success = False
         else:
@@ -227,7 +190,7 @@ class LinearTrack(General):
 
     def go2end(self, motor_id=0):
         self.print(f"Going to the end of the line on linear track {motor_id}", thr=1)
-        dis_from_end = self.travel_length - self.position[motor_id]
+        dis_from_end = self.config.travel_length - self.position[motor_id]
 
         success = True
         status = None
@@ -252,14 +215,14 @@ class LinearTrack(General):
             rep_id += 1
 
             if direction == "forward":
-                dir = 1
+                direction = 1
             elif direction == "backward":
-                dir = -1
+                direction = -1
             else:
                 raise Exception("Invalid direction")
-            dist = distance * dir
+            dist = distance * direction
             success, status = self.displace(motor_id=motor_id, dis=dist)
-            if success == False:
+            if not success:
                 break
 
             if rep_id >= repeats:
@@ -269,7 +232,7 @@ class LinearTrack(General):
                 elif direction == "backward":
                     direction = "forward"
 
-            if self.position[motor_id] >= self.travel_length - margin:
+            if self.position[motor_id] >= self.config.travel_length - margin:
                 rep_id = 0
                 direction = "backward"
             elif self.position[motor_id] <= margin:
@@ -300,8 +263,9 @@ class LinearTrack(General):
 #     print("Exiting the program")
 
 
-def lintrack_run(config):
-    lt = LinearTrack(config)
+if __name__ == "__main__":
+    lintrack_config = LinearTrackControllerConfig()
+    lt = LinearTrackController(lintrack_config)
 
     atexit.register(lt.reset)
     # atexit.register(on_program_exit)
@@ -319,10 +283,4 @@ def lintrack_run(config):
     lt.interactive_move(motor_id=1)
     # lt.back_and_forth(motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=3.0)
 
-    if config.run_tcp_server:
-        lt.run_tcp()
-
-
-if __name__ == "__main__":
-    config = Configs_Class()
-    lintrack_run(config)
+    lt.run_tcp()

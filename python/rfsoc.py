@@ -8,7 +8,6 @@ import xrfclk  # type: ignore
 import xrfdc  # type: ignore
 from numpy.fft import fft, ifft
 from pynq import GPIO, Overlay, allocate  # type: ignore
-
 from sigcom_toolkit.general import General, GeneralConfig
 from tcp_comm import TcpCommRFSoC, TCPComRFSoCConfig
 
