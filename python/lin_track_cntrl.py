@@ -6,7 +6,7 @@ import board  # type: ignore
 from adafruit_motor import stepper  # type: ignore
 from adafruit_motorkit import MotorKit  # type: ignore
 from sigcom_toolkit.general import General, GeneralConfig
-from tcp_comm import TcpCommLinTrack
+from tcp_comm import TCPComLinTrackConfig, TcpCommLinTrack
 
 
 class LinearTrackControllerConfig(GeneralConfig):
@@ -47,6 +47,7 @@ class LinearTrackController(General):
         self.reset()
         self.position = self.read_position()
 
+        config = TCPComLinTrackConfig().update_from_config(self.config)
         self.tcp_comm = TcpCommLinTrack(config)
         self.tcp_comm.init_tcp_server()
 

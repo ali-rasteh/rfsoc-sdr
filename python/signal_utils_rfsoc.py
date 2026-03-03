@@ -24,6 +24,7 @@ from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
 from sigcom_toolkit.general import GeneralConfig, General
 from sigcom_toolkit.specsense_utils import SpecSenseUtils
+from sigcom_toolkit.utils import get_visible_points
 from tcp_comm import (
     RESTComPiradio,
     RestComPiradioConfig,
@@ -1544,23 +1545,21 @@ class ExperimentOperator(SignalUtilsRfsoc):
         self.print(f"Waiting for {wait_time} seconds...", thr=2)
         time.sleep(wait_time)
 
-    # TODO
-    def action_report_time(self, target_objects, value, **kwargs):
-        # freq_switch_time = 0.052 + self.config.piradio_freq_sw_dly
-        # remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.config.freq_hop_list)*(freq_switch_time))
-        # self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
-        # angle_id += 1
-        pass
+    def action_report_time(self, target_objects, value, action='start', n_rep=0, **kwargs):
+        if action == 'start':
+            self.start_time = time.time()
+        elif action == 'end':
+            end_time = time.time()
+            elapsed_time = end_time - self.start_time
+            self.print(
+            f"Total time elapsed from last start: {elapsed_time:0.3f} s", thr=0)
+        self.print(f"Total time remaining: {n_rep*elapsed_time:0.3f} s", thr=0)
 
     def action_rotate_table(self, target_objects, value, **kwargs):
         client_turntable = target_objects[0]
         angle = float(value)
         self.print(f"Rotating to angle: {angle}", thr=0)
-
-        start_time = time.time()
         client_turntable.move_to_position(angle)
-        rotation_time = time.time() - start_time
-        self.print(f"Time taken to rotate: {rotation_time:0.3f} s", thr=2)
 
     def action_move_lin_track(self, target_objects, value, **kwargs):
         client_lintrack = target_objects[0]
@@ -1642,7 +1641,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_move_turtlebot(self, target_objects, value, **kwargs):
         client_turtlebot = target_objects[0]
-        turtlebot_api = client_turtlebot.map_motion_api()
+        turtlebot_api = client_turtlebot.map_motion_api
 
         cur_x, cur_y, yaw = turtlebot_api.read_pos()
         tgt_pos = [0.0,0.0]
@@ -1707,8 +1706,6 @@ class AnimatePlot(PlotUtils):
         self.anim_paused = False
         self.read_id = -1
         self.plots_initialized = False
-
-        self.start_time = time.time()
 
     def process_signals_for_plot(self, rx_signal: RxSignal):
         """
