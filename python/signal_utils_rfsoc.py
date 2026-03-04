@@ -13,18 +13,17 @@ import scipy.io
 from matplotlib import cycler  # type: ignore
 from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
-
 from serial_comm import (
     SerialComD48PTU,
     SerialComD48PTUConfig,
     SerialComTurnTable,
     SerialComTurnTableConfig,
 )
+from sigcom_toolkit.general import General, GeneralConfig
 from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
-from sigcom_toolkit.general import GeneralConfig, General
 from sigcom_toolkit.specsense_utils import SpecSenseUtils
-from sigcom_toolkit.utils import get_visible_points
+from sigcom_toolkit.utils import get_viewing_angle_range
 from tcp_comm import (
     RESTComPiradio,
     RestComPiradioConfig,

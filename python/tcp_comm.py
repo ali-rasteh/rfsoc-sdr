@@ -10,7 +10,6 @@ import numpy as np
 import paramiko
 import requests
 from scp import SCPClient
-
 from sigcom_toolkit.general import General, GeneralConfig
 
 
@@ -143,7 +142,6 @@ class TcpComm(General):
 
 @dataclass
 class TCPComRFSoCConfig(TCPComConfig):
-    fc: float = 6.0e9
     beam_test: tuple = None
     adc_bits: int = 14
     dac_bits: int = 14
@@ -307,7 +305,7 @@ class TcpCommRFSoC(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "transmitSamples":
             if len(clientMsgParsed) == 1:
-                nread = self.obj_rfsoc.config.n_tx_ant * self.obj_rfsoc.config.n_samples_tx
+                nread = self.config.n_tx_ant * self.config.n_samples_tx
                 nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 
@@ -637,7 +635,7 @@ class TcpCommController(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "transmitSamplesRfsoc":
             if len(clientMsgParsed) == 1:
-                nread = self.obj_rfsoc.config.n_tx_ant * self.obj_rfsoc.config.n_samples_tx
+                nread = self.config.n_tx_ant * self.config.n_samples_tx
                 nbytes = self.config.nbytes * nread * 2
                 buf = bytearray()
 

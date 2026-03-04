@@ -38,13 +38,12 @@ class RFSoCConfig(GeneralConfig):
     do_rfsoc_mixer_settings: bool = False
     do_rfsoc_pll_settings: bool = False
     run_tcp_server: bool = True
+
     n_frame_wr: int = 1
     n_frame_rd: int = 2
     n_tx_ant: int = 2
     n_rx_ant: int = 2
     n_samples: int = 1024
-    n_samples_tx: int = 1024
-    n_samples_rx: int = 1024
 
     n_skip: int = 0
     CLOCKWIZARD_LOCK_ADDRESS: int = 0x0004

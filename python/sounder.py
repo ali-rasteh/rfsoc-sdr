@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from scipy import constants
-
 from file_utils import FileUtils, FileUtilsConfig
+from scipy import constants
+from sigcom_toolkit.general import General, GeneralConfig
 from signal_utils_rfsoc import ExperimentOperator, ExperimentOperatorConfig
 
 
 @dataclass
-class SounderConfig(ExperimentOperatorConfig):
+class SounderConfig(GeneralConfig):
     # Constant parameters
     seed = 100
 
@@ -289,9 +289,12 @@ class SounderConfig(ExperimentOperatorConfig):
             self.files_to_convert = {"sounder.py": "sounder.ipynb"}
 
 
-class Sounder(ExperimentOperator):
+class Sounder(General):
     def __init__(self, config: SounderConfig, **overrides: Any):
         super().__init__(config, **overrides)
+
+        operator_config = ExperimentOperatorConfig().update_from_config(self.config)
+        self.operator = ExperimentOperator(operator_config)
 
         if self.config.save_parameters:
             self.save_class_attributes_to_json(self.config, self.config.config_save_path)
@@ -315,7 +318,7 @@ class Sounder(ExperimentOperator):
         ):
             self.update_rfsoc_files()
 
-        self.gen_tx_signal()
+        self.operator.gen_tx_signal()
 
     def update_rfsoc_files(self):
         file_utils_config = FileUtilsConfig(
@@ -348,7 +351,7 @@ class Sounder(ExperimentOperator):
 
         rfsoc_config = RFSoCConfig().update_from_config(self.config)
         rfsoc_inst = RFSoC(rfsoc_config)
-        rfsoc_inst.txtd = self.tx_signal.txtd
+        rfsoc_inst.txtd = self.operator.tx_signal.txtd
         if self.config.transmit_signal:
             rfsoc_inst.send_frame(rfsoc_inst.txtd)
 
@@ -362,5 +365,5 @@ class Sounder(ExperimentOperator):
             self.run_rfsoc()
 
         elif "client" in self.config.host_role:
-            self.init_objects()
-            self.run_operator()
+            self.operator.init_objects()
+            self.operator.run_operator()
