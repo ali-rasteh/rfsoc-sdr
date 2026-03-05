@@ -5,7 +5,7 @@ from sigcom_toolkit.general import General, GeneralConfig
 from .sivers_doc import SiversDocClass as Doc
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SiversDefaultConfig(GeneralConfig):
     pass
 

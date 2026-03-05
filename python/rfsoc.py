@@ -17,10 +17,10 @@ except Exception as e:
     print("Error importing sivers_controller class: ", e)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RFSoCConfig(GeneralConfig):
-    beam_test: np.ndarray = np.array(
-        [1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63]
+    beam_test: tuple = (
+        1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63
     )
     project: str = "sounder_if_ddr4"
     board: str = "rfsoc_4x2"

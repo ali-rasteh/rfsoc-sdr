@@ -13,7 +13,7 @@ from scp import SCPClient
 from sigcom_toolkit.general import General, GeneralConfig
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TCPComConfig(GeneralConfig):
     server_ip: str = "0.0.0.0"
     TCP_port_Cmd: int = 8080
@@ -140,7 +140,7 @@ class TcpComm(General):
         self.print("Client succesfully connected to the server", thr=1)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TCPComRFSoCConfig(TCPComConfig):
     beam_test: tuple = None
     adc_bits: int = 14
@@ -467,7 +467,7 @@ class TcpCommRFSoC(TcpComm):
         return responseToCMDInBytes
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TCPComLinTrackConfig(TCPComConfig):
     pass
 
@@ -538,7 +538,7 @@ class TcpCommLinTrack(TcpComm):
         return responseToCMDInBytes
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TCPComControllerConfig(TCPComConfig):
     pass
 
@@ -658,7 +658,7 @@ class TcpCommController(TcpComm):
         return responseToCMDInBytes
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SshComConfig(GeneralConfig):
     host_ip: str = "0.0.0.0"
     port: int = 22
@@ -730,7 +730,7 @@ class SshCom(General):
         return result
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ScpComConfig(SshComConfig):
     pass
 
@@ -786,7 +786,7 @@ class ScpCom(SshCom):
         self.print("SCP Client object closed", thr=1)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RestComConfig(GeneralConfig):
     ip_address: str = "0.0.0.0"
     port: int = 5000
@@ -845,7 +845,7 @@ class RESTCom(General):
         return result, response
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RestComPiradioConfig(RestComConfig):
     freq_sw_dly: float = 0.1
     gain_sw_dly: float = 0.1

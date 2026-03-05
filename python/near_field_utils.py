@@ -17,7 +17,7 @@ except Exception:
 # TODO Clean this file and check dependencies
 
 
-@dataclass
+@dataclass(kw_only=True)
 class NearFieldSignalUtilsConfig(SignalUtilsRFSoCConfig):
     nf_param_estimate = False  # If True, performs near field parameter estimation
     nf_walls = np.array([[-5, 4], [-1, 6]])  # Near field walls coordinates in meters

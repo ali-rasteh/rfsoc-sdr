@@ -13,7 +13,7 @@ from .sivers_defaults import SiversDefaults
 _THIS_DIR = os.path.dirname(__file__)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SiversControllerConfig(GeneralConfig):
     pass
 

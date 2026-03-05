@@ -12,7 +12,7 @@ import serial.tools.list_ports
 from sigcom_toolkit.general import General, GeneralConfig
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SerialComConfig(GeneralConfig):
     port: str = "COM6"
     baudrate: int = 115200
@@ -114,7 +114,7 @@ class SerialCom(General):
         return responses
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SerialComTurnTableConfig(SerialComConfig):
     rotation_delay: float = 0.0
 
@@ -204,7 +204,7 @@ class SerialComTurnTable(SerialCom):
             self.move_to_position(position=angle)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SerialComD48PTUConfig(SerialComConfig):
     port: str = "/dev/ttyUSB0"
     baudrate: int = 9600

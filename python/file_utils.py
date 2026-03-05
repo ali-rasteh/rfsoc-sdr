@@ -7,7 +7,7 @@ from sigcom_toolkit.general import General, GeneralConfig
 from tcp_comm import ScpCom, ScpComConfig
 
 
-@dataclass
+@dataclass(kw_only=True)
 class FileUtilsConfig(GeneralConfig):
     scp_connect: bool = False
     host_ip: str = "192.168.3.100"

@@ -3,7 +3,7 @@ import contextlib
 import itertools
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import matplotlib as mpl
@@ -34,10 +34,9 @@ from tcp_comm import (
     TcpCommRFSoC,
     TCPComRFSoCConfig,
 )
-from turtlebot.map_motion_api import MapMotionAPI
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RxSignal:
     rxtd: np.ndarray = None
     rxtd_base: np.ndarray = None
@@ -47,7 +46,7 @@ class RxSignal:
     sparse_est_params: dict = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PlotChart:
     plot_signals: dict = None
     title: str = ""
@@ -55,7 +54,7 @@ class PlotChart:
     y_label: str = ""
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PlotSignal:
     signal_name: str = ""
     trx_id: tuple = None
@@ -65,13 +64,13 @@ class PlotSignal:
     label: str = ""
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TxSignal:
     txtd: np.ndarray = None
     txtd_base: np.ndarray = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ClientRFSoCConfig(TCPComRFSoCConfig):
     calib_config_path: str = "./calib_config.npz"
 
@@ -108,7 +107,7 @@ class ClientRFSoC(TcpCommRFSoC):
         else:
             phase_diff_list = []
             delay_list = []
-            for _ in range(self.calib_iter):
+            for _ in range(self.config.calib_iter):
                 rxtd = self.receive_data_rfsoc(mode="once")
                 rxtd = rxtd[0]
                 phase_diff = SignalUtils.calc_phase_offset(rxtd[0, :], rxtd[1, :])
@@ -131,7 +130,7 @@ class ClientRFSoC(TcpCommRFSoC):
             # self.print(f"Calibrated and saved delay offset between RX ports: {self.rx_delay_offset:0.3f} s", thr=1)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PiRadioConfig(RestComPiradioConfig):
     stable_fc_piradio: float = 10.0e9
     optimal_gains_path: str = "./optimal_gains.json"
@@ -142,6 +141,13 @@ class PiRadioConfig(RestComPiradioConfig):
 class PiRadioFR3Trx(RESTComPiradio):
     def __init__(self, config: PiRadioConfig, **overrides: Any):
         super().__init__(config, **overrides)
+
+        if os.path.exists(self.config.optimal_gains_path):
+            self.optimal_gains = self.load_dict_from_json(
+                self.config.optimal_gains_path, convert_values=True
+            )
+        else:
+            self.optimal_gains = {}
 
     def hop_freq(self, fc, set_opt_losupp=False):
         if self.fc != fc:
@@ -205,7 +211,7 @@ class PiRadioFR3Trx(RESTComPiradio):
             self.set_gain_piradio(trx="tx", chan=1, gain_db=tx_gain_optimal)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TurtlebotConfig(GeneralConfig):
     cmd_topic: str = "/cmd_vel_unstamped",
     odom_topic: str = "/odom",
@@ -222,6 +228,7 @@ class TurtlebotConfig(GeneralConfig):
 class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
+        from turtlebot.map_motion_api import MapMotionAPI
         self.map_motion_api = MapMotionAPI(
             cmd_topic = self.config.cmd_topic,
             odom_topic = self.config.odom_topic,
@@ -242,11 +249,158 @@ class Turtlebot(General):
         self.close()
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     freq_hop_list: tuple = (10.0e9,)
     seed: int = None
     seed_list: tuple = None
+    ant_d_m: tuple = (0.026,)
+    n_tx_ant: int = 2
+    n_rx_ant: int = 2
+
+    # Mixer parameters
+    rfsoc_mixer_mode = "analog"  # Mixer mode, analog or digital
+
+    # Signals information
+    sig_gen_mode = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
+    sig_mode = "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
+    sig_modulation = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
+    tx_sig_sim = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
+    sig_gain_db = 0  # Transmitter Signal gain in dB
+    n_frame_wr = 1  # Number of frames to write
+    n_frame_rd = 2  # Number of frames to read
+    n_rd_rep = 8  # Number of read repetitions for RX signal
+    snr_est_db = 40  # SNR for signal estimation
+    wb_bw_mode = "sc"  # Wideband signal bandwidth mode, sc or freq
+    wb_sc_range = [-250, 250]  # Wideband signal subcarrier range, used when wb_bw_mode is sc
+    wb_bw_range = [-250e6, 250e6]  # Wideband signal bandwidth range, used when wb_bw_mode is freq
+    wb_null_sc = 0  # Number of carriers to null in the wideband signal
+    tone_f_mode = "sc"  # Tone signal frequency mode, sc or freq
+    sc_tone = 10  # Tone signal subcarrier
+    f_tone = 250e6  # Tone signal frequency
+    filter_bw_range = [-450e6, 450e6]  # Final filter BW range on the RX signal
+    n_rx_ch_eq = 1  # Number of RX chains for channel equalization
+    sparse_ch_samp_range = [
+        -6,
+        20,
+    ]  # Range of samples around the strongest peak to consider for channel estimation
+    sparse_ch_n_ignore = 5  # Number of samples to ignore around the strongest peak
+    rx_same_delay = True  # If True, all applies the same time shift to all RX antennas
+    rx_chain = [
+        "sync_time",
+        "channel_est",
+    ]  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
+    channel_limit = True  # If True, limits the channel to a specific range in the frequency domain
+    npath_max = [
+        20,
+        5,
+    ]  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
+
+    # Save parameters
+    calib_config_dir = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
+    sig_dir = os.path.join(os.getcwd(), "sigs/")  # Signals directory
+    channel_dir = os.path.join(os.getcwd(), "channels/")  # Channel directory
+    figs_dir = os.path.join(os.getcwd(), "figs/")  # Figures directory
+
+    n_save = 100  # Number of samples to save
+    save_format = "npz"  # Format to save the data, npz or mat (for MATLAB)
+
+    # Beamforming parameters
+    beamforming = False  # If True, performs beamforming
+    steer_rad = [
+        np.deg2rad(0.0),
+        np.deg2rad(0.0),
+    ]  # Desired steering angles in radians [azimuth, elevation]
+
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.calib_config_path = os.path.join(
+            self.calib_config_dir, "calib_config.npz"
+        )  # Calibration parameters path
+        self.optimal_gains_path = os.path.join(
+            self.calib_config_dir, "optimal_gains.json"
+        )  # Calibration parameters path
+        self.sig_path = os.path.join(self.sig_dir, "txtd.npz")  # Signal load path
+        self.sys_response_path = os.path.join(
+            self.channel_dir, "sys_response.npz"
+        )  # System response save path
+        self.figs_save_path = os.path.join(self.figs_dir, "plot.pdf")  # Figures save path
+
+        self.n_samples_tx = self.n_frame_wr * self.n_samples
+        self.n_samples_rx = self.n_frame_rd * self.n_samples
+        self.nfft_tx = self.n_frame_wr * self.nfft
+        self.nfft_rx = self.n_frame_rd * self.nfft
+
+        if self.n_tx_ant == 1 and self.n_rx_ant == 1:
+            self.beamforming = False
+
+        self.fc = 10.0e9  # Carrier frequency in Hz
+        self.wl = constants.c / self.fc
+        self.ant_d = [
+            d / self.wl for d in self.ant_d_m
+        ]  # Antenna axis spacing in wavelengths (lambda)
+
+        if self.tx_sig_sim == "same":
+            self.seed_list = [self.seed for i in range(self.n_tx_ant)]
+        elif self.tx_sig_sim == "orthogonal":
+            self.seed_list = [self.seed * i + i for i in range(self.n_tx_ant)]
+        elif self.tx_sig_sim == "shifted":
+            self.seed_list = [self.seed for i in range(self.n_tx_ant)]
+
+        if self.tone_f_mode == "sc":
+            self.f_tone = self.sc_tone * self.fs_tx / self.nfft_tx
+        elif self.tone_f_mode == "freq":
+            self.sc_tone = int(np.round((self.f_tone) * self.nfft_tx / self.fs_tx))
+        else:
+            raise ValueError("Invalid tone_f_mode mode: " + self.tone_f_mode)
+
+        if self.wb_bw_mode == "sc":
+            self.wb_bw_range = [
+                self.wb_sc_range[0] * self.fs_tx / self.nfft_tx,
+                self.wb_sc_range[1] * self.fs_tx / self.nfft_tx,
+            ]
+        elif self.wb_bw_mode == "freq":
+            self.wb_sc_range = [
+                int(np.round(self.wb_bw_range[0] * self.nfft_tx / self.fs_tx)),
+                int(np.round(self.wb_bw_range[1] * self.nfft_tx / self.fs_tx)),
+            ]
+        else:
+            raise ValueError("Invalid wb_bw_mode mode: " + self.tone_f_mode)
+
+        if "tone" in self.sig_mode:
+            self.f_max = abs(self.f_tone)
+            if self.sig_mode == "tone_1":
+                self.sc_range = [self.sc_tone, self.sc_tone]
+                self.filter_bw_range = [self.f_tone - 50e6, self.f_tone + 50e6]
+            elif self.sig_mode == "tone_2":
+                self.sc_range = [-1 * self.sc_tone, self.sc_tone]
+                self.filter_bw_range = [-1 * self.f_tone - 50e6, self.f_tone + 50e6]
+            self.null_sc_range = [0, 0]
+        elif "wideband" in self.sig_mode or self.sig_mode == "load":
+            self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
+            self.sc_range = self.wb_sc_range
+            self.filter_bw_range = [self.wb_bw_range[0] - 50e6, self.wb_bw_range[1] + 50e6]
+            self.null_sc_range = [-1 * self.wb_null_sc, self.wb_null_sc]
+        else:
+            raise ValueError("Unsupported signal mode: " + self.sig_mode)
+
+        if self.channel_limit:
+            self.sc_range_ch = self.sc_range
+            self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
+            self.nfft_ch = self.n_samples_ch
+            self.freq_ch = self.freq_trx[
+                (self.sc_range_ch[0] + self.nfft_trx // 2) : (
+                    self.sc_range_ch[1] + self.nfft_trx // 2 + 1
+                )
+            ]
+        else:
+            self.sc_range_ch = [-1 * self.nfft_trx // 2, self.nfft_trx // 2 - 1]
+            self.n_samples_ch = self.n_samples_trx
+            self.nfft_ch = self.nfft_trx
+            self.freq_ch = self.freq_trx
+
 
 
 class SignalUtilsRfsoc(SignalUtils):
@@ -618,12 +772,12 @@ class SignalUtilsRfsoc(SignalUtils):
 
     def find_optimal_gain_piradio(self, client_rfsoc_rx, client_piradio_rx, client_piradio_tx):
 
-        if os.path.exists(self.config.optimal_gains_path):
-            self.optimal_gains = self.load_dict_from_json(
-                self.config.optimal_gains_path, convert_values=True
+        if os.path.exists(client_piradio_rx.config.optimal_gains_path):
+            optimal_gains = self.load_dict_from_json(
+                client_piradio_rx.config.optimal_gains_path, convert_values=True
             )
         else:
-            self.optimal_gains = {}
+            optimal_gains = {}
 
         input_ = input(
             "Press Y for TX/RX optimal gains calibration or any key to use the saved data: "
@@ -641,7 +795,7 @@ class SignalUtilsRfsoc(SignalUtils):
                 raise ValueError(f"Invalid distance value: {self.tx_rx_distance}")  # noqa: B904
         else:
             pass
-        self.optimal_gains[self.tx_rx_distance] = {}
+        optimal_gains[self.tx_rx_distance] = {}
 
         max_total_gain_db = 60
         min_tx_gain_db = 10
@@ -659,7 +813,7 @@ class SignalUtilsRfsoc(SignalUtils):
             for client in [client_piradio_rx, client_piradio_tx]:
                 client.hop_freq(fc=frequency)
 
-            self.optimal_gains[self.tx_rx_distance][frequency] = {}
+            optimal_gains[self.tx_rx_distance][frequency] = {}
 
             snr_db_optimal = 0
             tx_gain_db_optimal = 0
@@ -709,13 +863,13 @@ class SignalUtilsRfsoc(SignalUtils):
             )
             self.print(f"Optimal SNR for frequency {frequency}: {snr_db_optimal} dB", thr=1)
 
-            self.optimal_gains[self.tx_rx_distance][frequency]["tx_gain"] = int(tx_gain_db_optimal)
-            self.optimal_gains[self.tx_rx_distance][frequency]["rx_gain"] = int(rx_gain_db_optimal)
+            optimal_gains[self.tx_rx_distance][frequency]["tx_gain"] = int(tx_gain_db_optimal)
+            optimal_gains[self.tx_rx_distance][frequency]["rx_gain"] = int(rx_gain_db_optimal)
 
-        self.save_dict_to_json(self.optimal_gains, self.config.optimal_gains_path)
+        self.save_dict_to_json(optimal_gains, client_piradio_rx.config.optimal_gains_path)
         self.print("Calculated and saved optimal TX/RX gains...", thr=1)
 
-        return self.optimal_gains
+        return optimal_gains
 
     def rx_operations(self, txtd_base, rxtd):
         # Expand the dimension for 1 frame received signals
@@ -1059,9 +1213,14 @@ class SignalUtilsRfsoc(SignalUtils):
         return sig, title
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ExperimentOperatorConfig(SignalUtilsRFSoCConfig):
-    pass
+    measurement_configs: tuple = ()  # List of measurement configurations
+    host_role: str = "client"  # Mode of operation, client or client_master or client_slave
+    RFFE: str = "piradio"  # RF front end to use, piradio or sivers
+    network_topology: dict = None  # Network topology configuration
+    action_loop: tuple = None
+
 
 class ExperimentOperator(SignalUtilsRfsoc):
     def __init__(self, config: ExperimentOperatorConfig, **overrides):
@@ -1072,6 +1231,14 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self.animate_plotter = None
 
+        self.create_dirs(
+            [
+                self.config.calib_config_dir,
+                self.config.sig_dir,
+                self.config.channel_dir,
+                self.config.figs_dir,
+            ]
+        )
 
         self.print("signals object initialization done", thr=1)
 
@@ -1294,6 +1461,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             raise ValueError(f"Action spec is missing valid action: {spec}")
 
         rng = self._parse_range(values)
+        print(targets, actions, rng, params)
         return targets, actions, rng, params
 
     def _parse_range(self, values):
@@ -1375,6 +1543,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         # self.freq_id = 0
         self.read_id = 0
 
+        print(self.config.action_loop)
         loop_list = [self._parse_action_spec(spec) for spec in self.config.action_loop]
 
         targets = [item[0] for item in loop_list]
@@ -1609,9 +1778,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_find_optimal_gain_piradio(self, target_objects, value, **kwargs):
         client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
-        self.find_optimal_gain_piradio(
+        optimal_gains = self.find_optimal_gain_piradio(
             client_rfsoc_rx, client_piradio_rx, client_piradio_tx
         )
+        client_piradio_rx.optimal_gains = optimal_gains
+        client_piradio_tx.optimal_gains = optimal_gains
 
     def action_set_optimal_gain_piradio(self, target_objects, value, **kwargs):
         client_piradio_rx, client_piradio_tx = target_objects
@@ -1663,9 +1834,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AnimationPlotConfig(PlotUtilsConfig):
-    animate_plot_mode: tuple = ()
+    animate_plot_mode: tuple = None
     plot_configs: dict = None
 
 
