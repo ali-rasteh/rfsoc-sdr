@@ -184,6 +184,7 @@ class Sounder(General):
         from rfsoc import RFSoC, RFSoCConfig
 
         rfsoc_config = RFSoCConfig().update_from_config(self.config)
+        rfsoc_config.update_from_config(self.operator.config)
         rfsoc_inst = RFSoC(rfsoc_config)
         rfsoc_inst.txtd = self.operator.tx_signal.txtd
         if self.config.transmit_signal:

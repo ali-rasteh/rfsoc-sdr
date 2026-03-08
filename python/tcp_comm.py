@@ -11,6 +11,7 @@ import paramiko
 import requests
 from scp import SCPClient
 from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.signal_utils import SignalUtilsConfig
 
 
 @dataclass(kw_only=True)
@@ -147,9 +148,11 @@ class TCPComRFSoCConfig(TCPComConfig):
     dac_bits: int = 14
     RFFE: str = None
 
-    #TODO
+    n_frame_wr: int = 1
     n_frame_rd: int = 2
     n_samples: int = 1024
+    n_samples_tx: int = 1024
+    n_samples_rx: int = 1024
     n_tx_ant: int = 2
     n_rx_ant: int = 2
 
@@ -279,9 +282,9 @@ class TcpCommRFSoC(TcpComm):
 
         if clientMsgParsed[0] == "receiveSamplesOnce":
             if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.obj_rfsoc.config.n_frame_rd)
+                iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.config.n_frame_rd)
                 iq_data = np.array(iq_data).flatten()
-                iq_data = iq_data * (2 ** (self.obj_rfsoc.config.adc_bits + 1) - 1)
+                iq_data = iq_data * (2 ** (self.config.adc_bits + 1) - 1)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
@@ -291,7 +294,7 @@ class TcpCommRFSoC(TcpComm):
                 responseToCMD = self.config.invalid_number_of_arguments_message
         elif clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.obj_rfsoc.config.n_frame_rd)
+                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.config.n_frame_rd)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
@@ -315,9 +318,9 @@ class TcpCommRFSoC(TcpComm):
                     data = self.connectionData.recv(nbytes)
                     buf.extend(data)
                 data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.obj_rfsoc.config.dac_bits + 1) - 1)
+                data = data / (2 ** (self.config.dac_bits + 1) - 1)
                 txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.obj_rfsoc.config.n_tx_ant, nread // self.obj_rfsoc.config.n_tx_ant)
+                txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
 
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = "Success"
@@ -541,7 +544,7 @@ class TcpCommLinTrack(TcpComm):
 
 
 @dataclass(kw_only=True)
-class TCPComControllerConfig(TCPComConfig):
+class TCPComControllerConfig(TCPComRFSoCConfig):
     pass
 
 
@@ -645,9 +648,9 @@ class TcpCommController(TcpComm):
                     data = self.connectionData.recv(nbytes)
                     buf.extend(data)
                 data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.obj_rfsoc.config.dac_bits + 1) - 1)
+                data = data / (2 ** (self.config.dac_bits + 1) - 1)
                 txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.obj_rfsoc.config.n_tx_ant, nread // self.obj_rfsoc.config.n_tx_ant)
+                txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
 
                 self.obj_rfsoc.send_frame(txtd=txtd)
                 responseToCMD = "Success"

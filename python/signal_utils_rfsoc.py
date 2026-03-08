@@ -1406,6 +1406,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 controller.set_frequency_piradio(self.config.fc)
                 self._network_objects[name] = controller
 
+            elif item["type"] == "self":
+                self._network_objects[name] = self
+
             if "slave" in self.config.host_role:
                 controller_config = TCPComControllerConfig().update_from_config(self.config)
                 controller = TcpCommController(controller_config)

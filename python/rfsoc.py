@@ -39,17 +39,16 @@ class RFSoCConfig(GeneralConfig):
     do_rfsoc_pll_settings: bool = False
     run_tcp_server: bool = True
 
-    #TODO
-    n_frame_wr: int = 1
-    n_frame_rd: int = 2
-    n_tx_ant: int = 2
-    n_rx_ant: int = 2
-    n_samples: int = 1024
-
     n_skip: int = 0
     CLOCKWIZARD_LOCK_ADDRESS: int = 0x0004
     CLOCKWIZARD_RESET_ADDRESS: int = 0x0000
     CLOCKWIZARD_RESET_TOKEN: int = 0x000A
+
+    n_frame_wr: int = 1
+    n_frame_rd: int = 2
+    n_samples: int = 1024
+    n_tx_ant: int = 2
+    n_rx_ant: int = 2
 
     def __post_init__(self):
         super().__post_init__()
