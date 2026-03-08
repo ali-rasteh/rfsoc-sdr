@@ -24,6 +24,7 @@ class LinearTrackControllerConfig(GeneralConfig):
     margin2edge = 5
 
     def __post_init__(self):
+        super().__post_init__()
         self.travel_length = self.total_length - self.plate_length
         self.travel_length -= 2 * self.margin2edge
 

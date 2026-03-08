@@ -30,12 +30,10 @@ class PlotSymbols:
 @dataclass(kw_only=True)
 class BaseConfig(SounderConfig):
     ant_d_m: tuple = (0.026,)
-    n_rx_ch_eq: int = 1
     wb_sc_range: tuple = (-260, 260)
     rx_same_delay: bool = False
     n_frame_rd: int = 32
     n_rd_rep: int = 1
-    save_parameters: bool = True
     rx_chain: tuple = ("sync_time", "channel_est")
 
     plot_configs: dict = field(default_factory=lambda: {

@@ -72,8 +72,14 @@ class TxSignal:
 
 @dataclass(kw_only=True)
 class ClientRFSoCConfig(TCPComRFSoCConfig):
-    calib_config_path: str = "./calib_config.npz"
+    calib_config_dir = os.path.join(os.getcwd(), "calib/")
+    calib_iter: int = 100  # Number of iterations for calibration
 
+    def __post_init__(self):
+        super().__post_init__()
+        self.calib_config_path: str = os.path.join(
+                self.calib_config_dir, "calib_config.npz"
+            )
 
 class ClientRFSoC(TcpCommRFSoC):
     def __init__(self, config: ClientRFSoCConfig, **overrides: Any):
@@ -132,10 +138,16 @@ class ClientRFSoC(TcpCommRFSoC):
 
 @dataclass(kw_only=True)
 class PiRadioConfig(RestComPiradioConfig):
+    calib_config_dir = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
     stable_fc_piradio: float = 10.0e9
-    optimal_gains_path: str = "./optimal_gains.json"
     piradio_gain_sw_dly_default: float = 0.1
     freq_range: tuple = (6.0, 22.5)
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.optimal_gains_path: str = os.path.join(
+            self.calib_config_dir, "optimal_gains.json"
+        )
 
 
 class PiRadioFR3Trx(RESTComPiradio):
@@ -312,13 +324,9 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
         np.deg2rad(0.0),
     ]  # Desired steering angles in radians [azimuth, elevation]
 
-
     def __post_init__(self):
         super().__post_init__()
 
-        self.calib_config_path = os.path.join(
-            self.calib_config_dir, "calib_config.npz"
-        )  # Calibration parameters path
         self.optimal_gains_path = os.path.join(
             self.calib_config_dir, "optimal_gains.json"
         )  # Calibration parameters path
@@ -1215,7 +1223,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
 @dataclass(kw_only=True)
 class ExperimentOperatorConfig(SignalUtilsRFSoCConfig):
-    measurement_configs: tuple = ()  # List of measurement configurations
+    measurement_configs: tuple = None  # List of measurement configurations
     host_role: str = "client"  # Mode of operation, client or client_master or client_slave
     RFFE: str = "piradio"  # RF front end to use, piradio or sivers
     network_topology: dict = None  # Network topology configuration

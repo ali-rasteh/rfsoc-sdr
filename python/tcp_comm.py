@@ -146,6 +146,8 @@ class TCPComRFSoCConfig(TCPComConfig):
     adc_bits: int = 14
     dac_bits: int = 14
     RFFE: str = None
+
+    #TODO
     n_frame_rd: int = 2
     n_samples: int = 1024
     n_tx_ant: int = 2
@@ -847,10 +849,10 @@ class RESTCom(General):
 
 @dataclass(kw_only=True)
 class RestComPiradioConfig(RestComConfig):
+    port: int = 5111
     freq_sw_dly: float = 0.1
     gain_sw_dly: float = 0.1
     bias_sw_dly: float = 0.1
-    port: int = 5111
 
 
 class RESTComPiradio(RESTCom):

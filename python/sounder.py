@@ -11,31 +11,8 @@ from signal_utils_rfsoc import ExperimentOperator, ExperimentOperatorConfig
 
 @dataclass(kw_only=True)
 class SounderConfig(ExperimentOperatorConfig):
-    # Constant parameters
-    seed: int = 100
-
     # Board and RFSoC FPGA project parameters
-    measurement_configs: tuple = None  # List of measurement configurations
-    host_role: str = "client"  # Mode of operation, client or client_master or client_slave
     transmit_signal: bool = False  # If True, sends TX signal
-
-    # Plots and logs parameters
-    overwrite_level: bool = True  # If True, overwrites the plot and verbose levels
-    plot_level: int = 0  # Level of plotting outputs
-    verbose_level: int = 0  # Level of printing output
-    animate_plot_mode: tuple = None  # List of plots to animate
-    # dictionary of plot fonts configurations
-    plot_configs: dict = field(default_factory=lambda: {
-        "title_size": 15,
-        "xaxis_size": 17,
-        "yaxis_size": 15,
-        "ticks_size": 15,
-        "legend_size": 15,
-        "line_width": 1.2,
-        "marker_size": 8,
-        "hspace": 0.4,
-        "wspace": 0.4,
-    })
 
     # Mixer parameters
     rfsoc_mixer_mode: str = "analog"  # Mixer mode, analog or digital
@@ -44,7 +21,6 @@ class SounderConfig(ExperimentOperatorConfig):
     RFFE: str = "piradio"  # RF front end to use, piradio or sivers
     n_tx_ant: int = 2  # Number of transmitter antennas
     n_rx_ant: int = 2  # Number of receiver antennas
-    ant_d_m: tuple = (0.02,)  # Antenna axis spacing in meters, a list of spacing for each axis, for example [0.02, 0.02] for a 2D array with 2 cm spacing in both axes
 
     # Connections parameters
     network_topology: dict = field(default_factory=lambda: {
@@ -96,58 +72,15 @@ class SounderConfig(ExperimentOperatorConfig):
     # Signals information
     fs: float = 245.76e6 * 4  # Sampling frequency in RFSoC
     n_samples: int = 1024  # Number of samples
-    sig_gen_mode: str = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
-    sig_mode: str = "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
-    sig_modulation: str = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
-    tx_sig_sim: str = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
-    sig_gain_db: float = 0  # Transmitter Signal gain in dB
-    n_frame_wr: int = 1  # Number of frames to write
-    n_frame_rd: int = 2  # Number of frames to read
-    n_rd_rep: int = 8  # Number of read repetitions for RX signal
-    snr_est_db: float = 40  # SNR for signal estimation
-    wb_bw_mode: str = "sc"  # Wideband signal bandwidth mode, sc or freq
-    wb_sc_range: tuple = (-250, 250)  # Wideband signal subcarrier range, used when wb_bw_mode is sc
-    wb_bw_range: tuple = (-250e6, 250e6)  # Wideband signal bandwidth range, used when wb_bw_mode is freq
-    wb_null_sc: int = 0  # Number of carriers to null in the wideband signal
-    tone_f_mode: str = "sc"  # Tone signal frequency mode, sc or freq
-    sc_tone: int = 10  # Tone signal subcarrier
-    f_tone: float = 250e6  # Tone signal frequency
-    filter_bw_range: tuple = (-450e6, 450e6)  # Final filter BW range on the RX signal
-    n_rx_ch_eq: int = 1  # Number of RX chains for channel equalization
-    sparse_ch_samp_range: tuple = (
-        -6,
-        20,
-    )  # Range of samples around the strongest peak to consider for channel estimation
-    sparse_ch_n_ignore: int = 5  # Number of samples to ignore around the strongest peak
-    rx_same_delay: bool = True  # If True, all applies the same time shift to all RX antennas
-    rx_chain: tuple = (
-        "sync_time",
-        "channel_est",
-    )  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
-    channel_limit: bool = True  # If True, limits the channel to a specific range in the frequency domain
-    npath_max: tuple = (
-        20,
-        5,
-    )  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
 
     # Save parameters
-    n_save: int = 100  # Number of samples to save
-    save_format: str = "npz"  # Format to save the data, npz or mat (for MATLAB)
-    save_parameters: bool = False  # If True, saves current parameters
+    save_parameters: bool = True  # If True, saves current parameters
     load_parameters: bool = False  # If True, loads parameters from the file
-
-    # Calibration parameters
-    calib_iter: int = 100  # Number of iterations for calibration
-
-    # Beamforming parameters
-    beamforming: bool = False  # If True, performs beamforming
-    steer_rad: tuple = (
-        np.deg2rad(0.0),
-        np.deg2rad(0.0),
-    )  # Desired steering angles in radians [azimuth, elevation]
 
     # Action parameters
     config_dir: str = os.path.join(os.getcwd(), "config/")  # Configuration directory
+
+    overwrite_level: bool = True
 
     def detect_running_platform(self):
         system_info = platform.uname()

@@ -206,10 +206,10 @@ class SerialComTurnTable(SerialCom):
 
 @dataclass(kw_only=True)
 class SerialComD48PTUConfig(SerialComConfig):
-    port: str = "/dev/ttyUSB0"
     baudrate: int = 9600
     timeout: float = 0.7
     write_timeout: float = 0.7
+
     arcsec_per_pos: float = 92.571429  # from your device
     line_ending: str = "\r"
     # Optional soft limits (in degrees) for safety
