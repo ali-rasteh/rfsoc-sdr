@@ -1406,8 +1406,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 controller.set_frequency_piradio(self.config.fc)
                 self._network_objects[name] = controller
 
-            elif item["type"] == "self":
-                self._network_objects[name] = self
 
             if "slave" in self.config.host_role:
                 controller_config = TCPComControllerConfig().update_from_config(self.config)
@@ -1429,6 +1427,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 controller.run_tcp_server(
                     controller.parse_and_execute
                 )
+            else:
+                self._network_objects["self"] = self
 
         for item in self.rfsoc_rx_list:
             client_rfsoc = self._network_objects[item]
@@ -1494,28 +1494,28 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 stop = float(parts[1])
                 third = float(parts[2])
 
+                if third == 0:
+                    raise ValueError(f"Invalid zero step/count in values: {values}")
+
                 if len(parts) > 3 and "log" in values:
                     count = int(third)
                     return np.logspace(np.log10(start), np.log10(stop), count)
 
-                if third == 0:
-                    raise ValueError(f"Invalid zero step/count in values: {values}")
+                # span = stop - start
+                # is_integer_like_step = np.isclose(span / third, round(span / third))
+                # use_step_mode = abs(span) >= abs(third) and is_integer_like_step
 
-                span = stop - start
-                is_integer_like_step = np.isclose(span / third, round(span / third))
-                use_step_mode = abs(span) >= abs(third) and is_integer_like_step
-
-                if use_step_mode:
-                    step = third
-                    step_sign = np.sign(step)
-                    if step_sign == 0:
-                        raise ValueError(f"Invalid step in values: {values}")
-                    if np.sign(span) != step_sign and not np.isclose(span, 0.0):
-                        raise ValueError(
-                            f"Step sign does not move from start to stop in values: {values}"
-                        )
-                    stop_inclusive = stop + (step * 0.5)
-                    return np.arange(start, stop_inclusive, step)
+                # if use_step_mode:
+                #     step = third
+                #     step_sign = np.sign(step)
+                #     if step_sign == 0:
+                #         raise ValueError(f"Invalid step in values: {values}")
+                #     if np.sign(span) != step_sign and not np.isclose(span, 0.0):
+                #         raise ValueError(
+                #             f"Step sign does not move from start to stop in values: {values}"
+                #         )
+                #     stop_inclusive = stop + (step * 0.5)
+                #     return np.arange(start, stop_inclusive, step)
 
                 count = int(third)
                 return np.linspace(start, stop, count)
