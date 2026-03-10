@@ -3,7 +3,7 @@ import contextlib
 import itertools
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import matplotlib as mpl
@@ -72,7 +72,7 @@ class TxSignal:
 
 @dataclass(kw_only=True)
 class ClientRFSoCConfig(TCPComRFSoCConfig):
-    calib_config_dir = os.path.join(os.getcwd(), "calib/")
+    calib_config_dir: str = os.path.join(os.getcwd(), "calib/")
     calib_iter: int = 100  # Number of iterations for calibration
 
     def __post_init__(self):
@@ -138,7 +138,7 @@ class ClientRFSoC(TcpCommRFSoC):
 
 @dataclass(kw_only=True)
 class PiRadioConfig(RestComPiradioConfig):
-    calib_config_dir = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
+    calib_config_dir: str = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
     stable_fc_piradio: float = 10.0e9
     piradio_gain_sw_dly_default: float = 0.1
     freq_range: tuple = (6.0, 22.5)
@@ -154,6 +154,8 @@ class PiRadioFR3Trx(RESTComPiradio):
     def __init__(self, config: PiRadioConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
+        self.fc = None
+
         if os.path.exists(self.config.optimal_gains_path):
             self.optimal_gains = self.load_dict_from_json(
                 self.config.optimal_gains_path, convert_values=True
@@ -162,7 +164,7 @@ class PiRadioFR3Trx(RESTComPiradio):
             self.optimal_gains = {}
 
     def hop_freq(self, fc, set_opt_losupp=False):
-        if self.fc != fc:
+        if self.fc is None or self.fc != fc:
             self.set_frequency_piradio(fc=fc)
             if set_opt_losupp:
                 self.set_optimal_losupp_piradio(fc=fc)
@@ -271,58 +273,58 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     n_rx_ant: int = 2
 
     # Mixer parameters
-    rfsoc_mixer_mode = "analog"  # Mixer mode, analog or digital
+    rfsoc_mixer_mode: str = "analog"  # Mixer mode, analog or digital
 
     # Signals information
-    sig_gen_mode = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
-    sig_mode = "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
-    sig_modulation = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
-    tx_sig_sim = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
-    sig_gain_db = 0  # Transmitter Signal gain in dB
-    n_frame_wr = 1  # Number of frames to write
-    n_frame_rd = 2  # Number of frames to read
-    n_rd_rep = 8  # Number of read repetitions for RX signal
-    snr_est_db = 40  # SNR for signal estimation
-    wb_bw_mode = "sc"  # Wideband signal bandwidth mode, sc or freq
-    wb_sc_range = [-250, 250]  # Wideband signal subcarrier range, used when wb_bw_mode is sc
-    wb_bw_range = [-250e6, 250e6]  # Wideband signal bandwidth range, used when wb_bw_mode is freq
-    wb_null_sc = 0  # Number of carriers to null in the wideband signal
-    tone_f_mode = "sc"  # Tone signal frequency mode, sc or freq
-    sc_tone = 10  # Tone signal subcarrier
-    f_tone = 250e6  # Tone signal frequency
-    filter_bw_range = [-450e6, 450e6]  # Final filter BW range on the RX signal
-    n_rx_ch_eq = 1  # Number of RX chains for channel equalization
-    sparse_ch_samp_range = [
+    sig_gen_mode: str = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
+    sig_mode: str = "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
+    sig_modulation: str = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
+    tx_sig_sim: str = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
+    sig_gain_db: float = 0  # Transmitter Signal gain in dB
+    n_frame_wr: int = 1  # Number of frames to write
+    n_frame_rd: int = 2  # Number of frames to read
+    n_rd_rep: int = 8  # Number of read repetitions for RX signal
+    snr_est_db: float = 40  # SNR for signal estimation
+    wb_bw_mode: str = "sc"  # Wideband signal bandwidth mode, sc or freq
+    wb_sc_range: tuple = (-250, 250)  # Wideband signal subcarrier range, used when wb_bw_mode is sc
+    wb_bw_range: tuple = (-250e6, 250e6)  # Wideband signal bandwidth range, used when wb_bw_mode is freq
+    wb_null_sc: int = 0  # Number of carriers to null in the wideband signal
+    tone_f_mode: str = "sc"  # Tone signal frequency mode, sc or freq
+    sc_tone: int = 10  # Tone signal subcarrier
+    f_tone: float = 250e6  # Tone signal frequency
+    filter_bw_range: tuple = (-450e6, 450e6)  # Final filter BW range on the RX signal
+    n_rx_ch_eq: int = 1  # Number of RX chains for channel equalization
+    sparse_ch_samp_range: tuple = (
         -6,
         20,
-    ]  # Range of samples around the strongest peak to consider for channel estimation
-    sparse_ch_n_ignore = 5  # Number of samples to ignore around the strongest peak
-    rx_same_delay = True  # If True, all applies the same time shift to all RX antennas
-    rx_chain = [
+    )  # Range of samples around the strongest peak to consider for channel estimation
+    sparse_ch_n_ignore: int = 5  # Number of samples to ignore around the strongest peak
+    rx_same_delay: bool = True  # If True, all applies the same time shift to all RX antennas
+    rx_chain: tuple = (
         "sync_time",
         "channel_est",
-    ]  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
-    channel_limit = True  # If True, limits the channel to a specific range in the frequency domain
-    npath_max = [
+    )  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
+    channel_limit: bool = True  # If True, limits the channel to a specific range in the frequency domain
+    npath_max: tuple = (
         20,
         5,
-    ]  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
+    )  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
 
     # Save parameters
-    calib_config_dir = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
-    sig_dir = os.path.join(os.getcwd(), "sigs/")  # Signals directory
-    channel_dir = os.path.join(os.getcwd(), "channels/")  # Channel directory
-    figs_dir = os.path.join(os.getcwd(), "figs/")  # Figures directory
+    calib_config_dir: str = os.path.join(os.getcwd(), "calib/")  # Calibration parameters directory
+    sig_dir: str = os.path.join(os.getcwd(), "sigs/")  # Signals directory
+    channel_dir: str = os.path.join(os.getcwd(), "channels/")  # Channel directory
+    figs_dir: str = os.path.join(os.getcwd(), "figs/")  # Figures directory
 
-    n_save = 100  # Number of samples to save
-    save_format = "npz"  # Format to save the data, npz or mat (for MATLAB)
+    n_save: int = 100  # Number of samples to save
+    save_format: str = "npz"  # Format to save the data, npz or mat (for MATLAB)
 
     # Beamforming parameters
-    beamforming = False  # If True, performs beamforming
-    steer_rad = [
+    beamforming: bool = False  # If True, performs beamforming
+    steer_rad: tuple = (
         np.deg2rad(0.0),
         np.deg2rad(0.0),
-    ]  # Desired steering angles in radians [azimuth, elevation]
+    )  # Desired steering angles in radians [azimuth, elevation]
 
     def __post_init__(self):
         super().__post_init__()
@@ -421,9 +423,9 @@ class SignalUtilsRfsoc(SignalUtils):
         self.tx_signal = None
         self.rx_signal = None
 
-        self.print("signals object initialization done", thr=1)
-
     def gen_tx_signal(self):
+        self.print("Generating TX signal", thr=1)
+
         txtd_base = []
         txtd = []
         for ant_id in range(self.config.n_tx_ant):
@@ -571,10 +573,12 @@ class SignalUtilsRfsoc(SignalUtils):
         self.print("Sanity check passed", thr=3)
 
     def process_sys_response(self):
+        self.print("Processing system response", thr=5)
         self.sys_response = np.load(self.config.sys_response_path)["h_est_full_avg"]
         self.sys_response /= np.max(np.abs(self.sys_response))
 
     def compute_sys_response(self):
+        self.print("Computing system response", thr=5)
         n_rx = 1
 
         if n_rx == 1:
@@ -733,6 +737,8 @@ class SignalUtilsRfsoc(SignalUtils):
             plt.show()
 
     def collect_signals(self):
+        self.print("Collecting signals", thr=5)
+
         collect_count = 512
         ignore_less_count = False
         # input_folder = self.config.channel_dir
@@ -758,7 +764,6 @@ class SignalUtilsRfsoc(SignalUtils):
 
                 collected_data = {}
                 for key, value in data_dict.items():
-                    # print(key, value.shape)
                     if (
                         not any(x in key for x in ["rxtd", "h_est_full"])
                         or ignore_less_count
@@ -775,10 +780,10 @@ class SignalUtilsRfsoc(SignalUtils):
                         rxtd = value
                         self.validate_saved_signals(rxtd=rxtd, txtd=collected_data["txtd"])
                 # output_file_path = os.path.join(output_folder, file_name)
-                print([(key, value.shape) for (key, value) in collected_data.items()])
                 # np.savez(output_file_path, **collected_data)
 
     def find_optimal_gain_piradio(self, client_rfsoc_rx, client_piradio_rx, client_piradio_tx):
+        self.print("Finding optimal TX/RX gains in Pi-Radio", thr=1)
 
         if os.path.exists(client_piradio_rx.config.optimal_gains_path):
             optimal_gains = self.load_dict_from_json(
@@ -880,6 +885,8 @@ class SignalUtilsRfsoc(SignalUtils):
         return optimal_gains
 
     def rx_operations(self, txtd_base, rxtd):
+        self.print("Performing RX operations", thr=5)
+
         # Expand the dimension for 1 frame received signals
         if len(rxtd.shape) < 3:
             rxtd = np.expand_dims(rxtd, axis=0)
@@ -1152,6 +1159,8 @@ class SignalUtilsRfsoc(SignalUtils):
         return self.rx_signal
 
     def process_sig(self, sig=None, process_list=()):
+        self.print(f"Processing signal with operations: {process_list}", thr=5)
+
         if sig is None:
             return None
 
@@ -1236,7 +1245,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self._network_topology = self.config.network_topology
         self._network_objects = {}
-
         self.animate_plotter = None
 
         self.create_dirs(
@@ -1247,8 +1255,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 self.config.figs_dir,
             ]
         )
-
-        self.print("signals object initialization done", thr=1)
 
     @property
     def network_topology(self):
@@ -1295,6 +1301,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return piradio_rx_list
 
     def init_objects(self):
+        self.print("Initializing network objects", thr=1)
+
         self._network_objects = {}
 
         for name in self.network_topology:
@@ -1348,9 +1356,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     port=port, baudrate=baudrate,
                 )
                 D48PTU = SerialComD48PTU(gimbal_config)
+                D48PTU.connect()
                 try:
-                    D48PTU.connect()
-                    D48PTU.set_deg([0., 0.])
                     self._network_objects[name] = D48PTU
                 except Exception:
                     D48PTU.list_ports()
@@ -1463,8 +1470,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
             targets = [targets]
         if isinstance(actions, str):
             actions = [actions]
-        if isinstance(values, str):
-            values = [values]
+        # if isinstance(values, str):
+        #     values = [values]
         if isinstance(params, str):
             params = {"default": params}
 
@@ -1472,7 +1479,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
             raise ValueError(f"Action spec is missing valid action: {spec}")
 
         rng = self._parse_range(values)
-        print(targets, actions, rng, params)
         return targets, actions, rng, params
 
     def _parse_range(self, values):
@@ -1546,6 +1552,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return objects
 
     def run_operator(self):
+        self.print("Running experiment operator", thr=1)
+
         self.measurement = {}
         self.save_id = 1
         self.phys_config = None
@@ -1554,7 +1562,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         # self.freq_id = 0
         self.read_id = 0
 
-        print(self.config.action_loop)
         loop_list = [self._parse_action_spec(spec) for spec in self.config.action_loop]
 
         targets = [item[0] for item in loop_list]
@@ -1563,7 +1570,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         params = [item[3] for item in loop_list]
 
         prev = None
-        default_actions = ["capture", "save", "wait"]
+        default_actions = ["capture", "save", "wait", "update_plot"]
+        # default_actions = []
 
         for values in itertools.product(*ranges):
             print(f"Current Sweep Values: {values}")
@@ -1574,10 +1582,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 changed_idxs = [
                     i
                     for i, (a, b) in enumerate(zip(prev, values, strict=False))
-                    if a != b or actions[i] in default_actions
+                    if a != b or any([action in default_actions for action in actions[i]])
                 ]
             prev = values
 
+            # print(f"\t\t Action Names: {[actions[i] for i in changed_idxs]}")
             # process only the actions whose value changed
             for i in changed_idxs:
                 target_objects = self._get_target_objects(targets[i])
@@ -1594,6 +1603,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     action_method = getattr(self, method_name, None)
 
                     if action_method:
+                        self.print(f"Executing action: {action_name} with value: {value} and params: {kwargs}", thr=2)
                         action_method(target_objects, value, **kwargs)
                     else:
                         raise NotImplementedError(
@@ -1632,9 +1642,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
         rxtd = client_rfsoc.receive_data_rfsoc(
             n_rd_rep=n_rd_rep, mode="once", verbose=False
         )
-        print(rxtd.shape)
         self.rx_signal = RxSignal(
             rxtd=rxtd,
+            rxtd_base=rxtd,
         )
 
         if process_signal:
@@ -1663,7 +1673,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         self.txtd_save = np.expand_dims(self.tx_signal.txtd_base, axis=0)
         self.rxtd_save = np.array(rxtd_save)
 
-        self.validate_saved_signals(rxtd=rxtd_save)
+        # self.validate_saved_signals(rxtd=rxtd_save)
 
     def action_capture_from_file(self, target_objects, value, sig_name="", **kwargs):
         sig_name = sig_name if sig_name else value
@@ -1683,9 +1693,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         self.read_id += 1
 
     def action_update_plot(self, target_objects, value, **kwargs):
-        if self.animate_plotter is None:
-            self.animate_plotter = AnimatePlot(self.config, self)
-
         rx_signal = self.rx_signal
         if rx_signal is None:
             raise ValueError(
@@ -1707,8 +1714,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
             self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
         ]
-        # measurement['tx_gain_db'] = tx_gain_db
-        # measurement['rx_gain_db'] = rx_gain_db
 
         if "signal" in save_list:
             sig_save_path = os.path.join(self.config.sig_dir, save_name)
@@ -1721,7 +1726,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_wait(self, target_objects, value, **kwargs):
         wait_time = float(value)
-        self.print(f"Waiting for {wait_time} seconds...", thr=2)
         time.sleep(wait_time)
 
     def action_report_time(self, target_objects, value, action='start', n_rep=0, **kwargs):
@@ -1737,7 +1741,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def action_rotate_table(self, target_objects, value, **kwargs):
         client_turntable = target_objects[0]
         angle = float(value)
-        self.print(f"Rotating to angle: {angle}", thr=0)
         client_turntable.move_to_position(angle)
 
     def action_move_lin_track(self, target_objects, value, **kwargs):
@@ -1769,11 +1772,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
             client_piradio_tx = target_objects[1]
             clients.append(client_piradio_tx)
         frequency = float(value)
-        try:
-            for client in clients:
-                client.hop_freq(fc=frequency)
-        except Exception:
-            self.print("Error hopping frequency", thr=0)
+        for client in clients:
+            client.hop_freq(fc=frequency)
 
     def action_set_gain_db_tx(self, target_objects, value, **kwargs):
         client_piradio = target_objects[0]
@@ -1783,7 +1783,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_set_gain_db_rx(self, target_objects, value, **kwargs):
         client_piradio = target_objects[0]
-        gain_db = int(value)
+        gain_db = round(float(value), 1)
         client_piradio.set_gain_piradio(trx="rx", chan=0, gain_db=gain_db)
         client_piradio.set_gain_piradio(trx="rx", chan=1, gain_db=gain_db)
 
@@ -1910,6 +1910,8 @@ class AnimatePlot(PlotUtils):
         aoa_gauge : ["aoa_gauge|0|0"]
         nf_loc :    ["nf_loc|0|0"]
         """
+
+        self.print("Processing signals for plot", thr=5)
 
         rxtd_base = rx_signal.rxtd_base
         h_est_full = rx_signal.h_est_full
@@ -2065,12 +2067,16 @@ class AnimatePlot(PlotUtils):
                     label_final += operation + label
 
                 if not (len(plot) > index + 1 and plot[index + 1] in supported_operations):
+                    sig_final = sig_final[0] if sig_final.ndim != 1 else sig_final
+                    n_samples_plot = min(len(x), len(sig_final))
+                    sig_final = sig_final[:n_samples_plot]
+                    x_plot = x[:n_samples_plot] if x is not None else None
                     plot_signals.append(
                         PlotSignal(
                             signal_name=signal_name,
                             trx_id=[rx_id, tx_id],
                             process_list=signal_process_list,
-                            x=x,
+                            x=x_plot,
                             data=sig_final,
                             label=label_final,
                         )
@@ -2126,6 +2132,8 @@ class AnimatePlot(PlotUtils):
             self.anim_paused = not self.anim_paused
 
     def update(self, frame, rx_signal: RxSignal = None):
+        self.print("Updating plot", thr=0)
+
         if self.anim_paused:
             return self.line
 
@@ -2133,105 +2141,106 @@ class AnimatePlot(PlotUtils):
             raise ValueError("rx_signal cannot be None for plot_level >= 0")
         signals = self.process_signals_for_plot(rx_signal)
 
-        line_id = 0
-        for i in range(self.config.n_plots_row):
-            j = self.signals_config.fc_id - 1
+        for j in range(self.config.n_plots_col):
+            line_id = 0
+            for i in range(self.config.n_plots_row):
+                # j = self.signals_config.fc_id - 1
 
-            for signal in signals[i].plot_signals:
-                signal_name = signal.signal_name
-                rx_id = signal.trx_id[0]
-                tx_id = signal.trx_id[1]
-                signal_data = signal.data
-                signal_process_list = signal.process_list
+                for signal in signals[i].plot_signals:
+                    signal_name = signal.signal_name
+                    rx_id = signal.trx_id[0]
+                    tx_id = signal.trx_id[1]
+                    signal_data = signal.data
+                    signal_process_list = signal.process_list
 
-                if "IQ" in signal_process_list:
-                    self.line[line_id][j].set_offsets(
-                        np.column_stack((signal_data.real, signal_data.imag))
+                    if "IQ" in signal_process_list:
+                        self.line[line_id][j].set_offsets(
+                            np.column_stack((signal_data.real, signal_data.imag))
+                        )
+                        line_id += 1
+                        margin = max(np.abs(signal_data)) * 0.1
+                        self.ax[i][j].set_xlim(
+                            min(signal_data.real) - margin, max(signal_data.real) + margin
+                        )
+                        self.ax[i][j].set_ylim(
+                            min(signal_data.imag) - margin, max(signal_data.imag) + margin
+                        )
+                    elif signal_name == "rx_ph_diff":
+                        self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
+                        line_id += 1
+                    elif signal_name == "aoa_gauge":
+                        self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
+                        self.ax[i][j].set_xlim(0, 1)
+                        self.ax[i][j].set_ylim(0.5, 1)
+                        self.ax[i][j].axis("off")
+                    elif signal_name == "h_sparse":
+                        (h_tr, dly_est, peaks, npath_est) = signal_data
+                        h_tr = h_tr[rx_id, tx_id]
+                        dly_est = dly_est[rx_id, tx_id]
+                        peaks = peaks[rx_id, tx_id]
+
+                        # Plot the raw response
+                        dly = np.arange(self.signals_config.n_samples_ch)
+                        dly = dly - self.signals_config.n_samples_ch * (
+                            dly > self.signals_config.n_samples_ch / 2
+                        )
+                        dly = dly / self.signals_config.fs_trx * 1e9
+                        chan_pow = self.signals_obj.lin_to_db(np.abs(h_tr), mode="mag")
+
+                        # Roll the response and shift the response
+                        rots = self.signals_config.n_samp_ch_sp // 4
+                        yshift = np.percentile(chan_pow, 25)
+                        chan_powr = np.roll(chan_pow, rots) - yshift
+                        dlyr = np.roll(dly, rots)
+                        self.line[line_id][j].set_data(
+                            dlyr[: self.signals_config.n_samp_ch_sp],
+                            chan_powr[: self.signals_config.n_samp_ch_sp],
+                        )
+                        line_id += 1
+
+                        # Compute the axes
+                        ymax = np.max(chan_powr) + 5
+                        ymin = -10
+
+                        # Plot the locations of the detected peaks
+                        peaks_ = np.abs(peaks) ** 2
+                        peaks_ = self.signals_obj.lin_to_db(peaks_, mode="pow") - yshift
+                        dly_est = dly_est * 1e9
+                        dly_est = dly_est[dly_est <= np.max(dlyr[: self.signals_config.n_samp_ch_sp])]
+                        self.line[line_id][j].set_data(dly_est, peaks_)
+                        line_id += 1
+                        self.line[line_id][j].set_segments(
+                            [[[i, ymin], [i, j]] for i, j in zip(dly_est, peaks_, strict=False)]
+                        )
+                        line_id += 1
+                        self.ax[i][j].set_ylim([ymin, ymax])
+                    elif signal_name == "nf_loc":
+                        self.signals_obj.nf_model.plot_results(
+                            self.ax[i][j], RoomModel=self.signals_obj.RoomModel, plot_type="init_est"
+                        )
+                    else:
+                        self.line[line_id][j].set_ydata(signal_data)
+                        line_id += 1
+
+                if signal_name in self.mag_filter_list["signal_name"] or any(
+                    item in signal_process_list for item in self.mag_filter_list["process_list"]
+                ):
+                    sig = signal_data[0] if len(np.array(signal_data).shape) > 1 else signal_data.copy()
+                    y_min = np.percentile(sig, 10)
+                    y_max = np.max(sig) + 0.1 * (np.max(sig) - y_min)
+                    self.ax[i][j].set_ylim(y_min, y_max)
+
+                elif not (
+                    signal_name in self.untouched_plot_list["signal_name"]
+                    or any(
+                        item in signal_process_list for item in self.untouched_plot_list["process_list"]
                     )
-                    line_id += 1
-                    margin = max(np.abs(signal_data)) * 0.1
-                    self.ax[i][j].set_xlim(
-                        min(signal_data.real) - margin, max(signal_data.real) + margin
-                    )
-                    self.ax[i][j].set_ylim(
-                        min(signal_data.imag) - margin, max(signal_data.imag) + margin
-                    )
-                elif signal_name == "rx_ph_diff":
-                    self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
-                    line_id += 1
-                elif signal_name == "aoa_gauge":
-                    self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
-                    self.ax[i][j].set_xlim(0, 1)
-                    self.ax[i][j].set_ylim(0.5, 1)
-                    self.ax[i][j].axis("off")
-                elif signal_name == "h_sparse":
-                    (h_tr, dly_est, peaks, npath_est) = signal_data
-                    h_tr = h_tr[rx_id, tx_id]
-                    dly_est = dly_est[rx_id, tx_id]
-                    peaks = peaks[rx_id, tx_id]
-
-                    # Plot the raw response
-                    dly = np.arange(self.signals_config.n_samples_ch)
-                    dly = dly - self.signals_config.n_samples_ch * (
-                        dly > self.signals_config.n_samples_ch / 2
-                    )
-                    dly = dly / self.signals_config.fs_trx * 1e9
-                    chan_pow = self.signals_obj.lin_to_db(np.abs(h_tr), mode="mag")
-
-                    # Roll the response and shift the response
-                    rots = self.signals_config.n_samp_ch_sp // 4
-                    yshift = np.percentile(chan_pow, 25)
-                    chan_powr = np.roll(chan_pow, rots) - yshift
-                    dlyr = np.roll(dly, rots)
-                    self.line[line_id][j].set_data(
-                        dlyr[: self.signals_config.n_samp_ch_sp],
-                        chan_powr[: self.signals_config.n_samp_ch_sp],
-                    )
-                    line_id += 1
-
-                    # Compute the axes
-                    ymax = np.max(chan_powr) + 5
-                    ymin = -10
-
-                    # Plot the locations of the detected peaks
-                    peaks_ = np.abs(peaks) ** 2
-                    peaks_ = self.signals_obj.lin_to_db(peaks_, mode="pow") - yshift
-                    dly_est = dly_est * 1e9
-                    dly_est = dly_est[dly_est <= np.max(dlyr[: self.signals_config.n_samp_ch_sp])]
-                    self.line[line_id][j].set_data(dly_est, peaks_)
-                    line_id += 1
-                    self.line[line_id][j].set_segments(
-                        [[[i, ymin], [i, j]] for i, j in zip(dly_est, peaks_, strict=False)]
-                    )
-                    line_id += 1
-                    self.ax[i][j].set_ylim([ymin, ymax])
-                elif signal_name == "nf_loc":
-                    self.signals_obj.nf_model.plot_results(
-                        self.ax[i][j], RoomModel=self.signals_obj.RoomModel, plot_type="init_est"
-                    )
-                else:
-                    self.line[line_id][j].set_ydata(signal_data)
-                    line_id += 1
-
-            if signal_name in self.mag_filter_list["signal_name"] or any(
-                item in signal_process_list for item in self.mag_filter_list["process_list"]
-            ):
-                sig = signal_data[0] if len(np.array(signal_data).shape) > 1 else signal_data.copy()
-                y_min = np.percentile(sig, 10)
-                y_max = np.max(sig) + 0.1 * (np.max(sig) - y_min)
-                self.ax[i][j].set_ylim(y_min, y_max)
-
-            elif not (
-                signal_name in self.untouched_plot_list["signal_name"]
-                or any(
-                    item in signal_process_list for item in self.untouched_plot_list["process_list"]
-                )
-            ):
-                try:
-                    self.ax[i][j].relim()
-                    self.ax[i][j].autoscale_view()
-                except Exception as e:
-                    print(f"Error in autoscale {e}")
+                ):
+                    try:
+                        self.ax[i][j].relim()
+                        self.ax[i][j].autoscale_view()
+                    except Exception as e:
+                        raise RuntimeError(f"Error in autoscaling axes for signal {signal_name} with process list {signal_process_list}") from e
 
         return self.line
 
@@ -2243,12 +2252,15 @@ class AnimatePlot(PlotUtils):
             self.init_plots(rx_signal)
         else:
             self.update(frame=0, rx_signal=rx_signal)
-            if self.fig is not None:
-                self.fig.canvas.draw_idle()
-                self.fig.canvas.flush_events()
-                plt.pause(0.001)
+
+        if getattr(self, "fig", None) is not None:
+            self.fig.canvas.draw_idle()
+            self.fig.canvas.flush_events()
+            plt.pause(0.01)
 
     def init_plots(self, rx_signal: RxSignal = None):
+        self.print("Initializing plots", thr=5)
+
         if self.config.plot_level < 0:
             return
 

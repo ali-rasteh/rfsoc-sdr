@@ -182,7 +182,7 @@ class LinearTrackController(General):
         if dis_from_home > 0:
             success, status = self.displace(motor_id=motor_id, dis=-1 * dis_from_home)
         elif dis_from_home == 0:
-            print(f"Gantry plate of linear track {motor_id} already at home")
+            self.print(f"Gantry plate of linear track {motor_id} already at home")
         else:
             raise Exception(
                 "The position status variable is negative. Please check the position file"
@@ -199,7 +199,7 @@ class LinearTrackController(General):
         if dis_from_end > 0:
             success, status = self.displace(motor_id=motor_id, dis=dis_from_end)
         elif dis_from_end == 0:
-            print("Gantry plate on linear track {} already at the end", format(motor_id))
+            self.print("Gantry plate on linear track {} already at the end", format(motor_id))
         else:
             raise Exception(
                 "The position status variable is negative for gotoend. Please check the position file"

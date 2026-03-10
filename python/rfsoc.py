@@ -393,7 +393,6 @@ class RFSoC(General):
                         self.config.DynamicPLLConfig[1],
                         self.config.DynamicPLLConfig[2],
                     )
-                # print(dac_block.MixerSettings)
                 if do_rfsoc_mixer_settings:
                     dac_block.MixerSettings["Freq"] = mix_freq / 1e6
                     dac_block.MixerSettings["PhaseOffset"] = self.config.rfsoc_mix_phase_off

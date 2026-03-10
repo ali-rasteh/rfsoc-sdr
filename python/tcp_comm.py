@@ -261,6 +261,9 @@ class TcpCommRFSoC(TcpComm):
         data = data / (2 ** (self.config.adc_bits + 1) - 1)
         rxtd = data[: self.nread * nbeams] + 1j * data[self.nread * nbeams :]
         rxtd = rxtd.reshape(nbeams, self.config.n_rx_ant, self.nread // self.config.n_rx_ant)
+
+        resp = self.radio_control.recv(1024)
+        self.print(f"Result of receive_data_rfsoc_once: {resp}", thr=3)
         return rxtd
 
     def receive_data_rfsoc(self, n_rd_rep=1, mode="once", verbose=False):
@@ -270,7 +273,6 @@ class TcpCommRFSoC(TcpComm):
                 self.print(f"Reading iteration: {i + 1}", thr=0)
             rxtd_ = self.receive_data_rfsoc_once(mode=mode)
             rxtd_ = rxtd_.squeeze(axis=0)
-            print(rxtd_.shape)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
         self.last_rxtd = rxtd.copy()
@@ -694,12 +696,12 @@ class SshCom(General):
             )
 
         except paramiko.AuthenticationException:
-            print("Authentication failed. Please check your credentials.")
+            self.print("Authentication failed. Please check your credentials.", thr=0)
             traceback.print_exc()
         except paramiko.SSHException as e:
-            print(f"SSH Error: {e}")
+            self.print(f"SSH Error: {e}", thr=0)
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            self.print(f"Unexpected error: {e}", thr=0)
 
         self.print("SshCom client init done", thr=1)
 

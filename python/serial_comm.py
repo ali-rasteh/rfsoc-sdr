@@ -17,7 +17,7 @@ class SerialComConfig(GeneralConfig):
     port: str = "COM6"
     baudrate: int = 115200
     timeout: float = 1.0
-    write_timeout: float | None = None
+    write_timeout: float | None = 0.0
     bytesize: int | None = None
     parity: str | None = None
     stopbits: int | None = None
@@ -51,15 +51,16 @@ class SerialCom(General):
 
     def connect(self):
         """Establish a connection to the target."""
-        self.client = serial.Serial(
-            port=self.config.port,
-            baudrate=self.config.baudrate,
-            timeout=self.config.timeout,
-            write_timeout=self.config.write_timeout,
-            bytesize=self.config.bytesize,
-            parity=self.config.parity,
-            stopbits=self.config.stopbits,
-        )
+        kwargs = {
+            "port": self.config.port,
+            "baudrate": self.config.baudrate,
+            "timeout": self.config.timeout,
+            "write_timeout": self.config.write_timeout,
+            "bytesize": self.config.bytesize,
+            "parity": self.config.parity,
+            "stopbits": self.config.stopbits,
+        }
+        self.client = serial.Serial(**{k: v for k, v in kwargs.items() if v is not None})
         try:
             self.client.reset_input_buffer()
             self.client.reset_output_buffer()
@@ -235,7 +236,7 @@ class SerialComD48PTU(SerialCom):
     # ----------------- serial I/O -----------------
     def _write_line(self, line: str) -> None:
         assert self.client is not None
-        payload = (line.strip() + self.cfg.line_ending).encode("ascii", errors="ignore")
+        payload = (line.strip() + self.config.line_ending).encode("ascii", errors="ignore")
         self.client.write(payload)
         self.client.flush()
 
@@ -264,11 +265,11 @@ class SerialComD48PTU(SerialCom):
     # ----------------- conversion -----------------
     def deg_to_pos(self, deg: float) -> int:
         # 1 degree = 3600 arcsec
-        pos = deg * 3600.0 / float(self.cfg.arcsec_per_pos)
+        pos = deg * 3600.0 / float(self.config.arcsec_per_pos)
         return int(round(pos))
 
     def pos_to_deg(self, pos: int) -> float:
-        return float(pos) * float(self.cfg.arcsec_per_pos) / 3600.0
+        return float(pos) * float(self.config.arcsec_per_pos) / 3600.0
 
     def rad_to_pos(self, rad: float) -> int:
         return self.deg_to_pos(math.degrees(rad))
@@ -278,9 +279,9 @@ class SerialComD48PTU(SerialCom):
 
     def _clamp_deg(self, axis: str, deg: float) -> float:
         if axis == "pan":
-            mn, mx = self.cfg.pan_min_deg, self.cfg.pan_max_deg
+            mn, mx = self.config.pan_min_deg, self.config.pan_max_deg
         else:
-            mn, mx = self.cfg.tilt_min_deg, self.cfg.tilt_max_deg
+            mn, mx = self.config.tilt_min_deg, self.config.tilt_max_deg
         if mn is not None and deg < mn:
             return mn
         if mx is not None and deg > mx:
@@ -299,8 +300,8 @@ class SerialComD48PTU(SerialCom):
         m = self._re_scale.search(out)
         if not m:
             raise RuntimeError(f"Could not parse scale from response:\n{out}")
-        self.cfg.arcsec_per_pos = float(m.group(1))
-        return self.cfg.arcsec_per_pos
+        self.config.arcsec_per_pos = float(m.group(1))
+        return self.config.arcsec_per_pos
 
     # ----------------- axis getters/setters (positions) -----------------
     def _get_pan_pos(self) -> int:

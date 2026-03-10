@@ -1,3 +1,4 @@
+from logging import config
 import os
 import platform
 from dataclasses import dataclass, field
@@ -6,7 +7,7 @@ from typing import Any
 import numpy as np
 from file_utils import FileUtils, FileUtilsConfig
 from sigcom_toolkit.general import General
-from signal_utils_rfsoc import ExperimentOperator, ExperimentOperatorConfig
+from signal_utils_rfsoc import AnimatePlot, AnimationPlotConfig, ExperimentOperator, ExperimentOperatorConfig
 
 
 @dataclass(kw_only=True)
@@ -138,7 +139,7 @@ class Sounder(General):
 
         operator_config = ExperimentOperatorConfig().update_from_config(self.config)
         self.operator = ExperimentOperator(operator_config)
-
+ 
         if self.config.save_parameters:
             self.save_class_attributes_to_json(self.config, self.config.config_save_path)
             self.config.save_parameters = False
@@ -171,13 +172,13 @@ class Sounder(General):
             changed_3 = file_utils.convert_files()
 
         if changed_1:
-            print("Some files were updated from the Host server ...")
+            self.print("Some files were updated from the Host server ...", thr=0)
         if changed_2:
-            print("To handle pre-requisites some files were modified ...")
+            self.print("To handle pre-requisites some files were modified ...", thr=0)
         if changed_3:
-            print("Some files were converted ...")
+            self.print("Some files were converted ...", thr=0)
         if changed_1 or changed_2 or changed_3:
-            print("Please run the script again ...")
+            self.print("Please run the script again ...", thr=0)
             return
 
     def run_rfsoc(self):
@@ -201,4 +202,7 @@ class Sounder(General):
 
         elif "client" in self.config.host_role:
             self.operator.init_objects()
+            plot_config = AnimationPlotConfig().update_from_config(self.config)
+            animate_plotter = AnimatePlot(plot_config, self.operator)
+            self.operator.animate_plotter = animate_plotter
             self.operator.run_operator()

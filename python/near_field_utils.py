@@ -242,14 +242,10 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
             aoa[:, m] = self.phase_to_aoa(phase_diff[:, m], wl=self.wl, ant_d_m=ant_d_m)
             # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_d_m=self.ant_d_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
-        # print("phase_diff: ", phase_diff[:,0])
-        # print("aoa: ", aoa[:,0])
-        # print("trx_unit_vec: ", trx_unit_vec[:,0,:])
         path_delay = self.nf_model.abs_delay.copy()[:n_paths_min, :, None, :] * np.ones(
             dly_est[:n_paths_min].shape
         )
         path_gain = peaks.copy()[:n_paths_min]
-        # print("path_delay: ", path_delay[:,0,0,0])
         # path_delay = None
         # path_gain = None
         freq = self.freq_ch.copy()
