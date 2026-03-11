@@ -65,7 +65,7 @@ class BaseConfig(SounderConfig):
     animate_plot_mode: tuple = (
         [PlotSymbols.rxtd00_r, PlotSymbols.rxtd00_i],
         [PlotSymbols.rxfd00],
-        [PlotSymbols.txfd00],
+        # [PlotSymbols.txfd00],
         # [PlotSymbols.h00],
         # PlotSymbols.aoa_gauge,
     )
@@ -118,16 +118,17 @@ class FR3SpectrumSweepConfig(BaseConfig):
     })
     action_loop: tuple = (
         {"targets": ["rfsoc_trx"],      "actions": ["transmit_signal"]},
-        # {"targets": ["piradio_trx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-        # {"targets": ["piradio_trx"],    "actions": ["set_gain_db_rx"], "values": "10:20:20"},
+        {"targets": ["piradio_trx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+        {"targets": ["piradio_trx"],    "actions": ["set_gain_db_tx"], "values": [40.0]},
+        {"targets": ["piradio_trx"],    "actions": ["set_gain_db_rx"], "values": "30:50:20"},
         # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": [8, 16, 32, 128]},
         # {"targets": ["piradio_trx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
-        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "1:256:20:log"},
-        # {"targets": ["gimbal"],         "actions": ["set_gimbal_el"], "values": "-20:20:10"},
-        # {"targets": ["gimbal"],         "actions": ["set_gimbal_az"], "values": "-45:45:10"},
-        # {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:10"},
+        {"targets": ["gimbal"],         "actions": ["set_gimbal_el"], "values": "-20:20:10"},
+        {"targets": ["gimbal"],         "actions": ["set_gimbal_az"], "values": "-45:45:10"},
+        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:20:log"},
+        {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:3"},
         {"targets": ["self"],           "actions": ["wait"], "values": [0.1]},
-        {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [32],
+        {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
                                         "params": {"process_signal": False}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
         # {"targets": ["self"],           "actions": ["save"], "values": [1],

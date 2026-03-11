@@ -424,7 +424,7 @@ class SignalUtilsRfsoc(SignalUtils):
         self.rx_signal = None
 
     def gen_tx_signal(self):
-        self.print("Generating TX signal", thr=1)
+        self.print("Generating TX signal", thr=3)
 
         txtd_base = []
         txtd = []
@@ -1502,34 +1502,17 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
                 if third == 0:
                     raise ValueError(f"Invalid zero step/count in values: {values}")
+                count = int(third)
 
                 if len(parts) > 3 and "log" in values:
-                    count = int(third)
                     return np.logspace(np.log10(start), np.log10(stop), count)
-
-                # span = stop - start
-                # is_integer_like_step = np.isclose(span / third, round(span / third))
-                # use_step_mode = abs(span) >= abs(third) and is_integer_like_step
-
-                # if use_step_mode:
-                #     step = third
-                #     step_sign = np.sign(step)
-                #     if step_sign == 0:
-                #         raise ValueError(f"Invalid step in values: {values}")
-                #     if np.sign(span) != step_sign and not np.isclose(span, 0.0):
-                #         raise ValueError(
-                #             f"Step sign does not move from start to stop in values: {values}"
-                #         )
-                #     stop_inclusive = stop + (step * 0.5)
-                #     return np.arange(start, stop_inclusive, step)
-
-                count = int(third)
-                return np.linspace(start, stop, count)
+                else:
+                    return np.linspace(start, stop, count)
 
             # Safely evaluate lists or numbers encoded as strings
             try:
                 val = ast.literal_eval(values)
-                if isinstance(val, list):
+                if isinstance(val, (list, tuple)):
                     return np.array(val)
                 if isinstance(val, (int, float)):
                     return np.array([val])
@@ -1586,7 +1569,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 ]
             prev = values
 
-            # print(f"\t\t Action Names: {[actions[i] for i in changed_idxs]}")
             # process only the actions whose value changed
             for i in changed_idxs:
                 target_objects = self._get_target_objects(targets[i])
@@ -1643,8 +1625,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
             n_rd_rep=n_rd_rep, mode="once", verbose=False
         )
         self.rx_signal = RxSignal(
-            rxtd=rxtd,
-            rxtd_base=rxtd,
+            rxtd=rxtd[0,:,:1024],
+            rxtd_base=rxtd[0,:,:1024],
         )
 
         if process_signal:
@@ -1659,16 +1641,17 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
                 rxtd_save.append(rx_signal.rxtd_base)
         else:
-            rxtd_save = np.empty(
-                (self.config.n_save, self.config.n_rx_ant, self.config.n_samples_tx),
-                dtype=rxtd.dtype,
-            )
-            for i in range(self.config.n_frame_rd):
-                rxtd_save[i :: self.config.n_frame_rd] = rxtd[
-                    :,
-                    :,
-                    i * self.config.n_samples_tx : (i + 1) * self.config.n_samples_tx,
-                ]
+            # rxtd_save = np.empty(
+            #     (self.config.n_save, self.config.n_rx_ant, self.config.n_samples_tx),
+            #     dtype=rxtd.dtype,
+            # )
+            # for i in range(self.config.n_frame_rd):
+            #     rxtd_save[i :: self.config.n_frame_rd] = rxtd[
+            #         :,
+            #         :,
+            #         i * self.config.n_samples_tx : (i + 1) * self.config.n_samples_tx,
+            #     ]
+            rxtd_save = [0.0]
 
         self.txtd_save = np.expand_dims(self.tx_signal.txtd_base, axis=0)
         self.rxtd_save = np.array(rxtd_save)
@@ -2132,7 +2115,7 @@ class AnimatePlot(PlotUtils):
             self.anim_paused = not self.anim_paused
 
     def update(self, frame, rx_signal: RxSignal = None):
-        self.print("Updating plot", thr=0)
+        self.print("Updating plot", thr=5)
 
         if self.anim_paused:
             return self.line
