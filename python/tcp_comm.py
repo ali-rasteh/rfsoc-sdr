@@ -11,7 +11,6 @@ import paramiko
 import requests
 from scp import SCPClient
 from sigcom_toolkit.general import General, GeneralConfig
-from sigcom_toolkit.signal_utils import SignalUtilsConfig
 
 
 @dataclass(kw_only=True)

@@ -72,28 +72,6 @@ class BaseConfig(SounderConfig):
 
     save_format: str = "npz"
 
-
-@dataclass(kw_only=True)
-class PlotSaveConfig(BaseConfig):
-    # freq_hop_config["list"] = [6.5e9, 10e9, 15.0e9, 20.0e9]
-    tx_sig_sim: str = "shifted"
-    sig_gen_mode: str = "ZadoffChu"
-
-@dataclass(kw_only=True)
-class MmwDemoConfig(BaseConfig):
-    RFFE: str = "sivers"
-    # freq_hop_config["list"] = [60.0e9]
-    tx_sig_sim: str = "orthogonal"
-    sig_gen_mode: str = "ZadoffChu"
-
-@dataclass(kw_only=True)
-class RfsocDemoConfig(BaseConfig):
-    mix_freq_adc: float = 0.0e6
-    do_rfsoc_mixer_settings: bool = False
-    tx_sig_sim: str = "same"
-    sig_gen_mode: str = "fft"
-    sig_modulation: str = "4qam"
-
 @dataclass(kw_only=True)
 class FR3SpectrumSweepConfig(BaseConfig):
     rx_chain: tuple = ("sync_time",)
@@ -146,8 +124,8 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     sig_mode: str = "wideband"
     measurement_configs: tuple = None
     network_topology: dict = field(default_factory=lambda: {
-        "rfsoc_trx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4", "protocol": "tcp"},
-        "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4", "protocol": "tcp"},
         "piradio_rx": {
             "type": "piradio",
             "role": "rx",
@@ -160,6 +138,9 @@ class FR3RoboticLocalizationConfig(BaseConfig):
             "ip": "192.168.137.51",
             "protocol": "http",
         },
+        "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        "lintrack_tx": {"type": "lintrack", "ip": "192.168.185.52"},
+        "turtlebot_rx": {"type": "turtlebot"},
     })
         # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
     action_loop: tuple = (
@@ -180,115 +161,3 @@ class FR3RoboticLocalizationConfig(BaseConfig):
         {"targets": ["self"],           "actions": ["save"], "values": [1],
                                         "params": {"save_list": ["signal"]}},
     )
-
-@dataclass(kw_only=True)
-class FR3DemoConfig(BaseConfig):
-    # freq_hop_config["list"] = [6.5e9]
-    tx_sig_sim: str = "orthogonal"
-
-@dataclass(kw_only=True)
-class FR3DemoMultiFreqConfig(BaseConfig):
-    # freq_hop_config["list"] = [6.5e9, 8.75e9, 10.0e9]
-    tx_sig_sim: str = "orthogonal"
-
-@dataclass(kw_only=True)
-class FR3AntCalibConfig(BaseConfig):
-    # rotation_range_deg = [-90, 90]
-    # rotation_step_deg = 1
-    # rotation_delay = 0.5
-    # freq_hop_config["mode"] = "sweep"
-    # freq_hop_config["range"] = [6.0e9, 22.5e9]
-    # freq_hop_config["step"] = 0.5e9
-    tx_sig_sim: str = "shifted"
-    sig_gen_mode: str = "ZadoffChu"
-    measurement_configs: tuple = ("tx1_rx1_rx_rotate", "tx2_rx2_rx_rotate")
-
-@dataclass(kw_only=True)
-class FR3BeamFormConfig(BaseConfig):
-    # rotation_range_deg = [-90, 90]
-    # rotation_step_deg = 2
-    # rotation_delay = 0.5
-    # freq_hop_config["list"] = [10e9]
-    sig_gen_mode: str = "fft"
-    tx_sig_sim: str = "same"
-    beamforming: bool = True
-    steer_rad: tuple = (0, 0)
-    def __post_init__(self):
-        return super().__post_init__()
-        self.measurement_configs: tuple = (6.5, f"bf_phi_{self.steer_rad[0]}")
-
-@dataclass(kw_only=True)
-class FR3NYU3StateConfig(BaseConfig):
-    # rotation_range_deg = [-45, 45]
-    # rotation_step_deg = 45
-    # rotation_delay = 0.5
-    # freq_hop_config["list"] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-    tx_sig_sim: str = "shifted"
-    sig_gen_mode: str = "ZadoffChu"
-
-    # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
-    # Orientations: alpha: 0, beta: 45, gamma: -45
-    # Good Pi-radio gains for OTA: 20dB for TX channels and 21dB for RX channels
-    # Good Pi-radio gains for cabled calibration: 10dB for TX channels and 15dB for RX channels
-    measurement_configs: tuple = (
-        "calib_1-1_2-2",
-        "calib_1-2_2-1",
-        "A_beta_<rxorient>_n",
-        "A_alpha_<rxorient>_n",
-        "A_gamma_<rxorient>_n",
-        "B_alpha_<rxorient>_n",
-        "B_gamma_<rxorient>_n",
-        "B_beta_<rxorient>_n",
-        "C_beta_<rxorient>_n",
-        "C_alpha_<rxorient>_n",
-        "C_gamma_<rxorient>_n",
-        "D_gamma_<rxorient>_n",
-        "D_alpha_<rxorient>_n",
-        "D_beta_<rxorient>_n",
-        "E_beta_<rxorient>_n",
-        "E_alpha_<rxorient>_n",
-        "E_gamma_<rxorient>_n",
-    )
-
-@dataclass(kw_only=True)
-class FR3NYU13StateConfig(BaseConfig):
-    # rotation_range_deg = [-60, 60]
-    # rotation_step_deg = 10
-    # rotation_delay = 0.5
-    # freq_hop_config["list"] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-    tx_sig_sim: str = "shifted"
-    sig_gen_mode: str = "ZadoffChu"
-
-    # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
-    measurement_configs: tuple = (
-        "calib_1-1_2-2",
-        "calib_1-2_2-1",
-        "C_alpha_<rxorient>_n",
-        "C_alpha_<rxorient>_r",
-        "C_alpha_<rxorient>_b",
-    )
-
-@dataclass(kw_only=True)
-class FR3CFOConfig(BaseConfig):
-    # freq_hop_config["list"] = [10.0e9]
-    cfo_ppm: int = -100
-    sig_gen_mode: str = "fft"
-    tx_sig_sim: str = "orthogonal"
-    sig_modulation: str = "4qam"
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.host_role == "client_master":
-            self.cfo = self.cfo_ppm * self.freq_hop_config["list"][0] / 1e6
-            self.mix_freq_adc += self.cfo
-            self.do_rfsoc_mixer_settings = True
-
-        self.measurement_configs: tuple = (
-            "{}GHz_{}ppm".format(self.freq_hop_config["list"][0] / 1e9, self.cfo_ppm)
-        )
-
-@dataclass(kw_only=True)
-class TurtlebotDemoConfig(BaseConfig):
-    # freq_hop_config["list"] = [10.0e9]
-    tx_sig_sim: str = "same"
-    sig_gen_mode: str = "ZadoffChu"

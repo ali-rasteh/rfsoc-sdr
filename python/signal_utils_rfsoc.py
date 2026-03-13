@@ -1242,7 +1242,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             )
         else:
             self._network_objects["self"] = self
-
+    #TODO: complete parameters
     def init_rfsoc(self, ip, **kwargs):
         rfsoc_config = ClientRFSoCConfig(server_ip=ip).update_from_config(
             self.config
