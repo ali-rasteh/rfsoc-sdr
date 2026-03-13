@@ -173,10 +173,9 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                     self.nf_sep_idx = 0
                 else:
                     self.h_nf.append(h_est_full)
-                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
-                    self.dly_est_nf.append(dly_est)
-                    self.peaks_nf.append(peaks)
-                    self.npaths_nf.append(npath_est)
+                    self.dly_est_nf.append(sparse_est_params.dly_est_mat)
+                    self.peaks_nf.append(sparse_est_params.peaks_mat)
+                    self.npaths_nf.append(sparse_est_params.npaths_est_mat)
 
                     if use_linear_track:
                         if self.nf_sep_idx < len(self.nf_rx_ant_sep):

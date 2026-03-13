@@ -559,7 +559,7 @@ class RFSoC(General):
             self.gpio_dic["dac_reset"].write(1)  # Reset ON
         else:
             self.gpio_dic["dac_reset"].write(0)
-        time.sleep(0.5)
+        time.sleep(0.01)
         if "ddr4" in self.config.project:
             self.gpio_dic["dac_reset"].write(0)  # Reset OFF
         else:
@@ -570,7 +570,7 @@ class RFSoC(General):
         self.gpio_dic["dac_enable"].write(1)
 
         # self.dma_tx.wait()
-        time.sleep(0.1)
+        time.sleep(0.01)
         self.print("Frame sent via DAC", thr=1)
 
     def recv_frame_once(self, n_frame=1):

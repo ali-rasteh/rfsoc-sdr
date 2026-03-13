@@ -275,6 +275,8 @@ class TcpCommRFSoC(TcpComm):
             rxtd_ = rxtd_.squeeze(axis=0)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
+        if len(rxtd.shape) != 3:
+            rxtd = rxtd.reshape(n_rd_rep, rxtd.shape[-2], rxtd.shape[-1])
         self.last_rxtd = rxtd.copy()
         return rxtd
 

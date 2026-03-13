@@ -70,7 +70,6 @@ class BaseConfig(SounderConfig):
         # PlotSymbols.aoa_gauge,
     )
 
-    n_save: int = 32
     save_format: str = "npz"
 
 
@@ -97,7 +96,6 @@ class RfsocDemoConfig(BaseConfig):
 
 @dataclass(kw_only=True)
 class FR3SpectrumSweepConfig(BaseConfig):
-    n_save: int = 1
     rx_chain: tuple = ("sync_time",)
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "fft"
@@ -105,34 +103,82 @@ class FR3SpectrumSweepConfig(BaseConfig):
     sig_modulation: str = "4qam"
     measurement_configs: tuple = None
     network_topology: dict = field(default_factory=lambda: {
-        "rfsoc_trx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
-        "gimbal": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
-        "piradio_trx": {
+        "rfsoc_trx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        "piradio_rx": {
             "type": "piradio",
-            "role": "tx",
+            "role": "rx",
             "ip": "192.168.185.51",
             "protocol": "http",
-            "username": "ubuntu",
-            "password": "temppwd",
+        },
+        "piradio_tx": {
+            "type": "piradio",
+            "role": "tx",
+            "ip": "192.168.137.51",
+            "protocol": "http",
         },
     })
+        # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
     action_loop: tuple = (
+        {"targets": ["piradio_rx", "piradio_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+        {"targets": ["piradio_tx"],     "actions": ["set_gain_db_tx"], "values": [35.0]},
         {"targets": ["rfsoc_trx"],      "actions": ["transmit_signal"]},
-        {"targets": ["piradio_trx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-        {"targets": ["piradio_trx"],    "actions": ["set_gain_db_tx"], "values": [40.0]},
-        {"targets": ["piradio_trx"],    "actions": ["set_gain_db_rx"], "values": "30:50:20"},
-        # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": [8, 16, 32, 128]},
-        # {"targets": ["piradio_trx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
-        {"targets": ["gimbal"],         "actions": ["set_gimbal_el"], "values": "-20:20:10"},
-        {"targets": ["gimbal"],         "actions": ["set_gimbal_az"], "values": "-45:45:10"},
-        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:20:log"},
-        {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:3"},
-        {"targets": ["self"],           "actions": ["wait"], "values": [0.1]},
+        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": [8, 16, 64, 256]},
+        {"targets": ["gimbal_tx"],      "actions": ["set_gimbal_el"], "values": "-20:0.0:3"},
+        {"targets": ["gimbal_tx"],      "actions": ["set_gimbal_az"], "values": "-45:45:2"},
+        {"targets": ["piradio_rx"],     "actions": ["set_gain_db_rx"], "values": "15:38:10"},
+        # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:10:log"},
+        {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:5"},
+        # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
         {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
                                         "params": {"process_signal": False}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
-        # {"targets": ["self"],           "actions": ["save"], "values": [1],
-        #                                 "params": {"save_list": ["signal"]}},
+        # {"targets": ["self"],           "actions": ["print_snr"], "values": [1]},
+        {"targets": ["self"],           "actions": ["save"], "values": [1],
+                                        "params": {"save_list": ["signal"]}},
+    )
+
+@dataclass(kw_only=True)
+class FR3RoboticLocalizationConfig(BaseConfig):
+    rx_chain: tuple = ("sync_time",)
+    tx_sig_sim: str = "same"
+    sig_gen_mode: str = "ZadoffChu"
+    sig_mode: str = "wideband"
+    measurement_configs: tuple = None
+    network_topology: dict = field(default_factory=lambda: {
+        "rfsoc_trx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        "piradio_rx": {
+            "type": "piradio",
+            "role": "rx",
+            "ip": "192.168.185.51",
+            "protocol": "http",
+        },
+        "piradio_tx": {
+            "type": "piradio",
+            "role": "tx",
+            "ip": "192.168.137.51",
+            "protocol": "http",
+        },
+    })
+        # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
+    action_loop: tuple = (
+        {"targets": ["piradio_rx", "piradio_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+        {"targets": ["piradio_tx"],     "actions": ["set_gain_db_tx"], "values": [35.0]},
+        {"targets": ["rfsoc_trx"],      "actions": ["transmit_signal"]},
+        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": [8, 16, 64, 256]},
+        {"targets": ["gimbal_tx"],      "actions": ["set_gimbal_el"], "values": "-20:0.0:3"},
+        {"targets": ["gimbal_tx"],      "actions": ["set_gimbal_az"], "values": "-45:45:2"},
+        {"targets": ["piradio_rx"],     "actions": ["set_gain_db_rx"], "values": "15:38:10"},
+        # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:10:log"},
+        {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:5"},
+        # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
+        {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
+                                        "params": {"process_signal": False}},
+        {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
+        # {"targets": ["self"],           "actions": ["print_snr"], "values": [1]},
+        {"targets": ["self"],           "actions": ["save"], "values": [1],
+                                        "params": {"save_list": ["signal"]}},
     )
 
 @dataclass(kw_only=True)
