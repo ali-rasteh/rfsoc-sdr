@@ -139,6 +139,30 @@ class TcpComm(General):
 
         self.print("Client succesfully connected to the server", thr=1)
 
+    def parse_and_execute(self, received_command):
+        client_msg = received_command.decode()
+        parts = client_msg.split()
+
+        if not parts:
+            response = self.config.invalid_command_message
+            return str.encode(f"{response} ({client_msg})")
+
+        cmd, args = parts[0], parts[1:]
+        handler = self._command_handlers.get(cmd)
+
+        if handler is None:
+            response = self.config.invalid_command_message
+        else:
+            try:
+                response = handler(args)
+            except (ValueError, TypeError):
+                response = self.config.invalid_number_of_arguments_message
+            except Exception as exc:
+                self.print(f"Command '{cmd}' failed: {exc}", thr=0)
+                response = self.config.invalid_command_message
+
+        return str.encode(f"{response} ({client_msg})")
+
 
 @dataclass(kw_only=True)
 class TCPComRFSoCConfig(TCPComConfig):
@@ -173,6 +197,27 @@ class TcpCommRFSoC(TcpComm):
             self.rx_gain_ctrl_bfrf = 0x7F
 
         self.nread = self.config.n_rx_ant * self.config.n_frame_rd * self.config.n_samples
+
+        # command -> handler
+        self._command_handlers = {
+            "receiveSamplesOnce":           self._handle_receive_samples_once,
+            "receiveSamples":               self._handle_receive_samples,
+            "transmitSamplesDefault":       self._handle_transmit_samples_default,
+            "transmitSamples":              self._handle_transmit_samples,
+            "getBeamIndexTXSivers":         self._handle_get_beam_index_tx_sivers,
+            "setBeamIndexTXSivers":         self._handle_set_beam_index_tx_sivers,
+            "getBeamIndexRXSivers":         self._handle_get_beam_index_rx_sivers,
+            "setBeamIndexRXSivers":         self._handle_set_beam_index_rx_sivers,
+            "getModeSivers":                self._handle_get_mode_sivers,
+            "setModeSiver":                 self._handle_set_mode_sivers,
+            "getGainRXSivers":              self._handle_get_gain_rx_sivers,
+            "setGainRXSivers":              self._handle_set_gain_rx_sivers,
+            "getGainTXSivers":              self._handle_get_gain_tx_sivers,
+            "setGainTXSivers":              self._handle_set_gain_tx_sivers,
+            "getCarrierFrequencySivers":    self._handle_get_carrier_frequency_sivers,
+            "setCarrierFrequencySivers":    self._handle_set_carrier_frequency_sivers,
+            "setFrequencyMixer":            self._handle_set_frequency_mixer,
+        }
 
         self.print("TcpCommRFSoC object init done", thr=1)
 
@@ -279,211 +324,218 @@ class TcpCommRFSoC(TcpComm):
         self.last_rxtd = rxtd.copy()
         return rxtd
 
-    def parse_and_execute(self, received_command):
-        clientMsg = received_command.decode()
-        clientMsgParsed = clientMsg.split()
+    def _handle_receive_samples_once(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.config.n_frame_rd)
+        iq_data = np.array(iq_data).flatten()
+        iq_data = iq_data * (2 ** (self.config.adc_bits + 1) - 1)
+        re = iq_data.real.astype(np.int16)
+        im = iq_data.imag.astype(np.int16)
+        iq_data = np.concatenate((re, im))
+        self.connectionData.sendall(iq_data.tobytes())
+        return self.config.success_message
 
-        if clientMsgParsed[0] == "receiveSamplesOnce":
-            if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.config.n_frame_rd)
-                iq_data = np.array(iq_data).flatten()
-                iq_data = iq_data * (2 ** (self.config.adc_bits + 1) - 1)
-                re = iq_data.real.astype(np.int16)
-                im = iq_data.imag.astype(np.int16)
-                iq_data = np.concatenate((re, im))
-                self.connectionData.sendall(iq_data.tobytes())
-                responseToCMD = "Success"
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "receiveSamples":
-            if len(clientMsgParsed) == 1:
-                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.config.n_frame_rd)
-                re = iq_data.real.astype(np.int16)
-                im = iq_data.imag.astype(np.int16)
-                iq_data = np.concatenate((re, im))
-                self.connectionData.sendall(iq_data.tobytes())
-                responseToCMD = "Success"
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "transmitSamplesDefault":
-            if len(clientMsgParsed) == 1:
-                self.obj_rfsoc.send_frame(txtd=self.obj_rfsoc.txtd)
-                responseToCMD = "Success"
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "transmitSamples":
-            if len(clientMsgParsed) == 1:
-                nread = self.config.n_tx_ant * self.config.n_samples_tx
-                nbytes = self.config.nbytes * nread * 2
-                buf = bytearray()
+    def _handle_receive_samples(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        iq_data = self.obj_rfsoc.recv_frame(n_frame=self.config.n_frame_rd)
+        re = iq_data.real.astype(np.int16)
+        im = iq_data.imag.astype(np.int16)
+        iq_data = np.concatenate((re, im))
+        self.connectionData.sendall(iq_data.tobytes())
+        return self.config.success_message
 
-                while len(buf) < nbytes:
-                    data = self.connectionData.recv(nbytes)
-                    buf.extend(data)
-                data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.config.dac_bits + 1) - 1)
-                txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
+    def _handle_transmit_samples_default(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        self.obj_rfsoc.send_frame(txtd=self.obj_rfsoc.txtd)
+        return self.config.success_message
 
-                self.obj_rfsoc.send_frame(txtd=txtd)
-                responseToCMD = "Success"
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getBeamIndexTXSivers":
-            if len(clientMsgParsed) == 1:
-                responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_beam_index_tx())
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setBeamIndexTXSivers":
-            if len(clientMsgParsed) == 2:
-                beamIndex = int(clientMsgParsed[1])
-                success, status = self.obj_rfsoc.siversControllerObj.set_beam_index_tx(beamIndex)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getBeamIndexRXSivers":
-            if len(clientMsgParsed) == 1:
-                responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_beam_index_rx())
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setBeamIndexRXSivers":
-            if len(clientMsgParsed) == 2:
-                beamIndex = int(clientMsgParsed[1])
-                success, status = self.obj_rfsoc.siversControllerObj.set_beam_index_rx(beamIndex)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getModeSiver":
-            if len(clientMsgParsed) == 1:
-                responseToCMD = self.obj_rfsoc.siversControllerObj.get_mode()
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setModeSiver":
-            if len(clientMsgParsed) == 2:
-                mode = clientMsgParsed[1]
-                success, status = self.obj_rfsoc.siversControllerObj.set_mode(mode)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getGainRXSivers":
-            if len(clientMsgParsed) == 1:
-                (
-                    rx_gain_ctrl_bb1,
-                    rx_gain_ctrl_bb2,
-                    rx_gain_ctrl_bb3,
-                    rx_gain_ctrl_bfrf,
-                    agc_int_bfrf_gain_lvl,
-                    agc_int_bb3_gain_lvl,
-                ) = self.obj_rfsoc.siversControllerObj.get_gain_rx()
-                responseToCMD = (
-                    "rx_gain_ctrl_bb1:"
-                    + str(hex(rx_gain_ctrl_bb1))
-                    + ", rx_gain_ctrl_bb2:"
-                    + str(hex(rx_gain_ctrl_bb2))
-                    + ", rx_gain_ctrl_bb3:"
-                    + str(hex(rx_gain_ctrl_bb3))
-                    + ", rx_gain_ctrl_bfrf:"
-                    + str(hex(rx_gain_ctrl_bfrf))
-                    + ", agc_int_bfrf_gain_lvl:"
-                    + str(hex(agc_int_bfrf_gain_lvl))
-                    + ", agc_int_bb3_gain_lvl:"
-                    + str(hex(agc_int_bb3_gain_lvl))
-                )
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setGainRXSivers":
-            if len(clientMsgParsed) == 5:
-                rx_gain_ctrl_bb1 = int(clientMsgParsed[1])
-                rx_gain_ctrl_bb2 = int(clientMsgParsed[2])
-                rx_gain_ctrl_bb3 = int(clientMsgParsed[3])
-                rx_gain_ctrl_bfrf = int(clientMsgParsed[4])
+    def _handle_transmit_samples(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
 
-                success, status = self.obj_rfsoc.siversControllerObj.set_gain_rx(
-                    rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf
-                )
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getGainTXSivers":
-            if len(clientMsgParsed) == 1:
-                tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl = (
-                    self.obj_rfsoc.siversControllerObj.get_gain_tx()
-                )
-                responseToCMD = (
-                    "tx_bb_gain:"
-                    + str(hex(tx_bb_gain))
-                    + ", tx_bb_phase:"
-                    + str(hex(tx_bb_phase))
-                    + ", tx_bb_gain:"
-                    + str(hex(tx_bb_iq_gain))
-                    + ", tx_bfrf_gain:"
-                    + str(hex(tx_bfrf_gain))
-                    + ", tx_ctrl:"
-                    + str(hex(tx_ctrl))
-                )
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setGainTXSivers":
-            if len(clientMsgParsed) == 5:
-                self.print(clientMsgParsed[1], thr=2)
+        nread = self.config.n_tx_ant * self.config.n_samples_tx
+        nbytes = self.config.nbytes * nread * 2
+        buf = bytearray()
 
-                tx_bb_gain = int(clientMsgParsed[1])
-                tx_bb_phase = int(clientMsgParsed[2])
-                tx_bb_iq_gain = int(clientMsgParsed[3])
-                tx_bfrf_gain = int(clientMsgParsed[4])
+        while len(buf) < nbytes:
+            data = self.connectionData.recv(nbytes)
+            buf.extend(data)
+        data = np.frombuffer(buf, dtype=np.int16)
+        data = data / (2 ** (self.config.dac_bits + 1) - 1)
+        txtd = data[:nread] + 1j * data[nread:]
+        txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
 
-                success, status = self.obj_rfsoc.siversControllerObj.set_gain_tx(
-                    tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain
-                )
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "getCarrierFrequencySivers":
-            if len(clientMsgParsed) == 1:
-                responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_frequency())
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setCarrierFrequencySivers":
-            if len(clientMsgParsed) == 2:
-                self.print(clientMsgParsed[1], thr=2)
-                fc = float(clientMsgParsed[1])
-                success, status = self.obj_rfsoc.siversControllerObj.set_frequency(fc)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setFrequencyMixer":
-            if len(clientMsgParsed) == 3:
-                self.print(clientMsgParsed[1], thr=2)
+        self.obj_rfsoc.send_frame(txtd=txtd)
+        return self.config.success_message
 
-                f_mixer_dac = float(clientMsgParsed[1])
-                f_mixer_adc = float(clientMsgParsed[2])
-                success = self.obj_rfsoc.set_dac_mixer(
-                    mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True
-                )
-                success &= self.obj_rfsoc.set_adc_mixer(
-                    mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True
-                )
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
+    def _handle_get_beam_index_tx_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_beam_index_tx())
+        return responseToCMD
 
-        #######################
-        else:
-            responseToCMD = self.config.invalid_command_message
+    def _handle_set_beam_index_tx_sivers(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        beamIndex = int(args[0])
+        success, status = self.obj_rfsoc.siversControllerObj.set_beam_index_tx(beamIndex)
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
 
-        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")")
-        return responseToCMDInBytes
+    def _handle_get_beam_index_rx_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_beam_index_rx())
+        return responseToCMD
+
+    def _handle_set_beam_index_rx_sivers(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        beamIndex = int(args[0])
+        success, status = self.obj_rfsoc.siversControllerObj.set_beam_index_rx(beamIndex)
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
+
+    def _handle_get_mode_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        responseToCMD = self.obj_rfsoc.siversControllerObj.get_mode()
+        return responseToCMD
+
+    def _handle_set_mode_sivers(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        mode = args[0]
+        success, status = self.obj_rfsoc.siversControllerObj.set_mode(mode)
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
+
+    def _handle_get_gain_rx_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        (
+            rx_gain_ctrl_bb1,
+            rx_gain_ctrl_bb2,
+            rx_gain_ctrl_bb3,
+            rx_gain_ctrl_bfrf,
+            agc_int_bfrf_gain_lvl,
+            agc_int_bb3_gain_lvl,
+        ) = self.obj_rfsoc.siversControllerObj.get_gain_rx()
+        responseToCMD = (
+            "rx_gain_ctrl_bb1:"
+            + str(hex(rx_gain_ctrl_bb1))
+            + ", rx_gain_ctrl_bb2:"
+            + str(hex(rx_gain_ctrl_bb2))
+            + ", rx_gain_ctrl_bb3:"
+            + str(hex(rx_gain_ctrl_bb3))
+            + ", rx_gain_ctrl_bfrf:"
+            + str(hex(rx_gain_ctrl_bfrf))
+            + ", agc_int_bfrf_gain_lvl:"
+            + str(hex(agc_int_bfrf_gain_lvl))
+            + ", agc_int_bb3_gain_lvl:"
+            + str(hex(agc_int_bb3_gain_lvl))
+        )
+        return responseToCMD
+
+    def _handle_set_gain_rx_sivers(self, args):
+        if len(args) != 4:
+            return self.config.invalid_number_of_arguments_message
+        rx_gain_ctrl_bb1 = int(args[0])
+        rx_gain_ctrl_bb2 = int(args[1])
+        rx_gain_ctrl_bb3 = int(args[2])
+        rx_gain_ctrl_bfrf = int(args[3])
+
+        success, status = self.obj_rfsoc.siversControllerObj.set_gain_rx(
+            rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf
+        )
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
+
+    def _handle_get_gain_tx_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+
+        tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl = (
+            self.obj_rfsoc.siversControllerObj.get_gain_tx()
+        )
+        responseToCMD = (
+            "tx_bb_gain:"
+            + str(hex(tx_bb_gain))
+            + ", tx_bb_phase:"
+            + str(hex(tx_bb_phase))
+            + ", tx_bb_gain:"
+            + str(hex(tx_bb_iq_gain))
+            + ", tx_bfrf_gain:"
+            + str(hex(tx_bfrf_gain))
+            + ", tx_ctrl:"
+            + str(hex(tx_ctrl))
+        )
+        return responseToCMD
+
+    def _handle_set_gain_tx_sivers(self, args):
+        if len(args) != 4:
+            return self.config.invalid_number_of_arguments_message
+
+        tx_bb_gain = int(args[0])
+        tx_bb_phase = int(args[1])
+        tx_bb_iq_gain = int(args[2])
+        tx_bfrf_gain = int(args[3])
+
+        success, status = self.obj_rfsoc.siversControllerObj.set_gain_tx(
+            tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain
+        )
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
+
+    def _handle_get_carrier_frequency_sivers(self, args):
+        if len(args) != 0:
+            return self.config.invalid_number_of_arguments_message
+        responseToCMD = str(self.obj_rfsoc.siversControllerObj.get_frequency())
+        return responseToCMD
+
+    def _handle_set_carrier_frequency_sivers(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        fc = float(args[0])
+        success, status = self.obj_rfsoc.siversControllerObj.set_frequency(fc)
+        responseToCMD = self.config.success_message if success else status
+        return responseToCMD
+
+    def _handle_set_frequency_mixer(self, args):
+        if len(args) != 2:
+            return self.config.invalid_number_of_arguments_message
+
+        f_mixer_dac = float(args[0])
+        f_mixer_adc = float(args[1])
+        success = self.obj_rfsoc.set_dac_mixer(
+            mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True
+        )
+        success &= self.obj_rfsoc.set_adc_mixer(
+            mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True
+        )
+        responseToCMD = self.config.success_message if success else \
+                            "Failed to set mixer frequencies"
+        return responseToCMD
 
 
 @dataclass(kw_only=True)
 class TCPComLinTrackConfig(TCPComConfig):
     pass
 
-
 class TcpCommLinTrack(TcpComm):
     def __init__(self, config: TCPComLinTrackConfig, **overrides):
         super().__init__(config, **overrides)
         self.obj_lintrack = None
+
+        # command -> handler
+        self._command_handlers = {
+            "Move": self._handle_move,
+            "Return2home": self._handle_return2home,
+            "Go2end": self._handle_go2end,
+        }
 
         self.print("TcpCommLinTrack object init done", thr=1)
 
@@ -510,40 +562,27 @@ class TcpCommLinTrack(TcpComm):
         self.print(f"Result of Go2end: {data}", thr=3)
         return data
 
-    def parse_and_execute(self, received_command):
-        clientMsg = received_command.decode()
-        clientMsgParsed = clientMsg.split()
+    def _handle_move(self, args):
+        if len(args) != 2:
+            return self.config.invalid_number_of_arguments_message
+        motor_id = int(args[0])
+        distance = float(args[1])
+        success, status = self.obj_lintrack.displace(motor_id=motor_id, dis=distance)
+        return self.config.success_message if success else status
 
-        if clientMsgParsed[0] == "Move":
-            if len(clientMsgParsed) == 3:
-                self.print(f"{clientMsgParsed[1]}, {clientMsgParsed[2]}", thr=5)
-                motor_id = int(clientMsgParsed[1])
-                distance = float(clientMsgParsed[2])
-                success, status = self.obj_lintrack.displace(motor_id=motor_id, dis=distance)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
+    def _handle_return2home(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        motor_id = int(args[0])
+        success, status = self.obj_lintrack.return2home(motor_id=motor_id)
+        return self.config.success_message if success else status
 
-        elif clientMsgParsed[0] == "Return2home":
-            if len(clientMsgParsed) == 2:
-                motor_id = int(clientMsgParsed[1])
-                success, status = self.obj_lintrack.return2home(motor_id=motor_id)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-
-        elif clientMsgParsed[0] == "Go2end":
-            if len(clientMsgParsed) == 2:
-                motor_id = int(clientMsgParsed[1])
-                success, status = self.obj_lintrack.go2end(motor_id=motor_id)
-                responseToCMD = self.config.success_message if success else status
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        else:
-            responseToCMD = self.config.invalid_command_message
-
-        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")")
-        return responseToCMDInBytes
+    def _handle_go2end(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        motor_id = int(args[0])
+        success, status = self.obj_lintrack.go2end(motor_id=motor_id)
+        return self.config.success_message if success else status
 
 
 @dataclass(kw_only=True)
