@@ -2,9 +2,12 @@ import atexit
 import os
 import time
 
-import board  # type: ignore
-from adafruit_motor import stepper  # type: ignore
-from adafruit_motorkit import MotorKit  # type: ignore
+try:
+    import board  # type: ignore
+    from adafruit_motor import stepper  # type: ignore
+    from adafruit_motorkit import MotorKit  # type: ignore
+except ImportError:
+    print("Adafruit libraries not found.")
 from sigcom_toolkit.general import General, GeneralConfig
 from tcp_comm import TCPComLinTrackConfig, TcpCommLinTrack
 

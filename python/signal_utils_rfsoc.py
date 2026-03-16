@@ -249,20 +249,23 @@ class TurtlebotConfig(GeneralConfig):
 class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
-        from turtlebot.map_motion_api import MapMotionAPI
 
-        self.map_motion_api = MapMotionAPI(
-            cmd_topic=self.config.cmd_topic,
-            odom_topic=self.config.odom_topic,
-            rate=self.config.rate,
-            max_linear=self.config.max_linear,
-            max_angular=self.config.max_angular,
-            target_frame=self.config.target_frame,
-            source_frame=self.config.source_frame,
-            tf_timeout=self.config.tf_timeout,
-            lin_accel_limit=self.config.lin_accel_limit,
-            ang_accel_limit=self.config.ang_accel_limit,
-        )
+        # from turtlebot.map_motion_api import MapMotionAPI
+        # self.map_motion_api = MapMotionAPI(
+        #     cmd_topic=self.config.cmd_topic,
+        #     odom_topic=self.config.odom_topic,
+        #     rate=self.config.rate,
+        #     max_linear=self.config.max_linear,
+        #     max_angular=self.config.max_angular,
+        #     target_frame=self.config.target_frame,
+        #     source_frame=self.config.source_frame,
+        #     tf_timeout=self.config.tf_timeout,
+        #     lin_accel_limit=self.config.lin_accel_limit,
+        #     ang_accel_limit=self.config.ang_accel_limit,
+        # )
+
+        self.init()
+        exit()
 
     def close(self):
         self.map_motion_api.shutdown()
@@ -270,6 +273,60 @@ class Turtlebot(General):
     def __del__(self):
         self.close()
 
+    def init(self, lintrack_length=0.5):
+        # Origin is the point that turtlebot is powered on on the corner of the room
+        self.moving_room_size = [3.0, 6.0]  # Moving room size in meters [length, width]
+        self.moving_room_grid_size = [0.2, 0.2]  # Grid size for the moving room in meters [length, width]
+        self.moving_room_grid = np.mgrid[
+            0 : self.moving_room_size[0] : self.moving_room_grid_size[0],
+            0 : self.moving_room_size[1] : self.moving_room_grid_size[1],
+        ].reshape(2, -1).T
+
+        self.lintrack_offset = np.array([0.5, 0.5])  # Offset of the linear track from the origin point in meters [length, width]
+        lintrack_grid_size = 0.1  # Grid size for the linear track in meters
+        self.lintrack_grid = np.linspace(0, lintrack_length, int(lintrack_length / lintrack_grid_size))
+
+        self.gimbal_az_grid_size_deg = 5.0  # Grid size for the gimbal azimuth angles in degrees
+        self.tx_beam_width_deg = 60.0  # TX beam width in degrees, used to limit the gimbal angles range
+
+    def get_next_turtlebot_position(self):
+        # This function should return the next position of the turtlebot in the room grid
+        for pos in self.moving_room_grid:
+            self.reset_lintrack()
+            self.reset_gimbal()
+            self.turtlebot_pos = pos
+            yield pos
+
+    def reset_lintrack(self):
+        self.lintrack_grid_id = 0
+
+    def get_next_lintrack_position(self):
+        # This function should return the next position of the linear track
+        pos = self.lintrack_grid[self.lintrack_grid_id]
+        self.tx_pos = self.lintrack_offset + np.array([pos, 0])
+        self.lintrack_grid_id += 1
+        self.reset_gimbal()
+        return pos
+
+    def reset_gimbal(self):
+        min_angle, max_angle, _ = get_viewing_angle_range(
+            width=self.moving_room_size[0],
+            length=self.moving_room_size[1],
+            ref_x=self.tx_pos[0],
+            ref_y=self.tx_pos[1],
+            obj_x=self.turtlebot_pos[0],
+            obj_y=self.turtlebot_pos[1],
+            alpha_deg=self.tx_beam_width_deg / 2,
+        )
+        self.gimbal_az_grid = np.linspace(min_angle, max_angle,
+                            int((max_angle - min_angle) / self.gimbal_az_grid_size_deg))  # Gimbal azimuth angles grid in degrees
+        self.gimbal_az_grid_id = 0
+
+    def get_next_gimbal_az(self):
+        # This function should return the next angle of the gimbal
+        az = self.gimbal_az_grid[self.gimbal_az_grid_id]
+        self.gimbal_az_grid_id += 1
+        return az
 
 @dataclass(kw_only=True)
 class SignalUtilsRFSoCConfig(SignalUtilsConfig):
@@ -1454,7 +1511,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
                 for action_name in action_names:
                     # DYNAMIC DISPATCH: Look for a method named `action_<action_name>`
-                    method_name = f"action_{action_name.lower()}"
+                    method_name = f"_action_{action_name.lower()}"
                     action_method = getattr(self, method_name, None)
 
                     if action_method:
@@ -1466,14 +1523,18 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     else:
                         raise NotImplementedError(f"Action handler '{method_name}' is not defined.")
 
-    def action_change_phys_config(self, target_objs, value, **kwargs):
+    def _action_loop(self, target_objects, value, **kwargs):
+        self.print(f"Starting loop iteration with value: {value}", thr=1)
+        pass  # This can be used for any setup needed at the start of each loop iteration
+
+    def _action_change_phys_config(self, target_objs, value, **kwargs):
         if not self.config.measurement_configs:
             raise ValueError("measurement_configs is empty; cannot change physical configuration")
         self.phys_config = self.config.measurement_configs[self.phys_config_id]
         self.print(f"Please change the physical configuration to: {self.phys_config}", thr=0)
         self.phys_config_id = (self.phys_config_id + 1) % len(self.config.measurement_configs)
 
-    def action_change_tx_rx_distance(self, target_objs, value, **kwargs):
+    def _action_change_tx_rx_distance(self, target_objs, value, **kwargs):
         tx_rx_distance = input("Please enter the TX to RX distance in meters (empty for default): ")
         if tx_rx_distance != "":
             try:
@@ -1482,11 +1543,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 raise ValueError(f"Invalid distance value: {tx_rx_distance}") from None
             self.tx_rx_distance = tx_rx_distance
 
-    def action_transmit_signal(self, target_objects, value, **kwargs):
+    def _action_transmit_signal(self, target_objects, value, **kwargs):
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
 
-    def action_capture(self, target_objects, value, process_signal=False, **kwargs):
+    def _action_capture(self, target_objects, value, process_signal=False, **kwargs):
         client_rfsoc = target_objects[0]
         n_frames = int(value)
         rxtd_save = []
@@ -1528,16 +1589,16 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         # self.validate_saved_signals(rxtd=self.rxtd_save)
 
-    def action_calibrate_rfsoc(self, target_objects, value, **kwargs):
+    def _action_calibrate_rfsoc(self, target_objects, value, **kwargs):
         for client_rfsoc in target_objects:
             client_rfsoc.calibrate_rx_phase_offset()
 
-    def action_set_frequency_mixer_rfsoc(self, target_objects, value, **kwargs):
+    def _action_set_frequency_mixer_rfsoc(self, target_objects, value, **kwargs):
         frequency = float(value)
         for client_rfsoc in target_objects:
             client_rfsoc.set_frequency_mixer_rfsoc(f_mixer_dac=frequency, f_mixer_adc=frequency)
 
-    def action_capture_from_file(self, target_objects, value, sig_name="", **kwargs):
+    def _action_capture_from_file(self, target_objects, value, sig_name="", **kwargs):
         sig_name = sig_name if sig_name else value
         sig_path = os.path.join(self.config.sig_dir, sig_name)
         sigs_save = np.load(sig_path)
@@ -1554,14 +1615,14 @@ class ExperimentOperator(SignalUtilsRfsoc):
         )
         self.read_id += 1
 
-    def action_update_plot(self, target_objects, value, **kwargs):
+    def _action_update_plot(self, target_objects, value, **kwargs):
         rx_signal = self.rx_signal
         if rx_signal is None:
             raise ValueError("update_plot requires a valid rx_signal; run capture first")
 
         self.animate_plotter.update_once(rx_signal)
 
-    def action_save(self, target_objects, value, save_list=("signal",), save_prefix="m", **kwargs):
+    def _action_save(self, target_objects, value, save_list=("signal",), save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
         save_name = f"{save_prefix}_{save_postfix}{self.save_id}.{self.config.save_format}"
 
@@ -1584,11 +1645,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self.save_id += 1
 
-    def action_wait(self, target_objects, value, **kwargs):
+    def _action_wait(self, target_objects, value, **kwargs):
         wait_time = float(value)
         time.sleep(wait_time)
 
-    def action_report_time(self, target_objects, value, action="start", n_rep=0, **kwargs):
+    def _action_report_time(self, target_objects, value, action="start", n_rep=0, **kwargs):
         if action == "start":
             self.start_time = time.time()
         elif action == "end":
@@ -1597,25 +1658,25 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.print(f"Total time elapsed from last start: {elapsed_time:0.3f} s", thr=0)
         self.print(f"Total time remaining: {n_rep * elapsed_time:0.3f} s", thr=0)
 
-    def action_rotate_table(self, target_objects, value, **kwargs):
+    def _action_rotate_table(self, target_objects, value, **kwargs):
         angle = float(value)
         for client_turntable in target_objects:
             client_turntable.move_to_position(angle)
 
-    def action_move_lintrack(self, target_objects, value, **kwargs):
+    def _action_move_lintrack(self, target_objects, value, **kwargs):
         distance = float(value)
         for client_lintrack in target_objects:
             client_lintrack.move_lintrack(lintrack_id=0, distance=distance)
 
-    def action_return_lintrack_home(self, target_objects, value, **kwargs):
+    def _action_return_lintrack_home(self, target_objects, value, **kwargs):
         for client_lintrack in target_objects:
             client_lintrack.return2home_lintrack(lintrack_id=0)
 
-    def action_publish_aoa_ros2(self, target_objects, value, **kwargs):
+    def _action_publish_aoa_ros2(self, target_objects, value, **kwargs):
         aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
         self.publish_aoa_turtlebot(aoa)
 
-    def action_publish_snr_ros2(self, target_objects, value, **kwargs):
+    def _action_publish_snr_ros2(self, target_objects, value, **kwargs):
         snr = self.calculate_snr(
             sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
             sig_sc_range=self.config.sc_range,
@@ -1623,7 +1684,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         snr_db = self.lin_to_db(snr, mode="pow")
         self.publish_snr_turtlebot(snr_db)
 
-    def action_print_snr(self, target_objects, value, **kwargs):
+    def _action_print_snr(self, target_objects, value, **kwargs):
         snr = self.calculate_snr(
             sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
             sig_sc_range=self.config.wb_sc_range,
@@ -1631,7 +1692,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         snr_db = self.lin_to_db(snr, mode="pow")
         self.print(f"Estimated SNR: {snr_db:.2f} dB", thr=0)
 
-    def action_hop_freq(self, target_objects, value, **kwargs):
+    def _action_hop_freq(self, target_objects, value, **kwargs):
         frequency = float(value)
         for client in target_objects:
             if self.config.RFFE == "sivers":
@@ -1639,7 +1700,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             elif self.config.RFFE == "piradio":
                 client.hop_freq(fc=frequency)
 
-    def action_set_gain_db_tx(self, target_objects, value, **kwargs):
+    def _action_set_gain_db_tx(self, target_objects, value, **kwargs):
         gain_db = int(value)
         for client in target_objects:
             if self.config.RFFE == "sivers":
@@ -1648,7 +1709,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 client.set_gain_piradio(trx="tx", chan=0, gain_db=gain_db)
                 client.set_gain_piradio(trx="tx", chan=1, gain_db=gain_db)
 
-    def action_set_gain_db_rx(self, target_objects, value, **kwargs):
+    def _action_set_gain_db_rx(self, target_objects, value, **kwargs):
         gain_db = round(float(value), 1)
         for client in target_objects:
             if self.config.RFFE == "sivers":
@@ -1657,7 +1718,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 client.set_gain_piradio(trx="rx", chan=0, gain_db=gain_db)
                 client.set_gain_piradio(trx="rx", chan=1, gain_db=gain_db)
 
-    def action_find_optimal_gain_piradio(self, target_objects, value, **kwargs):
+    def _action_find_optimal_gain_piradio(self, target_objects, value, **kwargs):
         client_rfsoc_rx, client_piradio_rx, client_piradio_tx = target_objects
         optimal_gains = self.find_optimal_gain_piradio(
             client_rfsoc_rx, client_piradio_rx, client_piradio_tx
@@ -1665,19 +1726,19 @@ class ExperimentOperator(SignalUtilsRfsoc):
         client_piradio_rx.optimal_gains = optimal_gains
         client_piradio_tx.optimal_gains = optimal_gains
 
-    def action_set_optimal_gain_piradio(self, target_objects, value, **kwargs):
+    def _action_set_optimal_gain_piradio(self, target_objects, value, **kwargs):
         client_piradio_rx, client_piradio_tx = target_objects
         client_piradio_rx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance, side="rx")
         client_piradio_tx.set_optimal_gain_piradio(tx_rx_distance=self.tx_rx_distance, side="tx")
 
-    def action_set_optimal_losupp_piradio(self, target_objects, value, **kwargs):
+    def _action_set_optimal_losupp_piradio(self, target_objects, value, **kwargs):
         for client_piradio in target_objects:
             client_piradio.set_optimal_losupp_piradio()
 
-    def action_switch_sig_size(self, target_objects, value, **kwargs):
+    def _action_switch_sig_size(self, target_objects, value, **kwargs):
         self.sig_size = int(value)
 
-    def action_switch_sig_ss(self, target_objects, value, **kwargs):
+    def _action_switch_sig_ss(self, target_objects, value, **kwargs):
         bw_limit = 390.0e6
         sc_limit = int(np.round(bw_limit * self.config.nfft_tx / self.config.fs_tx)) * 2
         region = SpecSenseUtils.generate_random_regions(
@@ -1694,7 +1755,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
 
-    def action_move_turtlebot(self, target_objects, value, **kwargs):
+    def _action_move_turtlebot(self, target_objects, value, **kwargs):
         for client_turtlebot in target_objects:
             turtlebot_api = client_turtlebot.map_motion_api
             cur_x, cur_y, yaw = turtlebot_api.read_pos()
@@ -1703,19 +1764,19 @@ class ExperimentOperator(SignalUtilsRfsoc):
             turtlebot_api.move(yaw=mv_yaw, distance=mv_dis)
         # time.sleep(1.0)
 
-    def action_set_gimbal_az(self, target_objects, value, **kwargs):
+    def _action_set_gimbal_az(self, target_objects, value, **kwargs):
         az = float(value)
         for client_gimbal in target_objects:
             current_deg = client_gimbal.get_deg()
             client_gimbal.set_deg([az, current_deg[1]])
 
-    def action_set_gimbal_el(self, target_objects, value, **kwargs):
+    def _action_set_gimbal_el(self, target_objects, value, **kwargs):
         el = float(value)
         for client_gimbal in target_objects:
             current_deg = client_gimbal.get_deg()
             client_gimbal.set_deg([current_deg[0], el])
 
-    def action_set_mode_sivers(self, target_objects, value, **kwargs):
+    def _action_set_mode_sivers(self, target_objects, value, **kwargs):
         mode = str(value)
         mode = "RXen1_TXen0" if mode == "rx" else "RXen0_TXen1"
         for client_rfsoc in target_objects:

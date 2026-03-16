@@ -24,6 +24,7 @@ class TCPComConfig(GeneralConfig):
     interval_sec: int = 3
     max_fails: int = 5
     nbytes: int = 2
+    timeout: float = 5.0
 
     invalid_command_message: str = "ERROR: Invalid command"
     invalid_number_of_arguments_message: str = "ERROR: Invalid number of arguments"
@@ -35,10 +36,17 @@ class TcpComm(General):
     def __init__(self, config: TCPComConfig, **overrides):
         super().__init__(config, **overrides)
 
+        self._command_handlers = {}
+
         self.print("TcpComm object init done", thr=5)
 
     def close(self):
-        for attr_name in ("radio_control", "radio_data"):
+        sockets_to_close = (
+            "radio_control", "radio_data",
+            "TCPServerSocketCmd", "TCPServerSocketData",
+            "connectionCMD", "connectionData"
+        )
+        for attr_name in (sockets_to_close):
             sock = getattr(self, attr_name, None)
             if sock is not None:
                 with contextlib.suppress(Exception):
@@ -86,6 +94,7 @@ class TcpComm(General):
             self.print("\nWaiting for a connection", thr=2)
             self.connectionCMD, addrCMD = self.TCPServerSocketCmd.accept()
             self.connectionData, addrDATA = self.TCPServerSocketData.accept()
+            self.connectionData.settimeout(self.config.timeout)
             self.print("\nConnection established", thr=2)
 
             self.connectionData.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -199,7 +208,7 @@ class TcpCommRFSoC(TcpComm):
         self.nread = self.config.n_rx_ant * self.config.n_frame_rd * self.config.n_samples
 
         # command -> handler
-        self._command_handlers = {
+        self._command_handlers.update({
             "receive_samples_once": self._handle_receive_samples_once,
             "receive_samples": self._handle_receive_samples,
             "transmit_samples_default": self._handle_transmit_samples_default,
@@ -217,7 +226,7 @@ class TcpCommRFSoC(TcpComm):
             "get_carrier_frequency_sivers": self._handle_get_carrier_frequency_sivers,
             "set_carrier_frequency_sivers": self._handle_set_carrier_frequency_sivers,
             "set_frequency_mixer": self._handle_set_frequency_mixer,
-        }
+        })
 
         self.print("TcpCommRFSoC object init done", thr=1)
 
@@ -293,13 +302,17 @@ class TcpCommRFSoC(TcpComm):
             nbeams = 1
             self.radio_control.sendall(b"receive_samples_once")
         elif mode == "beams":
+            if self.config.beam_test is None:
+                raise ValueError("Cannot use 'beams' mode: config.beam_test is None")
             nbeams = len(self.config.beam_test)
             self.radio_control.sendall(b"receive_samples")
         nbytes = nbeams * self.config.nbytes * self.nread * 2
         buf = bytearray()
 
         while len(buf) < nbytes:
-            data = self.radio_data.recv(nbytes)
+            data = self.radio_data.recv(nbytes - len(buf))
+            if not data:
+                break # Connection dropped, break to avoid infinite loop
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
         data = data / (2 ** (self.config.adc_bits + 1) - 1)
@@ -361,7 +374,9 @@ class TcpCommRFSoC(TcpComm):
         buf = bytearray()
 
         while len(buf) < nbytes:
-            data = self.connectionData.recv(nbytes)
+            data = self.connectionData.recv(nbytes - len(buf))
+            if not data:
+                break # Connection dropped, break to avoid infinite loop
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
         data = data / (2 ** (self.config.dac_bits + 1) - 1)
@@ -529,11 +544,11 @@ class TcpCommLinTrack(TcpComm):
         self.obj_lintrack = None
 
         # command -> handler
-        self._command_handlers = {
+        self._command_handlers.update({
             "move": self._handle_move,
             "return2home": self._handle_return2home,
             "go2end": self._handle_go2end,
-        }
+        })
 
         self.print("TcpCommLinTrack object init done", thr=1)
 
@@ -584,24 +599,24 @@ class TcpCommLinTrack(TcpComm):
 
 
 @dataclass(kw_only=True)
-class TCPComControllerConfig(TCPComRFSoCConfig):
+class TCPComControllerConfig(TCPComRFSoCConfig, TCPComLinTrackConfig):
     pass
 
 
-class TcpCommController(TcpCommRFSoC):
+class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
     def __init__(self, config: TCPComControllerConfig, **overrides):
         super().__init__(config, **overrides)
 
         self.obj_piradio = None
-        self.obj_lintrack = None
         self.obj_gimbal = None
 
-        new_command_handlers = {
+        self._command_handlers.update({
             "set_frequency_piradio": self._handle_set_frequency_piradio,
             "set_gain_piradio": self._handle_set_gain_piradio,
             "set_bias_piradio": self._handle_set_bias_piradio,
-        }
-        self._command_handlers.update(new_command_handlers)
+            "set_gimbal_deg_az": self._handle_set_gimbal_deg_az,
+            "set_gimbal_deg_el": self._handle_set_gimbal_deg_el,
+        })
 
         self.print("TcpCommController object init done", thr=1)
 
@@ -638,6 +653,20 @@ class TcpCommController(TcpCommRFSoC):
         self.print(f"Result of set_bias_piradio: {data}", thr=3)
         return data
 
+    def set_gimbal_deg_az(self, angle_deg):
+        self.print(f"Setting gimbal azimuth to {angle_deg} degrees", thr=3)
+        self.radio_control.sendall(b"set_gimbal_deg_az " + str.encode(str(angle_deg)))
+        data = self.radio_control.recv(1024)
+        self.print(f"Result of set_gimbal_deg_az: {data}", thr=3)
+        return data
+
+    def set_gimbal_deg_el(self, angle_deg):
+        self.print(f"Setting gimbal elevation to {angle_deg} degrees", thr=3)
+        self.radio_control.sendall(b"set_gimbal_deg_el " + str.encode(str(angle_deg)))
+        data = self.radio_control.recv(1024)
+        self.print(f"Result of set_gimbal_deg_el: {data}", thr=3)
+        return data
+
     def _handle_set_frequency_piradio(self, args):
         if len(args) != 2:
             return self.config.invalid_number_of_arguments_message
@@ -668,6 +697,20 @@ class TcpCommController(TcpCommRFSoC):
         )
         responseToCMD = self.config.success_message
         return responseToCMD
+
+    def _handle_set_gimbal_deg_az(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        angle_deg = float(args[0])
+        current_deg = self.obj_gimbal.get_deg()
+        self.obj_gimbal.set_deg([angle_deg, current_deg[1]])
+
+    def _handle_set_gimbal_deg_el(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        angle_deg = float(args[0])
+        current_deg = self.obj_gimbal.get_deg()
+        self.obj_gimbal.set_deg([current_deg[0], angle_deg])
 
 
 @dataclass(kw_only=True)
