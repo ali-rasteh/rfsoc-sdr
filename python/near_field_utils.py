@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 from numpy.fft import fft
-
 from signal_utils_rfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
 
 try:
@@ -124,12 +123,12 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                 self.nf_sep_idx = 0
 
                 if use_linear_track:
-                    client_lintrack.return2home(lin_track_id=0)
-                    client_lintrack.return2home(lin_track_id=1)
+                    client_lintrack.return2home(lintrack_id=0)
+                    client_lintrack.return2home(lintrack_id=1)
                     time.sleep(0.5)
                     # distance = -1000*(len(self.nf_rx_loc)-1)
                     # distance = np.round(distance, 2)
-                    # client_lintrack.move(lin_track_id=0, distance=distance)
+                    # client_lintrack.move(lintrack_id=0, distance=distance)
                     # time.sleep(0.1)
                 self.h_nf = []
                 self.dly_est_nf = []
@@ -153,7 +152,7 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                             self.nf_rx_ant_sep[0] * self.wl - self.nf_rx_ant_sep[-1] * self.wl
                         )
                         distance = np.round(distance, 2)
-                        client_lintrack.move(lin_track_id=1, distance=distance)
+                        client_lintrack.move(lintrack_id=1, distance=distance)
                         time.sleep(0.5)
                         self.ant_d[0] = self.nf_rx_ant_sep[0]
 
@@ -163,8 +162,8 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                                 - self.nf_rx_loc[self.nf_loc_idx - 1, 0]
                             )
                             distance = np.round(distance, 2)
-                            client_lintrack.move(lin_track_id=1, distance=distance)
-                            client_lintrack.move(lin_track_id=0, distance=distance)
+                            client_lintrack.move(lintrack_id=1, distance=distance)
+                            client_lintrack.move(lintrack_id=0, distance=distance)
                             time.sleep(0.5)
 
                     self.nf_sep_idx += 1
@@ -184,7 +183,7 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                                 - self.nf_rx_ant_sep[self.nf_sep_idx - 1] * self.wl
                             )
                             distance = np.round(distance, 2)
-                            client_lintrack.move(lin_track_id=1, distance=distance)
+                            client_lintrack.move(lintrack_id=1, distance=distance)
                             time.sleep(0.5)
                             self.ant_d[0] = self.nf_rx_ant_sep[self.nf_sep_idx]
 

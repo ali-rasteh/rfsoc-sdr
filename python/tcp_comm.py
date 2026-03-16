@@ -200,43 +200,43 @@ class TcpCommRFSoC(TcpComm):
 
         # command -> handler
         self._command_handlers = {
-            "receiveSamplesOnce":           self._handle_receive_samples_once,
-            "receiveSamples":               self._handle_receive_samples,
-            "transmitSamplesDefault":       self._handle_transmit_samples_default,
-            "transmitSamples":              self._handle_transmit_samples,
-            "getBeamIndexTXSivers":         self._handle_get_beam_index_tx_sivers,
-            "setBeamIndexTXSivers":         self._handle_set_beam_index_tx_sivers,
-            "getBeamIndexRXSivers":         self._handle_get_beam_index_rx_sivers,
-            "setBeamIndexRXSivers":         self._handle_set_beam_index_rx_sivers,
-            "getModeSivers":                self._handle_get_mode_sivers,
-            "setModeSiver":                 self._handle_set_mode_sivers,
-            "getGainRXSivers":              self._handle_get_gain_rx_sivers,
-            "setGainRXSivers":              self._handle_set_gain_rx_sivers,
-            "getGainTXSivers":              self._handle_get_gain_tx_sivers,
-            "setGainTXSivers":              self._handle_set_gain_tx_sivers,
-            "getCarrierFrequencySivers":    self._handle_get_carrier_frequency_sivers,
-            "setCarrierFrequencySivers":    self._handle_set_carrier_frequency_sivers,
-            "setFrequencyMixer":            self._handle_set_frequency_mixer,
+            "receive_samples_once": self._handle_receive_samples_once,
+            "receive_samples": self._handle_receive_samples,
+            "transmit_samples_default": self._handle_transmit_samples_default,
+            "transmit_samples": self._handle_transmit_samples,
+            "get_beam_index_tx_sivers": self._handle_get_beam_index_tx_sivers,
+            "set_beam_index_tx_sivers": self._handle_set_beam_index_tx_sivers,
+            "get_beam_index_rx_sivers": self._handle_get_beam_index_rx_sivers,
+            "set_beam_index_rx_sivers": self._handle_set_beam_index_rx_sivers,
+            "get_mode_sivers": self._handle_get_mode_sivers,
+            "set_mode_sivers": self._handle_set_mode_sivers,
+            "get_gain_rx_sivers": self._handle_get_gain_rx_sivers,
+            "set_gain_rx_sivers": self._handle_set_gain_rx_sivers,
+            "get_gain_tx_sivers": self._handle_get_gain_tx_sivers,
+            "set_gain_tx_sivers": self._handle_set_gain_tx_sivers,
+            "get_carrier_frequency_sivers": self._handle_get_carrier_frequency_sivers,
+            "set_carrier_frequency_sivers": self._handle_set_carrier_frequency_sivers,
+            "set_frequency_mixer": self._handle_set_frequency_mixer,
         }
 
         self.print("TcpCommRFSoC object init done", thr=1)
 
     def set_mode_sivers(self, mode):
         if mode == "RXen0_TXen1" or mode == "RXen1_TXen0" or mode == "RXen0_TXen0":
-            self.radio_control.sendall(b"setModeSiver " + str.encode(str(mode)))
+            self.radio_control.sendall(b"set_mode_sivers " + str.encode(str(mode)))
             data = self.radio_control.recv(1024)
             self.print(f"Result of set_mode_sivers: {data}", thr=3)
             return data
 
     def set_frequency_sivers(self, fc):
-        self.radio_control.sendall(b"setCarrierFrequencySivers " + str.encode(str(fc)))
+        self.radio_control.sendall(b"set_carrier_frequency_sivers " + str.encode(str(fc)))
         data = self.radio_control.recv(1024)
         self.print(f"Result of set_frequency_sivers: {data}", thr=3)
         return data
 
     def set_frequency_mixer_rfsoc(self, f_mixer_dac, f_mixer_adc):
         self.radio_control.sendall(
-            b"setFrequencyMixer "
+            b"set_frequency_mixer "
             + str.encode(str(f_mixer_dac) + " ")
             + str.encode(str(f_mixer_adc))
         )
@@ -246,7 +246,7 @@ class TcpCommRFSoC(TcpComm):
 
     def set_tx_gain_sivers(self):
         self.radio_control.sendall(
-            b"setGainTXSivers "
+            b"set_gain_tx_sivers "
             + str.encode(str(int(self.tx_bb_gain)) + " ")
             + str.encode(str(int(self.tx_bb_phase)) + " ")
             + str.encode(str(int(self.tx_bb_iq_gain)) + " ")
@@ -258,7 +258,7 @@ class TcpCommRFSoC(TcpComm):
 
     def set_rx_gain_sivers(self):
         self.radio_control.sendall(
-            b"setGainRXSivers "
+            b"set_gain_rx_sivers "
             + str.encode(str(int(self.rx_gain_ctrl_bb1)) + " ")
             + str.encode(str(int(self.rx_gain_ctrl_bb2)) + " ")
             + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ")
@@ -269,7 +269,7 @@ class TcpCommRFSoC(TcpComm):
         return data
 
     def transmit_data_default_rfsoc(self):
-        self.radio_control.sendall(b"transmitSamplesDefault")
+        self.radio_control.sendall(b"transmit_samples_default")
         data = self.radio_control.recv(1024)
         self.print(f"Result of transmit_data_default_rfsoc: {data}", thr=3)
         return data
@@ -282,7 +282,7 @@ class TcpCommRFSoC(TcpComm):
         im = txtd.imag.astype(np.int16)
         txtd = np.concatenate((re, im))
 
-        self.radio_control.sendall(b"transmitSamples")
+        self.radio_control.sendall(b"transmit_samples")
         self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
         self.print(f"Result of transmit_data_rfsoc: {data}", thr=3)
@@ -291,10 +291,10 @@ class TcpCommRFSoC(TcpComm):
     def receive_data_rfsoc_once(self, mode="once"):
         if mode == "once":
             nbeams = 1
-            self.radio_control.sendall(b"receiveSamplesOnce")
+            self.radio_control.sendall(b"receive_samples_once")
         elif mode == "beams":
             nbeams = len(self.config.beam_test)
-            self.radio_control.sendall(b"receiveSamples")
+            self.radio_control.sendall(b"receive_samples")
         nbytes = nbeams * self.config.nbytes * self.nread * 2
         buf = bytearray()
 
@@ -510,20 +510,18 @@ class TcpCommRFSoC(TcpComm):
 
         f_mixer_dac = float(args[0])
         f_mixer_adc = float(args[1])
-        success = self.obj_rfsoc.set_dac_mixer(
-            mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True
+        success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
+        success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
+        responseToCMD = (
+            self.config.success_message if success else "Failed to set mixer frequencies"
         )
-        success &= self.obj_rfsoc.set_adc_mixer(
-            mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True
-        )
-        responseToCMD = self.config.success_message if success else \
-                            "Failed to set mixer frequencies"
         return responseToCMD
 
 
 @dataclass(kw_only=True)
 class TCPComLinTrackConfig(TCPComConfig):
     pass
+
 
 class TcpCommLinTrack(TcpComm):
     def __init__(self, config: TCPComLinTrackConfig, **overrides):
@@ -532,34 +530,34 @@ class TcpCommLinTrack(TcpComm):
 
         # command -> handler
         self._command_handlers = {
-            "Move": self._handle_move,
-            "Return2home": self._handle_return2home,
-            "Go2end": self._handle_go2end,
+            "move": self._handle_move,
+            "return2home": self._handle_return2home,
+            "go2end": self._handle_go2end,
         }
 
         self.print("TcpCommLinTrack object init done", thr=1)
 
-    def move(self, lin_track_id=0, distance=0.0):
-        self.print(f"Moving linear track {lin_track_id} by {distance} mm", thr=2)
+    def move(self, lintrack_id=0, distance=0.0):
+        self.print(f"Moving linear track {lintrack_id} by {distance} mm", thr=2)
         self.radio_control.sendall(
-            b"Move " + str.encode(str(lin_track_id) + " ") + str.encode(str(distance))
+            b"move " + str.encode(str(lintrack_id) + " ") + str.encode(str(distance))
         )
         data = self.radio_control.recv(1024)
         self.print(f"Result of move_forward: {data}", thr=3)
         return data
 
-    def return2home(self, lin_track_id=0):
-        self.print(f"Returning linear track {lin_track_id} to home", thr=2)
-        self.radio_control.sendall(b"Return2home " + str.encode(str(lin_track_id)))
+    def return2home(self, lintrack_id=0):
+        self.print(f"Returning linear track {lintrack_id} to home", thr=2)
+        self.radio_control.sendall(b"return2home " + str.encode(str(lintrack_id)))
         data = self.radio_control.recv(1024)
-        self.print(f"Result of Return2home: {data}", thr=3)
+        self.print(f"Result of return2home: {data}", thr=3)
         return data
 
-    def go2end(self, lin_track_id=0):
-        self.print(f"Going to the end of line on linear track {lin_track_id}", thr=2)
-        self.radio_control.sendall(b"Go2end " + str.encode(str(lin_track_id)))
+    def go2end(self, lintrack_id=0):
+        self.print(f"Going to the end of line on linear track {lintrack_id}", thr=2)
+        self.radio_control.sendall(b"go2end " + str.encode(str(lintrack_id)))
         data = self.radio_control.recv(1024)
-        self.print(f"Result of Go2end: {data}", thr=3)
+        self.print(f"Result of go2end: {data}", thr=3)
         return data
 
     def _handle_move(self, args):
@@ -590,19 +588,27 @@ class TCPComControllerConfig(TCPComRFSoCConfig):
     pass
 
 
-class TcpCommController(TcpComm):
+class TcpCommController(TcpCommRFSoC):
     def __init__(self, config: TCPComControllerConfig, **overrides):
         super().__init__(config, **overrides)
 
-        self.obj_rfsoc = None
         self.obj_piradio = None
+        self.obj_lintrack = None
+        self.obj_gimbal = None
+
+        new_command_handlers = {
+            "set_frequency_piradio": self._handle_set_frequency_piradio,
+            "set_gain_piradio": self._handle_set_gain_piradio,
+            "set_bias_piradio": self._handle_set_bias_piradio,
+        }
+        self._command_handlers.update(new_command_handlers)
 
         self.print("TcpCommController object init done", thr=1)
 
     def set_frequency_piradio(self, fc=6.0e9, lo="high"):
         self.print(f"Setting frequency to {fc / 1e9} GHz", thr=3)
         self.radio_control.sendall(
-            b"setFrequencyPiradio " + str.encode(str(fc) + " ") + str.encode(str(lo))
+            b"set_frequency_piradio " + str.encode(str(fc) + " ") + str.encode(str(lo))
         )
         data = self.radio_control.recv(1024)
         self.print(f"Result of set_frequency_piradio: {data}", thr=3)
@@ -611,7 +617,7 @@ class TcpCommController(TcpComm):
     def set_gain_piradio(self, trx="tx", chan=0, gain_db=0):
         self.print(f"Setting gain to {gain_db} dB for {trx}-{chan}", thr=3)
         self.radio_control.sendall(
-            b"setGainPiradio "
+            b"set_gain_piradio "
             + str.encode(str(trx) + " ")
             + str.encode(str(chan) + " ")
             + str.encode(str(gain_db))
@@ -623,7 +629,7 @@ class TcpCommController(TcpComm):
     def set_bias_piradio(self, chan, iq="I", bias_voltage=0):
         self.print(f"Setting bias to {bias_voltage} V for tx-{chan}-{iq}", thr=3)
         self.radio_control.sendall(
-            b"setBiasPiradio "
+            b"set_bias_piradio "
             + str.encode(str(chan) + " ")
             + str.encode(str(iq) + " ")
             + str.encode(str(bias_voltage))
@@ -632,77 +638,36 @@ class TcpCommController(TcpComm):
         self.print(f"Result of set_bias_piradio: {data}", thr=3)
         return data
 
-    def transmit_data_rfsoc(self, txtd):
-        txtd = txtd.copy()
-        txtd = np.array(txtd).flatten()
-        txtd = txtd * (2 ** (self.config.dac_bits + 1) - 1)
-        re = txtd.real.astype(np.int16)
-        im = txtd.imag.astype(np.int16)
-        txtd = np.concatenate((re, im))
+    def _handle_set_frequency_piradio(self, args):
+        if len(args) != 2:
+            return self.config.invalid_number_of_arguments_message
+        freq = float(args[0])
+        lo = args[1]
+        result, response = self.obj_piradio.set_frequency_piradio(freq, lo=lo)
+        responseToCMD = self.config.success_message
+        return responseToCMD
 
-        self.radio_control.sendall(b"transmitSamplesRfsoc")
-        self.radio_data.sendall(txtd.tobytes())
-        data = self.radio_control.recv(1024)
-        self.print(f"Result of transmit_data_rfsoc: {data}", thr=3)
-        return data
+    def _handle_set_gain_piradio(self, args):
+        if len(args) != 3:
+            return self.config.invalid_number_of_arguments_message
+        trx = args[0]
+        chan = int(args[1])
+        gain_db = float(args[2])
+        result, response = self.obj_piradio.set_gain_piradio(trx=trx, chan=chan, gain_db=gain_db)
+        responseToCMD = self.config.success_message
+        return responseToCMD
 
-    def parse_and_execute(self, received_command):
-        clientMsg = received_command.decode()
-        clientMsgParsed = clientMsg.split()
-
-        if clientMsgParsed[0] == "setFrequencyPiradio":
-            if len(clientMsgParsed) == 3:
-                freq = float(clientMsgParsed[1])
-                lo = clientMsgParsed[2]
-                result, response = self.obj_piradio.set_frequency_piradio(freq, lo=lo)
-                responseToCMD = self.config.success_message
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setGainPiradio":
-            if len(clientMsgParsed) == 4:
-                trx = clientMsgParsed[1]
-                chan = int(clientMsgParsed[2])
-                gain_db = float(clientMsgParsed[3])
-                result, response = self.obj_piradio.set_gain_piradio(
-                    trx=trx, chan=chan, gain_db=gain_db
-                )
-                responseToCMD = self.config.success_message
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "setBiasPiradio":
-            if len(clientMsgParsed) == 4:
-                chan = int(clientMsgParsed[1])
-                iq = clientMsgParsed[2]
-                bias_voltage = float(clientMsgParsed[3])
-                result, response = self.obj_piradio.set_bias_piradio(
-                    chan=chan, iq=iq, bias_voltage=bias_voltage
-                )
-                responseToCMD = self.config.success_message
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        elif clientMsgParsed[0] == "transmitSamplesRfsoc":
-            if len(clientMsgParsed) == 1:
-                nread = self.config.n_tx_ant * self.config.n_samples_tx
-                nbytes = self.config.nbytes * nread * 2
-                buf = bytearray()
-
-                while len(buf) < nbytes:
-                    data = self.connectionData.recv(nbytes)
-                    buf.extend(data)
-                data = np.frombuffer(buf, dtype=np.int16)
-                data = data / (2 ** (self.config.dac_bits + 1) - 1)
-                txtd = data[:nread] + 1j * data[nread:]
-                txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
-
-                self.obj_rfsoc.send_frame(txtd=txtd)
-                responseToCMD = "Success"
-            else:
-                responseToCMD = self.config.invalid_number_of_arguments_message
-        else:
-            responseToCMD = self.config.invalid_command_message
-
-        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")")
-        return responseToCMDInBytes
+    def _handle_set_bias_piradio(self, args):
+        if len(args) != 3:
+            return self.config.invalid_number_of_arguments_message
+        chan = int(args[0])
+        iq = args[1]
+        bias_voltage = float(args[2])
+        result, response = self.obj_piradio.set_bias_piradio(
+            chan=chan, iq=iq, bias_voltage=bias_voltage
+        )
+        responseToCMD = self.config.success_message
+        return responseToCMD
 
 
 @dataclass(kw_only=True)

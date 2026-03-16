@@ -43,6 +43,7 @@ class PlotChart:
     x_label: str = ""
     y_label: str = ""
 
+
 @dataclass(kw_only=True)
 class PlotSignal:
     signal_name: str = ""
@@ -52,12 +53,14 @@ class PlotSignal:
     data: np.ndarray = None
     label: str = ""
 
+
 @dataclass(kw_only=True)
 class SparseEstParams:
     h_tr_mat: np.ndarray = None
     dly_est_mat: np.ndarray = None
     peaks_mat: np.ndarray = None
     npaths_est_mat: np.ndarray = None
+
 
 @dataclass(kw_only=True)
 class RxSignal:
@@ -69,12 +72,14 @@ class RxSignal:
     h_est: np.ndarray = None
     sparse_est_params: SparseEstParams = None
 
+
 @dataclass(kw_only=True)
 class TxSignal:
     # Shape: [n_frame_rd, n_tx_ant, n_samples_tx]
     txtd: np.ndarray = None
     # Shape: [n_frame_rd, n_tx_ant, n_samples_tx]
     txtd_base: np.ndarray = None
+
 
 @dataclass(kw_only=True)
 class ClientRFSoCConfig(TCPComRFSoCConfig):
@@ -83,9 +88,8 @@ class ClientRFSoCConfig(TCPComRFSoCConfig):
 
     def __post_init__(self):
         super().__post_init__()
-        self.calib_config_path: str = os.path.join(
-                self.calib_config_dir, "calib_config.npz"
-            )
+        self.calib_config_path: str = os.path.join(self.calib_config_dir, "calib_config.npz")
+
 
 class ClientRFSoC(TcpCommRFSoC):
     def __init__(self, config: ClientRFSoCConfig, **overrides: Any):
@@ -150,9 +154,7 @@ class PiRadioConfig(RestComPiradioConfig):
 
     def __post_init__(self):
         super().__post_init__()
-        self.optimal_gains_path: str = os.path.join(
-            self.calib_config_dir, "optimal_gains.json"
-        )
+        self.optimal_gains_path: str = os.path.join(self.calib_config_dir, "optimal_gains.json")
 
 
 class PiRadioFR3Trx(RESTComPiradio):
@@ -232,33 +234,34 @@ class PiRadioFR3Trx(RESTComPiradio):
 
 @dataclass(kw_only=True)
 class TurtlebotConfig(GeneralConfig):
-    cmd_topic: str = "/cmd_vel_unstamped",
-    odom_topic: str = "/odom",
-    rate: float = 10.0,
-    max_linear: float = 0.50,
-    max_angular: float = 0.25,
-    target_frame: str = "map",
-    source_frame: str = "base_link",
-    tf_timeout: float = 20.0,
-    lin_accel_limit: float = 0.05,
-    ang_accel_limit: float = 0.8,
+    cmd_topic: str = ("/cmd_vel_unstamped",)
+    odom_topic: str = ("/odom",)
+    rate: float = (10.0,)
+    max_linear: float = (0.50,)
+    max_angular: float = (0.25,)
+    target_frame: str = ("map",)
+    source_frame: str = ("base_link",)
+    tf_timeout: float = (20.0,)
+    lin_accel_limit: float = (0.05,)
+    ang_accel_limit: float = (0.8,)
 
 
 class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
         from turtlebot.map_motion_api import MapMotionAPI
+
         self.map_motion_api = MapMotionAPI(
-            cmd_topic = self.config.cmd_topic,
-            odom_topic = self.config.odom_topic,
-            rate = self.config.rate,
-            max_linear = self.config.max_linear,
-            max_angular = self.config.max_angular,
-            target_frame = self.config.target_frame,
-            source_frame = self.config.source_frame,
-            tf_timeout = self.config.tf_timeout,
-            lin_accel_limit = self.config.lin_accel_limit,
-            ang_accel_limit = self.config.ang_accel_limit,
+            cmd_topic=self.config.cmd_topic,
+            odom_topic=self.config.odom_topic,
+            rate=self.config.rate,
+            max_linear=self.config.max_linear,
+            max_angular=self.config.max_angular,
+            target_frame=self.config.target_frame,
+            source_frame=self.config.source_frame,
+            tf_timeout=self.config.tf_timeout,
+            lin_accel_limit=self.config.lin_accel_limit,
+            ang_accel_limit=self.config.ang_accel_limit,
         )
 
     def close(self):
@@ -282,7 +285,9 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
 
     # Signals information
     sig_gen_mode: str = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
-    sig_mode: str = "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
+    sig_mode: str = (
+        "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
+    )
     sig_modulation: str = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
     tx_sig_sim: str = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
     sig_gain_db: float = 0  # Transmitter Signal gain in dB
@@ -292,7 +297,10 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     snr_est_db: float = 40  # SNR for signal estimation
     wb_bw_mode: str = "sc"  # Wideband signal bandwidth mode, sc or freq
     wb_sc_range: tuple = (-250, 250)  # Wideband signal subcarrier range, used when wb_bw_mode is sc
-    wb_bw_range: tuple = (-250e6, 250e6)  # Wideband signal bandwidth range, used when wb_bw_mode is freq
+    wb_bw_range: tuple = (
+        -250e6,
+        250e6,
+    )  # Wideband signal bandwidth range, used when wb_bw_mode is freq
     wb_null_sc: int = 0  # Number of carriers to null in the wideband signal
     tone_f_mode: str = "sc"  # Tone signal frequency mode, sc or freq
     sc_tone: int = 10  # Tone signal subcarrier
@@ -309,7 +317,9 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
         "sync_time",
         "channel_est",
     )  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
-    channel_limit: bool = True  # If True, limits the channel to a specific range in the frequency domain
+    channel_limit: bool = (
+        True  # If True, limits the channel to a specific range in the frequency domain
+    )
     npath_max: tuple = (
         20,
         5,
@@ -414,7 +424,6 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
             self.n_samples_ch = self.n_samples_trx
             self.nfft_ch = self.nfft_trx
             self.freq_ch = self.freq_trx
-
 
 
 class SignalUtilsRfsoc(SignalUtils):
@@ -826,7 +835,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
                     rxtd = client_rfsoc_rx.receive_data_rfsoc(mode="once")
                     snr = self.calculate_snr(
-                        sig_td=rxtd[0, :, :self.config.n_samples_trx],
+                        sig_td=rxtd[0, :, : self.config.n_samples_trx],
                         sig_sc_range=self.config.sc_range,
                     )
                     snr_db = self.lin_to_db(snr, mode="pow")
@@ -891,9 +900,9 @@ class SignalUtilsRfsoc(SignalUtils):
 
         for ant_id in range(self.config.n_rx_ant):
             # n_samples = min(len(txtd_base), len(rxtd_base))
-            txfd_base_ = np.abs(fftshift(fft(txtd_base[0, ant_id, :self.config.n_samples])))
+            txfd_base_ = np.abs(fftshift(fft(txtd_base[0, ant_id, : self.config.n_samples])))
             rxfd_base_ = np.abs(
-                fftshift(fft(rxtd_base[plt_frm_id, ant_id, :self.config.n_samples]))
+                fftshift(fft(rxtd_base[plt_frm_id, ant_id, : self.config.n_samples]))
             )
 
             scale = np.max(txfd_base_) / np.max(rxfd_base_)
@@ -922,7 +931,7 @@ class SignalUtilsRfsoc(SignalUtils):
         else:
             n_samples_rx = self.config.n_samples_trx
 
-        txtd_base = txtd_base[:, :, :self.config.n_samples_trx]
+        txtd_base = txtd_base[:, :, : self.config.n_samples_trx]
         if "integrate" in self.config.rx_chain:
             rxtd_base = self.integrate_signal(rxtd_base, n_samples=n_samples_rx)
 
@@ -960,8 +969,8 @@ class SignalUtilsRfsoc(SignalUtils):
                 rxtd_base_s[frm_id] = self.sync_frequency(rxtd_base_s[frm_id], cfo, mode="time")
 
         if "pilot_separate" in self.config.rx_chain:
-            rxtd_pilot_s = rxtd_base_s[:, :, :, :n_samples_rx//2]
-            rxtd_base_s = rxtd_base_s[:, :, :, n_samples_rx//2:]
+            rxtd_pilot_s = rxtd_base_s[:, :, :, : n_samples_rx // 2]
+            rxtd_base_s = rxtd_base_s[:, :, :, n_samples_rx // 2 :]
         else:
             rxtd_pilot_s = rxtd_base_s.copy()
 
@@ -1016,8 +1025,10 @@ class SignalUtilsRfsoc(SignalUtils):
                     n_ignore=self.config.sparse_ch_n_ignore,
                 )
                 sparse_est_params = SparseEstParams(
-                    sparse_est_params[0], sparse_est_params[1],
-                    sparse_est_params[2], sparse_est_params[3]
+                    sparse_est_params[0],
+                    sparse_est_params[1],
+                    sparse_est_params[2],
+                    sparse_est_params[3],
                 )
             else:
                 h_est = self.estimate_channel(
@@ -1212,13 +1223,14 @@ class ExperimentOperator(SignalUtilsRfsoc):
             init_method = getattr(self, method_name, None)
 
             if init_method:
-                self.print(f"Initializing object: {name} with type: {item_type} and params: {kwargs}", thr=2)
+                self.print(
+                    f"Initializing object: {name} with type: {item_type} and params: {kwargs}",
+                    thr=2,
+                )
                 item_object = init_method(**kwargs)
                 self._network_objects[name] = item_object
             else:
-                raise NotImplementedError(
-                    f"Initialization handler '{method_name}' is not defined."
-                )
+                raise NotImplementedError(f"Initialization handler '{method_name}' is not defined.")
 
         if "slave" in self.config.host_role:
             controller_config = TCPComControllerConfig().update_from_config(self.config)
@@ -1237,28 +1249,21 @@ class ExperimentOperator(SignalUtilsRfsoc):
             controller.obj_piradio = self._network_objects[piradio_key]
             controller.obj_rfsoc = self._network_objects[rfsoc_key]
             self._network_objects["self"] = controller
-            controller.run_tcp_server(
-                controller.parse_and_execute
-            )
+            controller.run_tcp_server(controller.parse_and_execute)
         else:
             self._network_objects["self"] = self
-    #TODO: complete parameters
+
+    # TODO: complete parameters
     def init_rfsoc(self, ip, **kwargs):
-        rfsoc_config = ClientRFSoCConfig(server_ip=ip).update_from_config(
-            self.config
-        )
+        rfsoc_config = ClientRFSoCConfig(server_ip=ip).update_from_config(self.config)
         rfsoc = ClientRFSoC(rfsoc_config)
         rfsoc.init_tcp_client()
         return rfsoc
 
     def init_lintrack(self, ip, **kwargs):
-        lintrack_config = TCPComLinTrackConfig(server_ip=ip).update_from_config(
-            self.config
-        )
+        lintrack_config = TCPComLinTrackConfig(server_ip=ip).update_from_config(self.config)
         lintrack = TcpCommLinTrack(lintrack_config)
         lintrack.init_tcp_client()
-        # lintrack.return2home()
-        # lintrack.go2end()
         return lintrack
 
     def init_turntable(self, port="COM6", baudrate=115200, rotation_delay=0.0, **kwargs):
@@ -1276,7 +1281,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def init_d48ptu(self, port="/dev/ttyUSB0", baudrate=9600, rotation_delay=0.0, **kwargs):
         gimbal_config = SerialComD48PTUConfig(
-            port=port, baudrate=baudrate,
+            port=port,
+            baudrate=baudrate,
         )
         D48PTU = SerialComD48PTU(gimbal_config)
         try:
@@ -1317,14 +1323,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return turtlebot
 
     def init_controller(self, ip, **kwargs):
-        controller_config = TCPComControllerConfig(server_ip=ip).update_from_config(
-            self.config
-        )
+        controller_config = TCPComControllerConfig(server_ip=ip).update_from_config(self.config)
         controller = TcpCommController(controller_config)
         controller.init_tcp_client()
         controller.set_frequency_piradio(self.config.fc)
         return controller
-
 
     def _parse_action_spec(self, spec):
         """Parses dict-based action specs."""
@@ -1435,7 +1438,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 changed_idxs = [
                     i
                     for i, (a, b) in enumerate(zip(prev, values, strict=False))
-                    if a != b or any(action in default_actions for action in actions[i])]
+                    if a != b or any(action in default_actions for action in actions[i])
+                ]
             prev = values
 
             # process only the actions whose value changed
@@ -1454,26 +1458,23 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     action_method = getattr(self, method_name, None)
 
                     if action_method:
-                        self.print(f"Executing action: {action_name} with value: {value} and params: {kwargs}", thr=2)
+                        self.print(
+                            f"Executing action: {action_name} with value: {value} and params: {kwargs}",
+                            thr=2,
+                        )
                         action_method(target_objects, value, **kwargs)
                     else:
-                        raise NotImplementedError(
-                            f"Action handler '{method_name}' is not defined."
-                        )
+                        raise NotImplementedError(f"Action handler '{method_name}' is not defined.")
 
     def action_change_phys_config(self, target_objs, value, **kwargs):
         if not self.config.measurement_configs:
-            raise ValueError(
-                "measurement_configs is empty; cannot change physical configuration"
-            )
+            raise ValueError("measurement_configs is empty; cannot change physical configuration")
         self.phys_config = self.config.measurement_configs[self.phys_config_id]
         self.print(f"Please change the physical configuration to: {self.phys_config}", thr=0)
         self.phys_config_id = (self.phys_config_id + 1) % len(self.config.measurement_configs)
 
     def action_change_tx_rx_distance(self, target_objs, value, **kwargs):
-        tx_rx_distance = input(
-            "Please enter the TX to RX distance in meters (empty for default): "
-        )
+        tx_rx_distance = input("Please enter the TX to RX distance in meters (empty for default): ")
         if tx_rx_distance != "":
             try:
                 tx_rx_distance = float(tx_rx_distance)
@@ -1491,9 +1492,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         rxtd_save = []
 
         n_rd_rep = n_frames // self.config.n_frame_rd
-        rxtd = client_rfsoc.receive_data_rfsoc(
-            n_rd_rep=n_rd_rep, mode="once", verbose=False
-        )
+        rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once", verbose=False)
         self.rx_signal = RxSignal(
             rxtd=rxtd,
             rxtd_base=rxtd,
@@ -1558,9 +1557,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def action_update_plot(self, target_objects, value, **kwargs):
         rx_signal = self.rx_signal
         if rx_signal is None:
-            raise ValueError(
-                "update_plot requires a valid rx_signal; run capture first"
-            )
+            raise ValueError("update_plot requires a valid rx_signal; run capture first")
 
         self.animate_plotter.update_once(rx_signal)
 
@@ -1591,29 +1588,28 @@ class ExperimentOperator(SignalUtilsRfsoc):
         wait_time = float(value)
         time.sleep(wait_time)
 
-    def action_report_time(self, target_objects, value, action='start', n_rep=0, **kwargs):
-        if action == 'start':
+    def action_report_time(self, target_objects, value, action="start", n_rep=0, **kwargs):
+        if action == "start":
             self.start_time = time.time()
-        elif action == 'end':
+        elif action == "end":
             end_time = time.time()
             elapsed_time = end_time - self.start_time
-            self.print(
-            f"Total time elapsed from last start: {elapsed_time:0.3f} s", thr=0)
-        self.print(f"Total time remaining: {n_rep*elapsed_time:0.3f} s", thr=0)
+            self.print(f"Total time elapsed from last start: {elapsed_time:0.3f} s", thr=0)
+        self.print(f"Total time remaining: {n_rep * elapsed_time:0.3f} s", thr=0)
 
     def action_rotate_table(self, target_objects, value, **kwargs):
         angle = float(value)
         for client_turntable in target_objects:
             client_turntable.move_to_position(angle)
 
-    def action_move_lin_track(self, target_objects, value, **kwargs):
+    def action_move_lintrack(self, target_objects, value, **kwargs):
         distance = float(value)
         for client_lintrack in target_objects:
-            client_lintrack.move(lin_track_id=0, distance=distance)
+            client_lintrack.move_lintrack(lintrack_id=0, distance=distance)
 
-    def action_return_lin_track_home(self, target_objects, value, **kwargs):
+    def action_return_lintrack_home(self, target_objects, value, **kwargs):
         for client_lintrack in target_objects:
-            client_lintrack.return2home(lin_track_id=0)
+            client_lintrack.return2home_lintrack(lintrack_id=0)
 
     def action_publish_aoa_ros2(self, target_objects, value, **kwargs):
         aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
@@ -1621,7 +1617,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_publish_snr_ros2(self, target_objects, value, **kwargs):
         snr = self.calculate_snr(
-            sig_td=self.rx_signal.rxtd_base[:, 0, :self.config.n_samples_trx],
+            sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
             sig_sc_range=self.config.sc_range,
         )
         snr_db = self.lin_to_db(snr, mode="pow")
@@ -1629,7 +1625,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def action_print_snr(self, target_objects, value, **kwargs):
         snr = self.calculate_snr(
-            sig_td=self.rx_signal.rxtd_base[:, 0, :self.config.n_samples_trx],
+            sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
             sig_sc_range=self.config.wb_sc_range,
         )
         snr_db = self.lin_to_db(snr, mode="pow")
@@ -1693,8 +1689,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         ]
         signal_length = self.config.wb_sc_range[1] - self.config.wb_sc_range[0] + 1
         tx_signal = self.gen_tx_signal()
-        tx_signal.txtd /= ((256/signal_length)**0.5)
-        tx_signal.txtd_base /= ((256/signal_length)**0.5)
+        tx_signal.txtd /= (256 / signal_length) ** 0.5
+        tx_signal.txtd_base /= (256 / signal_length) ** 0.5
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
 
@@ -1702,9 +1698,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for client_turtlebot in target_objects:
             turtlebot_api = client_turtlebot.map_motion_api
             cur_x, cur_y, yaw = turtlebot_api.read_pos()
-            tgt_pos = [0.0,0.0]
-            mv_yaw, mv_dis = turtlebot_api.compute_yaw_distance_to_target(
-                [cur_x,cur_y], tgt_pos)
+            tgt_pos = [0.0, 0.0]
+            mv_yaw, mv_dis = turtlebot_api.compute_yaw_distance_to_target([cur_x, cur_y], tgt_pos)
             turtlebot_api.move(yaw=mv_yaw, distance=mv_dis)
         # time.sleep(1.0)
 
@@ -1725,6 +1720,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         mode = "RXen1_TXen0" if mode == "rx" else "RXen0_TXen1"
         for client_rfsoc in target_objects:
             client_rfsoc.set_mode_sivers(mode)
+
 
 @dataclass(kw_only=True)
 class AnimationPlotConfig(PlotUtilsConfig):
@@ -1844,7 +1840,7 @@ class AnimatePlot(PlotUtils):
                     ylabel_mode = "IQ"
 
                 if signal_name == "txtd":
-                    x = self.signals_config.t_tx[:self.signals_config.n_samples_tx]
+                    x = self.signals_config.t_tx[: self.signals_config.n_samples_tx]
                     sig = self.signals_obj.tx_signal.txtd_base[0, tx_id]
                     title += "TX"
                     if "fft" in signal_process_list:
@@ -1863,11 +1859,11 @@ class AnimatePlot(PlotUtils):
                         xlabel_mode = "freq"
                         title += "-FD"
                     else:
-                        x = self.signals_config.t_rx[:self.config.plt_n_samples_rx] * 1e9
+                        x = self.signals_config.t_rx[: self.config.plt_n_samples_rx] * 1e9
                         xlabel_mode = "time"
                         title += "-TD"
                 elif signal_name == "h":
-                    x = self.signals_config.t_trx[:self.signals_config.n_samples_ch] * 1e9
+                    x = self.signals_config.t_trx[: self.signals_config.n_samples_ch] * 1e9
                     sig = h_est[rx_id, tx_id]
                     title += "Channel"
                     if "fft" in signal_process_list:
@@ -2090,7 +2086,9 @@ class AnimatePlot(PlotUtils):
                         peaks_ = np.abs(peaks) ** 2
                         peaks_ = self.signals_obj.lin_to_db(peaks_, mode="pow") - yshift
                         dly_est = dly_est * 1e9
-                        dly_est = dly_est[dly_est <= np.max(dlyr[: self.signals_config.n_samp_ch_sp])]
+                        dly_est = dly_est[
+                            dly_est <= np.max(dlyr[: self.signals_config.n_samp_ch_sp])
+                        ]
                         self.line[line_id][j].set_data(dly_est, peaks_)
                         line_id += 1
                         self.line[line_id][j].set_segments(
@@ -2100,7 +2098,9 @@ class AnimatePlot(PlotUtils):
                         self.ax[i][j].set_ylim([ymin, ymax])
                     elif signal_name == "nf_loc":
                         self.signals_obj.nf_model.plot_results(
-                            self.ax[i][j], RoomModel=self.signals_obj.RoomModel, plot_type="init_est"
+                            self.ax[i][j],
+                            RoomModel=self.signals_obj.RoomModel,
+                            plot_type="init_est",
                         )
                     else:
                         self.line[line_id][j].set_ydata(signal_data)
@@ -2109,7 +2109,11 @@ class AnimatePlot(PlotUtils):
                 if signal_name in self.mag_filter_list["signal_name"] or any(
                     item in signal_process_list for item in self.mag_filter_list["process_list"]
                 ):
-                    sig = signal_data[0] if len(np.array(signal_data).shape) > 1 else signal_data.copy()
+                    sig = (
+                        signal_data[0]
+                        if len(np.array(signal_data).shape) > 1
+                        else signal_data.copy()
+                    )
                     y_min = np.percentile(sig, 10)
                     y_max = np.max(sig) + 0.1 * (np.max(sig) - y_min)
                     self.ax[i][j].set_ylim(y_min, y_max)
@@ -2117,14 +2121,17 @@ class AnimatePlot(PlotUtils):
                 elif not (
                     signal_name in self.untouched_plot_list["signal_name"]
                     or any(
-                        item in signal_process_list for item in self.untouched_plot_list["process_list"]
+                        item in signal_process_list
+                        for item in self.untouched_plot_list["process_list"]
                     )
                 ):
                     try:
                         self.ax[i][j].relim()
                         self.ax[i][j].autoscale_view()
                     except Exception as e:
-                        raise RuntimeError(f"Error in autoscaling axes for signal {signal_name} with process list {signal_process_list}") from e
+                        raise RuntimeError(
+                            f"Error in autoscaling axes for signal {signal_name} with process list {signal_process_list}"
+                        ) from e
 
         return self.line
 
