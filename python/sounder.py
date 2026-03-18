@@ -104,9 +104,6 @@ class SounderConfig(ExperimentOperatorConfig):
             if self.running_platform == "rfsoc":
                 self.plot_level = 4
                 self.verbose_level = 4
-            elif "slave" in self.host_role:
-                self.plot_level = 0
-                self.verbose_level = 4
             else:
                 self.plot_level = 0
                 self.verbose_level = 1
@@ -146,7 +143,7 @@ class Sounder(General):
         if self.config.load_parameters:
             self.load_class_attributes_from_json(self.config, self.config.config_path)
 
-        self.print(f"Running the code as {self.config.host_role}", thr=1)
+        # self.print(f"Running the code as {self.config.host_role}", thr=1)
 
         if self.config.running_platform == "rfsoc" and (
             self.config.update_rfsoc_files or self.config.modify_rfsoc_files
@@ -199,8 +196,7 @@ class Sounder(General):
 
         if self.config.running_platform == "rfsoc":
             self.run_rfsoc()
-
-        elif "client" in self.config.host_role:
+        else:
             self.operator.init_objects()
             plot_config = AnimationPlotConfig().update_from_config(self.config)
             animate_plotter = AnimatePlot(plot_config, self.operator)

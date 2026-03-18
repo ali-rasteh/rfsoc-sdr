@@ -1229,7 +1229,7 @@ class SignalUtilsRfsoc(SignalUtils):
 @dataclass(kw_only=True)
 class ExperimentOperatorConfig(SignalUtilsRFSoCConfig):
     measurement_configs: tuple = None  # List of measurement configurations
-    host_role: str = "client"  # Mode of operation, client or client_master or client_slave
+    # host_role: str = "client"  # Mode of operation, client or client_master or client_slave
     RFFE: str = "piradio"  # RF front end to use, piradio or sivers
     network_topology: dict = None  # Network topology configuration
     action_loop: tuple = None
@@ -1300,6 +1300,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         self.print("Initializing network objects", thr=1)
 
         self._network_objects = {}
+        self._network_objects["self"] = self
 
         for name in self.network_topology:
             item_type = self.network_topology[name]["type"]
@@ -1318,21 +1319,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
             else:
                 raise NotImplementedError(f"Initialization handler '{method_name}' is not defined.")
 
-        if "slave" in self.config.host_role:
-            controller_config = TCPComControllerConfig().update_from_config(self.config)
-            controller = TcpCommController(controller_config)
-            controller.init_tcp_server()
-            for item in self.network_topology.items():
-                item_name, item_info = item
-                # if item_info["type"] in ["piradio", "rfsoc"]:
-                controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
-                    item_name
-                ]
-            self._network_objects["self"] = controller
-            controller.run_tcp_server(controller.parse_and_execute)
-        else:
-            self._network_objects["self"] = self
-
     def _init_rfsoc(self, ip, **kwargs):
         rfsoc_config = ClientRFSoCConfig(server_ip=ip).update_from_config(self.config)
         rfsoc = ClientRFSoC(rfsoc_config)
@@ -1345,7 +1331,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         lintrack.init_tcp_client()
         return lintrack
 
-    def _init_lintrack_client(self, run_server=False, **kwargs):
+    def _init_lintrack(self, run_server=False, **kwargs):
         lintrack_config = LinearTrackControllerConfig()
         lintrack = LinearTrackController(lintrack_config)
         if run_server:
@@ -1408,12 +1394,25 @@ class ExperimentOperator(SignalUtilsRfsoc):
         turtlebot = Turtlebot(turtlebot_config)
         return turtlebot
 
-    def _init_controller(self, ip, **kwargs):
+    def _init_controller_client(self, ip, **kwargs):
         controller_config = TCPComControllerConfig(server_ip=ip).update_from_config(self.config)
         controller = TcpCommController(controller_config)
         controller.init_tcp_client()
         controller.set_frequency_piradio(self.config.fc)
         return controller
+
+    def _init_controller_server(self, **kwargs):
+        controller_config = TCPComControllerConfig().update_from_config(self.config)
+        controller = TcpCommController(controller_config)
+        controller.init_tcp_server()
+        for item in self.network_topology.items():
+            item_name, item_info = item
+            # if item_info["type"] in ["piradio", "rfsoc"]:
+            controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
+                item_name
+            ]
+        self._network_objects["self"] = controller
+        controller.run_tcp_server(controller.parse_and_execute)
 
     def _parse_action_spec(self, spec):
         """Parses dict-based action specs."""
