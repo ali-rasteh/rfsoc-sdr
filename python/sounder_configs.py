@@ -111,7 +111,8 @@ class FR3SpectrumSweepConfig(BaseConfig):
         {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
                                         "params": {"process_signal": False}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
-        # {"targets": ["self"],           "actions": ["print_snr"], "values": [1]},
+        # {"targets": ["self"],           "actions": ["print"], "values": [1],
+        #                                   "params": {"print_list": ["snr"]}},
         {"targets": ["self"],           "actions": ["save", "store"], "values": [1],
                                         "params": {"save_list": ["signal", "sig_interval"]}},
     )
@@ -124,23 +125,25 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     sig_mode: str = "wideband"
     measurement_configs: tuple = None
     network_topology: dict = field(default_factory=lambda: {
-        # "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
-        "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
-        # "piradio_rx": {
-        #     "type": "piradio",
-        #     "role": "rx",
-        #     "ip": "192.168.185.51",
-        #     "protocol": "http",
-        # },
-        "piradio_tx": {
+        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "piradio_rx": {
             "type": "piradio",
-            "role": "tx",
-            "ip": "192.168.137.51",
+            "role": "rx",
+            "ip": "192.168.185.51",
             "protocol": "http",
         },
-        # "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        "turtlebot_rx": {"type": "turtlebot"},
+        "controller_tx": {"type": "controller", "ip": "10.20.47.103"},
+
+        # "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
+        # "piradio_tx": {
+        #     "type": "piradio",
+        #     "role": "tx",
+        #     "ip": "192.168.137.51",
+        #     "protocol": "http",
+        # },
         # "lintrack_tx": {"type": "lintrack", "ip": "192.168.185.52"},
-        # "turtlebot_rx": {"type": "turtlebot"},
+        # "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
     })
         # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
     action_loop: tuple = (

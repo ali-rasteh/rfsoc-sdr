@@ -194,6 +194,7 @@ class TcpCommRFSoC(TcpComm):
         super().__init__(config, **overrides)
 
         self.obj_rfsoc = None
+        self.methods_suffix = "_rfsoc"
 
         if self.config.RFFE == "sivers":
             self.tx_bb_gain = 0x3
@@ -542,6 +543,7 @@ class TcpCommLinTrack(TcpComm):
     def __init__(self, config: TCPComLinTrackConfig, **overrides):
         super().__init__(config, **overrides)
         self.obj_lintrack = None
+        self.methods_suffix = "_lintrack"
 
         # command -> handler
         self._command_handlers.update({
@@ -623,6 +625,7 @@ class TCPComControllerConfig(TCPComRFSoCConfig, TCPComLinTrackConfig):
 class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
     def __init__(self, config: TCPComControllerConfig, **overrides):
         super().__init__(config, **overrides)
+        self.methods_suffix = "_controller"
 
         self.obj_piradio = None
         self.obj_gimbal = None
@@ -929,12 +932,13 @@ class RESTComPiradio(RESTCom):
     def __init__(self, config: RestComPiradioConfig, **overrides):
         super().__init__(config, **overrides)
 
+        self.methods_suffix = "_piradio"
         self.print("RESTComPiradio object init done", thr=1)
 
     def initialize(self, verif_keyword="done"):
         self.print("Pi-Radio REST Comm Initialization done", thr=3)
 
-    def set_frequency_piradio(self, fc=6.0e9, lo="high", verif_keyword=None):
+    def set_frequency(self, fc=6.0e9, lo="high", verif_keyword=None):
         # command = f'high_lo?freq={fc}'
         url = f"{self.url_base}{lo}_lo"
         params = {"freq": fc}
@@ -947,7 +951,7 @@ class RESTComPiradio(RESTCom):
             self.print(f"Failed to set frequency to {fc / 1e9} GHz", thr=0)
         return result, response
 
-    def set_gain_piradio(self, trx="tx", chan=0, gain_db=0, verif_keyword=None):
+    def set_gain(self, trx="tx", chan=0, gain_db=0, verif_keyword=None):
         chan = str(chan)
         url = self.url_base + "gain"
         params = {"trx": trx, "chan": chan, "v": gain_db}
@@ -960,7 +964,7 @@ class RESTComPiradio(RESTCom):
             self.print(f"Failed to set gain to {gain_db} dB", thr=0)
         return result, response
 
-    def set_bias_piradio(self, chan=0, iq="I", bias_voltage=0, verif_keyword=None):
+    def set_bias(self, chan=0, iq="I", bias_voltage=0, verif_keyword=None):
         chan = str(chan)
         url = self.url_base + "bias"
         params = {"iq": iq, "chan": chan, "v": bias_voltage}

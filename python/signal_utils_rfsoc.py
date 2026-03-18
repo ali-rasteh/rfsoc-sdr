@@ -10,6 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
+from lin_track_cntrl import LinearTrackController, LinearTrackControllerConfig
 from matplotlib import cycler  # type: ignore
 from numpy.fft import fft, fftshift, ifft, ifftshift
 from scipy import constants
@@ -278,12 +279,14 @@ class Turtlebot(General):
         cur_x, cur_y, yaw = api.read_pos()
         mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=mv_dis)
+        self.turtlebot_pos = position
 
     def rotate_to(self, position):
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
         mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=0.0)
+        self.turtlebot_orientation = mv_yaw
 
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
@@ -302,11 +305,18 @@ class Turtlebot(General):
         ].reshape(2, -1).T
         self.lintrack_grid = np.linspace(0, lintrack_length, int(lintrack_length / lintrack_grid_size))
 
+        self.turtlebot_pos = None
+        self.tx_pos = None
+        self.lintrack_grid_id = 0
+        self.gimbal_az_grid = None
+        self.gimbal_az_grid_id = 0
+        self.turtlebot_orientation = None
+        self.tx_orientation = None
+
     def get_next_turtlebot_position(self):
         # This function should return the next position of the turtlebot in the room grid
         for pos in self.moving_room_grid:
             self.reset_lintrack_position()
-            self.turtlebot_pos = pos
             yield pos
 
     def reset_lintrack_position(self):
@@ -1295,7 +1305,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             item_type = self.network_topology[name]["type"]
             kwargs = {k: v for k, v in self.network_topology[name].items() if k != "type"}
 
-            method_name = f"init_{item_type.lower()}"
+            method_name = f"_init_{item_type.lower()}"
             init_method = getattr(self, method_name, None)
 
             if init_method:
@@ -1312,37 +1322,37 @@ class ExperimentOperator(SignalUtilsRfsoc):
             controller_config = TCPComControllerConfig().update_from_config(self.config)
             controller = TcpCommController(controller_config)
             controller.init_tcp_server()
-            piradio_key = next(
-                (k for k, v in self.network_topology.items() if v["type"] == "piradio"), None
-            )
-            rfsoc_key = next(
-                (k for k, v in self.network_topology.items() if v["type"] == "rfsoc"), None
-            )
-            if not piradio_key or not rfsoc_key:
-                raise ValueError(
-                    "Slave mode requires at least one piradio and one rfsoc in network_topology"
-                )
-            controller.obj_piradio = self._network_objects[piradio_key]
-            controller.obj_rfsoc = self._network_objects[rfsoc_key]
+            for item in self.network_topology.items():
+                item_name, item_info = item
+                # if item_info["type"] in ["piradio", "rfsoc"]:
+                controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
+                    item_name
+                ]
             self._network_objects["self"] = controller
             controller.run_tcp_server(controller.parse_and_execute)
         else:
             self._network_objects["self"] = self
 
-    # TODO: complete parameters
-    def init_rfsoc(self, ip, **kwargs):
+    def _init_rfsoc(self, ip, **kwargs):
         rfsoc_config = ClientRFSoCConfig(server_ip=ip).update_from_config(self.config)
         rfsoc = ClientRFSoC(rfsoc_config)
         rfsoc.init_tcp_client()
         return rfsoc
 
-    def init_lintrack(self, ip, **kwargs):
+    def _init_lintrack_client(self, ip, **kwargs):
         lintrack_config = TCPComLinTrackConfig(server_ip=ip).update_from_config(self.config)
         lintrack = TcpCommLinTrack(lintrack_config)
         lintrack.init_tcp_client()
         return lintrack
 
-    def init_turntable(self, port="COM6", baudrate=115200, rotation_delay=0.0, **kwargs):
+    def _init_lintrack_client(self, run_server=False, **kwargs):
+        lintrack_config = LinearTrackControllerConfig()
+        lintrack = LinearTrackController(lintrack_config)
+        if run_server:
+            lintrack.run_tcp()
+        return lintrack
+
+    def _init_turntable(self, port="COM6", baudrate=115200, rotation_delay=0.0, **kwargs):
         turntable_config = SerialComTurnTableConfig(
             port=port, baudrate=baudrate, rotation_delay=rotation_delay
         )
@@ -1355,7 +1365,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         turntable.interactive_move()
         return turntable
 
-    def init_d48ptu(self, port="/dev/ttyUSB0", baudrate=9600, rotation_delay=0.0, **kwargs):
+    def _init_d48ptu(self, port="/dev/ttyUSB0", baudrate=9600, **kwargs):
         gimbal_config = SerialComD48PTUConfig(
             port=port,
             baudrate=baudrate,
@@ -1369,7 +1379,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.print("Please check the connection and try again.", thr=0)
         return D48PTU
 
-    def init_piradio(self, ip, freq_sw_dly=0.1, gain_sw_dly=0.1, bias_sw_dly=0.1, **kwargs):
+    def _init_piradio(self, ip, freq_sw_dly=0.1, gain_sw_dly=0.1, bias_sw_dly=0.1, **kwargs):
         piradio_config = PiRadioConfig(
             ip_address=ip,
             freq_sw_dly=freq_sw_dly,
@@ -1380,7 +1390,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         piradio.set_frequency_piradio(fc=self.config.fc)
         return piradio
 
-    def init_turtlebot(self, **kwargs):
+    def _init_turtlebot(self, **kwargs):
         # try:
         #     from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
         #     from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
@@ -1398,7 +1408,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         turtlebot = Turtlebot(turtlebot_config)
         return turtlebot
 
-    def init_controller(self, ip, **kwargs):
+    def _init_controller(self, ip, **kwargs):
         controller_config = TCPComControllerConfig(server_ip=ip).update_from_config(self.config)
         controller = TcpCommController(controller_config)
         controller.init_tcp_client()
@@ -1652,6 +1662,22 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
                 self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
             ]
+        if "snr_db" in save_list:
+            snr = self.calculate_snr(
+                sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
+                sig_sc_range=self.config.sc_range,
+            )
+            snr_db = self.lin_to_db(snr, mode="pow")
+            self.measurement["snr_db"] = snr_db
+        if "aoa" in save_list:
+            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
+            self.measurement["aoa"] = aoa
+        if "turtlebot_info" in save_list:
+            client_turtlebot = target_objects[0]
+            self.measurement["tx_pos"] = client_turtlebot.tx_pos
+            self.measurement["tx_orientation"] = client_turtlebot.tx_orientation
+            self.measurement["turtlebot_pos"] = client_turtlebot.turtlebot_pos
+            self.measurement["turtlebot_orientation"] = client_turtlebot.turtlebot_orientation
 
     def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
@@ -1693,25 +1719,26 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for client_lintrack in target_objects:
             client_lintrack.return2home_lintrack(lintrack_id=0)
 
-    def _action_publish_aoa_ros2(self, target_objects, value, **kwargs):
-        aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
-        self.publish_aoa_turtlebot(aoa)
+    def _action_publish_ros2(self, target_objects, value, publish_list=(), **kwargs):
+        if "aoa" in publish_list:
+            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
+            self.publish_aoa_turtlebot(aoa)
+        if "snr" in publish_list:
+            snr = self.calculate_snr(
+                sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
+                sig_sc_range=self.config.sc_range,
+            )
+            snr_db = self.lin_to_db(snr, mode="pow")
+            self.publish_snr_turtlebot(snr_db)
 
-    def _action_publish_snr_ros2(self, target_objects, value, **kwargs):
-        snr = self.calculate_snr(
-            sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
-            sig_sc_range=self.config.sc_range,
-        )
-        snr_db = self.lin_to_db(snr, mode="pow")
-        self.publish_snr_turtlebot(snr_db)
-
-    def _action_print_snr(self, target_objects, value, **kwargs):
-        snr = self.calculate_snr(
-            sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
-            sig_sc_range=self.config.wb_sc_range,
-        )
-        snr_db = self.lin_to_db(snr, mode="pow")
-        self.print(f"Estimated SNR: {snr_db:.2f} dB", thr=0)
+    def _action_print(self, target_objects, value, print_list=(), **kwargs):
+        if "snr" in print_list:
+            snr = self.calculate_snr(
+                sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
+                sig_sc_range=self.config.wb_sc_range,
+            )
+            snr_db = self.lin_to_db(snr, mode="pow")
+            self.print(f"Estimated SNR: {snr_db:.2f} dB", thr=0)
 
     def _action_hop_freq(self, target_objects, value, **kwargs):
         frequency = float(value)
