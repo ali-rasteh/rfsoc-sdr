@@ -561,6 +561,15 @@ class TcpCommLinTrack(TcpComm):
         self.print(f"Result of move_forward: {data}", thr=3)
         return data
 
+    def go2pos(self, lintrack_id=0, position=0.0):
+        self.print(f"Moving linear track {lintrack_id} to position {position} mm", thr=2)
+        self.radio_control.sendall(
+            b"go2pos " + str.encode(str(lintrack_id) + " ") + str.encode(str(position))
+        )
+        data = self.radio_control.recv(1024)
+        self.print(f"Result of go2pos: {data}", thr=3)
+        return data
+
     def return2home(self, lintrack_id=0):
         self.print(f"Returning linear track {lintrack_id} to home", thr=2)
         self.radio_control.sendall(b"return2home " + str.encode(str(lintrack_id)))
@@ -581,6 +590,14 @@ class TcpCommLinTrack(TcpComm):
         motor_id = int(args[0])
         distance = float(args[1])
         success, status = self.obj_lintrack.displace(motor_id=motor_id, dis=distance)
+        return self.config.success_message if success else status
+
+    def _handle_go2pos(self, args):
+        if len(args) != 2:
+            return self.config.invalid_number_of_arguments_message
+        motor_id = int(args[0])
+        position = float(args[1])
+        success, status = self.obj_lintrack.go2pos(motor_id=motor_id, pos=position)
         return self.config.success_message if success else status
 
     def _handle_return2home(self, args):

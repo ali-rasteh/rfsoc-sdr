@@ -112,8 +112,8 @@ class FR3SpectrumSweepConfig(BaseConfig):
                                         "params": {"process_signal": False}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
         # {"targets": ["self"],           "actions": ["print_snr"], "values": [1]},
-        {"targets": ["self"],           "actions": ["save"], "values": [1],
-                                        "params": {"save_list": ["signal"]}},
+        {"targets": ["self"],           "actions": ["save", "store"], "values": [1],
+                                        "params": {"save_list": ["signal", "sig_interval"]}},
     )
 
 @dataclass(kw_only=True)

@@ -273,42 +273,57 @@ class Turtlebot(General):
     def __del__(self):
         self.close()
 
-    def init(self, lintrack_length=0.5):
-        # Origin is the point that turtlebot is powered on on the corner of the room
-        self.moving_room_size = [3.0, 6.0]  # Moving room size in meters [length, width]
-        self.moving_room_grid_size = [0.2, 0.2]  # Grid size for the moving room in meters [length, width]
-        self.moving_room_grid = np.mgrid[
-            0 : self.moving_room_size[0] : self.moving_room_grid_size[0],
-            0 : self.moving_room_size[1] : self.moving_room_grid_size[1],
-        ].reshape(2, -1).T
+    def move_to(self, position):
+        api = self.map_motion_api
+        cur_x, cur_y, yaw = api.read_pos()
+        mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
+        api.move(yaw=mv_yaw, distance=mv_dis)
 
+    def rotate_to(self, position):
+        api = self.map_motion_api
+        cur_x, cur_y, yaw = api.read_pos()
+        mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
+        api.move(yaw=mv_yaw, distance=0.0)
+
+    def init(self):
+        # Origin is the point that turtlebot is powered on on the corner of the room
+        lintrack_length = 1.0
+        self.moving_room_size = [3.0, 6.0]  # Moving room size in meters [length, width]
+        moving_room_grid_size = [0.2, 0.2]  # Grid size for the moving room in meters [length, width]
         self.lintrack_offset = np.array([0.5, 0.5])  # Offset of the linear track from the origin point in meters [length, width]
         lintrack_grid_size = 0.1  # Grid size for the linear track in meters
-        self.lintrack_grid = np.linspace(0, lintrack_length, int(lintrack_length / lintrack_grid_size))
-
+        self.gimbal_az_offset_deg = 0.0  # Offset of the gimbal azimuth angle in degrees
         self.gimbal_az_grid_size_deg = 5.0  # Grid size for the gimbal azimuth angles in degrees
         self.tx_beam_width_deg = 60.0  # TX beam width in degrees, used to limit the gimbal angles range
+
+        self.moving_room_grid = np.mgrid[
+            0 : self.moving_room_size[0] : moving_room_grid_size[0],
+            0 : self.moving_room_size[1] : moving_room_grid_size[1],
+        ].reshape(2, -1).T
+        self.lintrack_grid = np.linspace(0, lintrack_length, int(lintrack_length / lintrack_grid_size))
 
     def get_next_turtlebot_position(self):
         # This function should return the next position of the turtlebot in the room grid
         for pos in self.moving_room_grid:
-            self.reset_lintrack()
-            self.reset_gimbal()
+            self.reset_lintrack_position()
             self.turtlebot_pos = pos
             yield pos
 
-    def reset_lintrack(self):
+    def reset_lintrack_position(self):
+        self.reset_gimbal_position()
         self.lintrack_grid_id = 0
 
     def get_next_lintrack_position(self):
         # This function should return the next position of the linear track
+        if self.lintrack_grid_id >= len(self.lintrack_grid):
+            raise StopIteration("No more linear track positions available")
         pos = self.lintrack_grid[self.lintrack_grid_id]
         self.tx_pos = self.lintrack_offset + np.array([pos, 0])
         self.lintrack_grid_id += 1
-        self.reset_gimbal()
+        self.reset_gimbal_position()
         return pos
 
-    def reset_gimbal(self):
+    def reset_gimbal_position(self):
         min_angle, max_angle, _ = get_viewing_angle_range(
             width=self.moving_room_size[0],
             length=self.moving_room_size[1],
@@ -324,9 +339,13 @@ class Turtlebot(General):
 
     def get_next_gimbal_az(self):
         # This function should return the next angle of the gimbal
+        if self.gimbal_az_grid_id >= len(self.gimbal_az_grid):
+            raise StopIteration("No more gimbal angles available")
         az = self.gimbal_az_grid[self.gimbal_az_grid_id]
+        self.tx_orientation = [az+self.gimbal_az_offset_deg, 0]
         self.gimbal_az_grid_id += 1
         return az
+
 
 @dataclass(kw_only=True)
 class SignalUtilsRFSoCConfig(SignalUtilsConfig):
@@ -1483,8 +1502,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
         params = [item[3] for item in loop_list]
 
         prev = None
-        default_actions = ["capture", "save", "wait", "update_plot", "print_snr"]
-        # default_actions_contain = ["print"]
+        default_actions = ["capture", "save", "store", "wait", "update_plot", "print_snr"]
+        default_actions_contain = ["print"]
 
         for values in itertools.product(*ranges):
             print(f"Current Sweep Values: {values}")
@@ -1496,6 +1515,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     i
                     for i, (a, b) in enumerate(zip(prev, values, strict=False))
                     if a != b or any(action in default_actions for action in actions[i])
+                    or any(action_contain in action for action in actions[i] for \
+                            action_contain in default_actions_contain)
                 ]
             prev = values
 
@@ -1622,26 +1643,26 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
         self.animate_plotter.update_once(rx_signal)
 
-    def _action_save(self, target_objects, value, save_list=("signal",), save_prefix="m", **kwargs):
-        save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
-        save_name = f"{save_prefix}_{save_postfix}{self.save_id}.{self.config.save_format}"
-
-        self.measurement["id"] = self.save_id
+    def _action_save(self, target_objects, value, save_list=("signal",), **kwargs):
         if "signal" in save_list:
             self.measurement["txtd"] = self.txtd_save.copy()
             self.measurement[f"rxtd_{self.config.fc / 1e9}"] = self.rxtd_save.copy()
+        if "sig_interval" in save_list:
+            self.measurement["sig_interval"] = [
+                self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
+                self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
+            ]
 
-        self.measurement["sig_interval"] = [
-            self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
-            self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
-        ]
+    def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
+        save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
+        save_name = f"{save_prefix}_{save_postfix}{self.save_id}.{self.config.save_format}"
+        self.measurement["id"] = self.save_id
 
-        if "signal" in save_list:
-            sig_save_path = os.path.join(self.config.sig_dir, save_name)
-            if self.config.save_format == "npz":
-                np.savez(sig_save_path, **self.measurement)
-            elif self.config.save_format == "mat":
-                scipy.io.savemat(sig_save_path, self.measurement)
+        save_path = os.path.join(self.config.sig_dir, save_name)
+        if self.config.save_format == "npz":
+            np.savez(save_path, **self.measurement)
+        elif self.config.save_format == "mat":
+            scipy.io.savemat(save_path, self.measurement)
 
         self.save_id += 1
 
@@ -1757,12 +1778,20 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def _action_move_turtlebot(self, target_objects, value, **kwargs):
         for client_turtlebot in target_objects:
-            turtlebot_api = client_turtlebot.map_motion_api
-            cur_x, cur_y, yaw = turtlebot_api.read_pos()
-            tgt_pos = [0.0, 0.0]
-            mv_yaw, mv_dis = turtlebot_api.compute_yaw_distance_to_target([cur_x, cur_y], tgt_pos)
-            turtlebot_api.move(yaw=mv_yaw, distance=mv_dis)
-        # time.sleep(1.0)
+            position = client_turtlebot.get_next_turtlebot_position()
+            client_turtlebot.move_to(position)
+            client_turtlebot.rotate_to(client_turtlebot.tx_pos)
+
+    def _action_move_lintrack_trurtlebot(self, target_objects, value, **kwargs):
+        client_turtlebot, client_lintrack = target_objects
+        position = client_turtlebot.get_next_lintrack_position()
+        client_lintrack.go2pos(lintrack_id=0, position=position)
+
+    def _action_move_gimbal_trurtlebot(self, target_objects, value, **kwargs):
+        client_turtlebot, client_gimbal = target_objects
+        az = client_turtlebot.get_next_gimbal_az()
+        current_deg = client_gimbal.get_deg()
+        client_gimbal.set_deg([az, current_deg[1]])
 
     def _action_set_gimbal_az(self, target_objects, value, **kwargs):
         az = float(value)

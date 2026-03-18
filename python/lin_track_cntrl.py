@@ -176,8 +176,13 @@ class LinearTrackController(General):
             status = "invalid_distance"
         return success, status
 
+    def go2pos(self, motor_id=0, pos=0.0):
+        self.print(f"Moving linear track {motor_id} to position {pos}mm", thr=1)
+        dis = pos - self.position[motor_id]
+        return self.displace(motor_id=motor_id, dis=dis)
+
     def return2home(self, motor_id=0):
-        self.print(f"Returning to home position on linea track {motor_id}", thr=1)
+        self.print(f"Returning to home position on linear track {motor_id}", thr=1)
         dis_from_home = self.position[motor_id]
 
         success = True
