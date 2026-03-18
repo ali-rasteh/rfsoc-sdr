@@ -19,8 +19,8 @@ class LinearTrackControllerConfig(GeneralConfig):
     pulse_freq: int = 1600  # frequency of the pulse in Hz
     dis_coeff: float = 0.972  # coefficient to convert the distance to time
     overhead_time: float = 0.0018 + 0.0061 + 0.0001  # overhead time for the motor to start and stop in seconds
-    position_file_path: str = os.path.join(os.getcwd(), "lintrack_position.txt")  # file path to store the position of the linear track
-    n_motors: int = 2  # number of motors to control
+    position_file_path: str = os.path.join(os.getcwd(), "data/lintrack_position.txt")  # file path to store the position of the linear track
+    n_motors: int = 1  # number of motors to control
 
     total_length = 1500  # length of the linear track in mm
     plate_length = 125
@@ -277,20 +277,15 @@ if __name__ == "__main__":
     lintrack_config = LinearTrackControllerConfig()
     lt = LinearTrackController(lintrack_config)
 
-    atexit.register(lt.reset)
+    # atexit.register(lt.reset)
     # atexit.register(on_program_exit)
 
-    # lt.calibrate(motor_id=0, mode='start')
-    # lt.calibrate(motor_id=1, mode='start')
+    lt.calibrate(motor_id=0, mode='start')
     # lt.calibrate(motor_id=0, mode='end')
-    # lt.calibrate(motor_id=1, mode='end')
     # lt.return2home(motor_id=0)
-    # lt.return2home(motor_id=1)
     # lt.go2end(motor_id=0)
-    # lt.go2end(motor_id=1)
 
-    lt.interactive_move(motor_id=0)
-    lt.interactive_move(motor_id=1)
+    # lt.interactive_move(motor_id=0)
     # lt.back_and_forth(motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=3.0)
 
     lt.run_tcp()
