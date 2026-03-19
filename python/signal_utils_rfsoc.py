@@ -291,19 +291,31 @@ class Turtlebot(General):
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
         lintrack_length = 1.0
-        self.moving_room_size = [3.0, 6.0]  # Moving room size in meters [length, width]
-        moving_room_grid_size = [0.2, 0.2]  # Grid size for the moving room in meters [length, width]
-        self.lintrack_offset = np.array([0.5, 0.5])  # Offset of the linear track from the origin point in meters [length, width]
-        lintrack_grid_size = 0.1  # Grid size for the linear track in meters
-        self.gimbal_az_offset_deg = 0.0  # Offset of the gimbal azimuth angle in degrees
-        self.gimbal_az_grid_size_deg = 5.0  # Grid size for the gimbal azimuth angles in degrees
-        self.tx_beam_width_deg = 60.0  # TX beam width in degrees, used to limit the gimbal angles range
+        # Moving room size in meters [length, width]
+        self.moving_room_size = [3.0, 6.0]
+        # Grid size for the moving room in meters [length, width]
+        moving_room_grid_size = [0.2, 0.2]
+        # Offset of the linear track from the origin point in meters [length, width]
+        self.lintrack_offset = np.array([0.5, 0.5])
+        # Tilt of the linear track in degrees
+        self.lintrack_tilt_deg = 180.0 + 10.0
+        # Grid size for the linear track in meters
+        lintrack_grid_size = 0.1
+        # Offset of the gimbal azimuth angle in degrees
+        self.gimbal_az_offset_deg = 0.0
+        # Grid size for the gimbal azimuth angles in degrees
+        self.gimbal_az_grid_size_deg = 5.0
+        # TX beam width in degrees, used to limit the gimbal angles range
+        self.tx_beam_width_deg = 60.0
+        # Height difference between the TX and RX in meters, used to calculate the gimbal elevation angle
+        self.tx_rx_height_diff = 0.5
 
         self.moving_room_grid = np.mgrid[
             0 : self.moving_room_size[0] : moving_room_grid_size[0],
             0 : self.moving_room_size[1] : moving_room_grid_size[1],
         ].reshape(2, -1).T
-        self.lintrack_grid = np.linspace(0, lintrack_length, int(lintrack_length / lintrack_grid_size))
+        self.lintrack_grid = np.linspace(0, lintrack_length,\
+                            int(lintrack_length / lintrack_grid_size))
 
         self.turtlebot_pos = None
         self.tx_pos = None
@@ -328,13 +340,15 @@ class Turtlebot(General):
         if self.lintrack_grid_id >= len(self.lintrack_grid):
             raise StopIteration("No more linear track positions available")
         pos = self.lintrack_grid[self.lintrack_grid_id]
-        self.tx_pos = self.lintrack_offset + np.array([pos, 0])
+        self.tx_pos = self.lintrack_offset + pos * np.array([
+                    np.cos(np.deg2rad(self.lintrack_tilt_deg)),
+                    np.sin(np.deg2rad(self.lintrack_tilt_deg))])
         self.lintrack_grid_id += 1
         self.reset_gimbal_position()
         return pos
 
     def reset_gimbal_position(self):
-        min_angle, max_angle, _ = get_viewing_angle_range(
+        min_angle, max_angle, exact_angle = get_viewing_angle_range(
             width=self.moving_room_size[0],
             length=self.moving_room_size[1],
             ref_x=self.tx_pos[0],
@@ -343,18 +357,21 @@ class Turtlebot(General):
             obj_y=self.turtlebot_pos[1],
             alpha_deg=self.tx_beam_width_deg / 2,
         )
-        self.gimbal_az_grid = np.linspace(min_angle, max_angle,
-                            int((max_angle - min_angle) / self.gimbal_az_grid_size_deg))  # Gimbal azimuth angles grid in degrees
+        # self.gimbal_az_grid = np.linspace(min_angle, max_angle,
+        #                     int((max_angle - min_angle) / self.gimbal_az_grid_size_deg))  # Gimbal azimuth angles grid in degrees
+        self.gimbal_az_grid = np.array([exact_angle])  # Only use the exact angle for the gimbal azimuth
         self.gimbal_az_grid_id = 0
 
-    def get_next_gimbal_az(self):
+    def get_next_gimbal_angle(self):
         # This function should return the next angle of the gimbal
         if self.gimbal_az_grid_id >= len(self.gimbal_az_grid):
             raise StopIteration("No more gimbal angles available")
         az = self.gimbal_az_grid[self.gimbal_az_grid_id]
-        self.tx_orientation = [az+self.gimbal_az_offset_deg, 0]
+        tx_rx_dist = np.linalg.norm(self.tx_pos - self.turtlebot_pos)
+        el = -np.arctan2(self.tx_rx_height_diff, tx_rx_dist)
+        self.tx_orientation = [az+self.gimbal_az_offset_deg, el]
         self.gimbal_az_grid_id += 1
-        return az
+        return (az, el)
 
 
 @dataclass(kw_only=True)
@@ -379,7 +396,6 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     sig_gain_db: float = 0  # Transmitter Signal gain in dB
     n_frame_wr: int = 1  # Number of frames to write
     n_frame_rd: int = 2  # Number of frames to read
-    n_rd_rep: int = 8  # Number of read repetitions for RX signal
     snr_est_db: float = 40  # SNR for signal estimation
     wb_bw_mode: str = "sc"  # Wideband signal bandwidth mode, sc or freq
     wb_sc_range: tuple = (-250, 250)  # Wideband signal subcarrier range, used when wb_bw_mode is sc
@@ -1631,9 +1647,10 @@ class ExperimentOperator(SignalUtilsRfsoc):
         sig_name = sig_name if sig_name else value
         sig_path = os.path.join(self.config.sig_dir, sig_name)
         sigs_save = np.load(sig_path)
+        n_rd_rep = 1
 
         rxtd = sigs_save[f"rxtd_{self.config.fc / 1e9:.1f}"][
-            self.read_id * self.config.n_rd_rep : (self.read_id + 1) * self.config.n_rd_rep
+            self.read_id * n_rd_rep : (self.read_id + 1) * n_rd_rep
         ]
         txtd_base = sigs_save["txtd"]
 
@@ -1673,8 +1690,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
             client_turtlebot = target_objects[0]
             self.measurement["tx_pos"] = client_turtlebot.tx_pos
             self.measurement["tx_orientation"] = client_turtlebot.tx_orientation
-            self.measurement["turtlebot_pos"] = client_turtlebot.turtlebot_pos
-            self.measurement["turtlebot_orientation"] = client_turtlebot.turtlebot_orientation
+            self.measurement["rx_pos"] = client_turtlebot.turtlebot_pos
+            self.measurement["rx_orientation"] = client_turtlebot.turtlebot_orientation
 
     def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
@@ -1813,8 +1830,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def _action_move_gimbal_trurtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_gimbal = target_objects
-        az = client_turtlebot.get_next_gimbal_az()
-        client_gimbal.goto_deg_d48ptu(azimuth_deg=az)
+        az, el = client_turtlebot.get_next_gimbal_angles()
+        client_gimbal.goto_deg_d48ptu(azimuth_deg=az, elevation_deg=el)
 
     def _action_set_gimbal_az(self, target_objects, value, **kwargs):
         az = float(value)
@@ -2027,6 +2044,10 @@ class AnimatePlot(PlotUtils):
                 else:
                     raise ValueError(f"Unsupported signal name: {signal_name}")
 
+                if sig is not None and x is not None:
+                    n_samples_plot = min(len(x), len(sig_final))
+                    sig = sig[:n_samples_plot]
+                    x = x[:n_samples_plot]
                 sig, title_post = self.signals_obj.process_sig(
                     sig, process_list=signal_process_list
                 )
@@ -2056,15 +2077,12 @@ class AnimatePlot(PlotUtils):
 
                 if not (len(plot) > index + 1 and plot[index + 1] in supported_operations):
                     sig_final = sig_final[0] if sig_final.ndim != 1 else sig_final
-                    n_samples_plot = min(len(x), len(sig_final))
-                    sig_final = sig_final[:n_samples_plot]
-                    x_plot = x[:n_samples_plot] if x is not None else None
                     plot_signals.append(
                         PlotSignal(
                             signal_name=signal_name,
                             trx_id=[rx_id, tx_id],
                             process_list=signal_process_list,
-                            x=x_plot,
+                            x=x,
                             data=sig_final,
                             label=label_final,
                         )
