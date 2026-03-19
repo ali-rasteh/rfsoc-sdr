@@ -123,7 +123,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     sig_mode: str = "wideband"
     measurement_configs: tuple = None
     network_topology: dict = field(default_factory=lambda: {
-        # "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
+        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4", "protocol": "tcp"},
         # "piradio_rx": {
         #     "type": "piradio",
         #     "role": "rx",
@@ -131,26 +131,27 @@ class FR3RoboticLocalizationConfig(BaseConfig):
         #     "protocol": "http",
         # },
         # "turtlebot_rx": {"type": "turtlebot"},
-        # "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
+        "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
 
-        "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
-        "piradio_tx": {
-            "type": "piradio",
-            "role": "tx",
-            "ip": "192.168.137.51",
-            "protocol": "http",
-        },
-        "lintrack_tx": {"type": "lintrack"},
-        "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
-        "controller_tx": {"type": "controller_server"},
+        # "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1", "protocol": "tcp"},
+        # "piradio_tx": {
+        #     "type": "piradio",
+        #     "role": "tx",
+        #     "ip": "192.168.137.51",
+        #     "protocol": "http",
+        # },
+        # "lintrack_tx": {"type": "lintrack"},
+        # "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+        # "controller_tx": {"type": "controller_server"},
     })
         # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
     action_loop: tuple = (
         # {"targets": ["rfsoc_tx"],       "actions": ["transmit_signal"]},
         {"targets": ["self"],           "actions": ["loop"], "values": "1:100:100"},
-        # {"targets": ["piradio_tx", "piradio_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-        # {"targets": ["piradio_tx"],     "actions": ["set_gain_db_tx"], "values": [35.0]},
-        # {"targets": ["gimbal_tx"],      "actions": ["set_gimbal_az"], "values": "-45:45:20"},
+        {"targets": ["controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+        {"targets": ["controller_tx"],     "actions": ["set_gain_db_tx"], "values": [35.0]},
+        {"targets": ["controller_tx"],      "actions": ["set_gimbal_az"], "values": "-45:45:20"},
+        {"targets": ["controller_tx"],      "actions": ["move_lintrack"], "values": "-10:10:10"},
         {"targets": ["rfsoc_rx"],       "actions": ["capture"], "values": [2],
                                         "params": {"process_signal": False}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},

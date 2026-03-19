@@ -214,6 +214,7 @@ class TcpCommRFSoC(TcpComm):
             "receive_samples": self._handle_receive_samples,
             "transmit_samples_default": self._handle_transmit_samples_default,
             "transmit_samples": self._handle_transmit_samples,
+            "set_frequency_mixer": self._handle_set_frequency_mixer,
             "get_beam_index_tx_sivers": self._handle_get_beam_index_tx_sivers,
             "set_beam_index_tx_sivers": self._handle_set_beam_index_tx_sivers,
             "get_beam_index_rx_sivers": self._handle_get_beam_index_rx_sivers,
@@ -226,7 +227,6 @@ class TcpCommRFSoC(TcpComm):
             "set_gain_tx_sivers": self._handle_set_gain_tx_sivers,
             "get_carrier_frequency_sivers": self._handle_get_carrier_frequency_sivers,
             "set_carrier_frequency_sivers": self._handle_set_carrier_frequency_sivers,
-            "set_frequency_mixer": self._handle_set_frequency_mixer,
         })
 
         self.print("TcpCommRFSoC object init done", thr=1)
@@ -244,14 +244,14 @@ class TcpCommRFSoC(TcpComm):
         self.print(f"Result of set_frequency_sivers: {data}", thr=3)
         return data
 
-    def set_frequency_mixer_rfsoc(self, f_mixer_dac, f_mixer_adc):
+    def set_frequency_mixer(self, f_mixer_dac, f_mixer_adc):
         self.radio_control.sendall(
             b"set_frequency_mixer "
             + str.encode(str(f_mixer_dac) + " ")
             + str.encode(str(f_mixer_adc))
         )
         data = self.radio_control.recv(1024)
-        self.print(f"Result of set_frequency_mixer_rfsoc: {data}", thr=3)
+        self.print(f"Result of set_frequency_mixer: {data}", thr=3)
         return data
 
     def set_tx_gain_sivers(self):
@@ -278,13 +278,13 @@ class TcpCommRFSoC(TcpComm):
         self.print(f"Result of set_rx_gain_sivers: {data}", thr=3)
         return data
 
-    def transmit_data_default_rfsoc(self):
+    def transmit_data_default(self):
         self.radio_control.sendall(b"transmit_samples_default")
         data = self.radio_control.recv(1024)
-        self.print(f"Result of transmit_data_default_rfsoc: {data}", thr=3)
+        self.print(f"Result of transmit_data_default: {data}", thr=3)
         return data
 
-    def transmit_data_rfsoc(self, txtd):
+    def transmit_data(self, txtd):
         txtd = txtd.copy()
         txtd = np.array(txtd).flatten()
         txtd = txtd * (2 ** (self.config.dac_bits + 1) - 1)
@@ -295,10 +295,10 @@ class TcpCommRFSoC(TcpComm):
         self.radio_control.sendall(b"transmit_samples")
         self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
-        self.print(f"Result of transmit_data_rfsoc: {data}", thr=3)
+        self.print(f"Result of transmit_data: {data}", thr=3)
         return data
 
-    def receive_data_rfsoc_once(self, mode="once"):
+    def receive_data_once(self, mode="once"):
         if mode == "once":
             nbeams = 1
             self.radio_control.sendall(b"receive_samples_once")
@@ -321,15 +321,15 @@ class TcpCommRFSoC(TcpComm):
         rxtd = rxtd.reshape(nbeams, self.config.n_rx_ant, self.nread // self.config.n_rx_ant)
 
         resp = self.radio_control.recv(1024)
-        self.print(f"Result of receive_data_rfsoc_once: {resp}", thr=3)
+        self.print(f"Result of receive_data_once: {resp}", thr=3)
         return rxtd
 
-    def receive_data_rfsoc(self, n_rd_rep=1, mode="once", verbose=False):
+    def receive_data(self, n_rd_rep=1, mode="once", verbose=False):
         rxtd = []
         for i in range(n_rd_rep):
             if verbose:
                 self.print(f"Reading iteration: {i + 1}", thr=0)
-            rxtd_ = self.receive_data_rfsoc_once(mode=mode)
+            rxtd_ = self.receive_data_once(mode=mode)
             rxtd_ = rxtd_.squeeze(axis=0)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
@@ -386,6 +386,19 @@ class TcpCommRFSoC(TcpComm):
 
         self.obj_rfsoc.send_frame(txtd=txtd)
         return self.config.success_message
+
+    def _handle_set_frequency_mixer(self, args):
+        if len(args) != 2:
+            return self.config.invalid_number_of_arguments_message
+
+        f_mixer_dac = float(args[0])
+        f_mixer_adc = float(args[1])
+        success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
+        success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
+        responseToCMD = (
+            self.config.success_message if success else "Failed to set mixer frequencies"
+        )
+        return responseToCMD
 
     def _handle_get_beam_index_tx_sivers(self, args):
         if len(args) != 0:
@@ -520,19 +533,6 @@ class TcpCommRFSoC(TcpComm):
         responseToCMD = self.config.success_message if success else status
         return responseToCMD
 
-    def _handle_set_frequency_mixer(self, args):
-        if len(args) != 2:
-            return self.config.invalid_number_of_arguments_message
-
-        f_mixer_dac = float(args[0])
-        f_mixer_adc = float(args[1])
-        success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_rfsoc_mixer_settings=True)
-        success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_rfsoc_mixer_settings=True)
-        responseToCMD = (
-            self.config.success_message if success else "Failed to set mixer frequencies"
-        )
-        return responseToCMD
-
 
 @dataclass(kw_only=True)
 class TCPComLinTrackConfig(TCPComConfig):
@@ -634,8 +634,7 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
             "set_frequency_piradio": self._handle_set_frequency_piradio,
             "set_gain_piradio": self._handle_set_gain_piradio,
             "set_bias_piradio": self._handle_set_bias_piradio,
-            "set_gimbal_deg_az": self._handle_set_gimbal_deg_az,
-            "set_gimbal_deg_el": self._handle_set_gimbal_deg_el,
+            "goto_deg_d48ptu": self._handle_goto_deg_d48ptu,
         })
 
         self.print("TcpCommController object init done", thr=1)
@@ -648,6 +647,9 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
         data = self.radio_control.recv(1024)
         self.print(f"Result of set_frequency_piradio: {data}", thr=3)
         return data
+
+    def hop_freq_piradio(self, *args, **kwargs):
+        return self.set_frequency_piradio(*args, **kwargs)
 
     def set_gain_piradio(self, trx="tx", chan=0, gain_db=0):
         self.print(f"Setting gain to {gain_db} dB for {trx}-{chan}", thr=3)
@@ -673,18 +675,12 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
         self.print(f"Result of set_bias_piradio: {data}", thr=3)
         return data
 
-    def set_gimbal_deg_az(self, angle_deg):
-        self.print(f"Setting gimbal azimuth to {angle_deg} degrees", thr=3)
-        self.radio_control.sendall(b"set_gimbal_deg_az " + str.encode(str(angle_deg)))
+    def goto_deg_d48ptu(self, azimuth_deg: float | None = None, elevation_deg: float | None = None):
+        self.print(f"Setting gimbal azimuth/elevation to {azimuth_deg}/{elevation_deg} degrees", thr=3)
+        self.radio_control.sendall(b"goto_deg_d48ptu " + str.encode(str(azimuth_deg))
+                                    + str.encode(str(elevation_deg)))
         data = self.radio_control.recv(1024)
-        self.print(f"Result of set_gimbal_deg_az: {data}", thr=3)
-        return data
-
-    def set_gimbal_deg_el(self, angle_deg):
-        self.print(f"Setting gimbal elevation to {angle_deg} degrees", thr=3)
-        self.radio_control.sendall(b"set_gimbal_deg_el " + str.encode(str(angle_deg)))
-        data = self.radio_control.recv(1024)
-        self.print(f"Result of set_gimbal_deg_el: {data}", thr=3)
+        self.print(f"Result of goto_deg_d48ptu: {data}", thr=3)
         return data
 
     def _handle_set_frequency_piradio(self, args):
@@ -718,19 +714,12 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
         responseToCMD = self.config.success_message
         return responseToCMD
 
-    def _handle_set_gimbal_deg_az(self, args):
-        if len(args) != 1:
+    def _handle_goto_deg_d48ptu(self, args):
+        if len(args) != 2:
             return self.config.invalid_number_of_arguments_message
-        angle_deg = float(args[0])
-        current_deg = self.obj_gimbal.get_deg()
-        self.obj_gimbal.set_deg([angle_deg, current_deg[1]])
-
-    def _handle_set_gimbal_deg_el(self, args):
-        if len(args) != 1:
-            return self.config.invalid_number_of_arguments_message
-        angle_deg = float(args[0])
-        current_deg = self.obj_gimbal.get_deg()
-        self.obj_gimbal.set_deg([current_deg[0], angle_deg])
+        az_deg = float(args[0]) if args[0].lower() != "none" else None
+        el_deg = float(args[1]) if args[1].lower() != "none" else None
+        self.obj_gimbal.goto_deg(azimuth_deg=az_deg, elevation_deg=el_deg)
 
 
 @dataclass(kw_only=True)

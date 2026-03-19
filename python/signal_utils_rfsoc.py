@@ -125,7 +125,7 @@ class ClientRFSoC(TcpCommRFSoC):
             phase_diff_list = []
             delay_list = []
             for _ in range(self.config.calib_iter):
-                rxtd = self.receive_data_rfsoc(mode="once")
+                rxtd = self.receive_data(mode="once")
                 phase_diff = SignalUtils.calc_phase_offset(rxtd[0, 0, :], rxtd[0, 1, :])
                 delay = phase_diff / (2 * np.pi * self.config.fc)
                 phase_diff_list.append(phase_diff)
@@ -173,13 +173,13 @@ class PiRadioFR3Trx(RESTComPiradio):
 
     def hop_freq(self, fc, set_opt_losupp=False):
         if self.fc is None or self.fc != fc:
-            self.set_frequency_piradio(fc=fc)
+            self.set_frequency(fc=fc)
             if set_opt_losupp:
-                self.set_optimal_losupp_piradio(fc=fc)
+                self.set_optimal_losupp(fc=fc)
             self.fc = fc
             self.wl = constants.c / self.fc
 
-    def set_optimal_losupp_piradio(self, fc=None):
+    def set_optimal_losupp(self, fc=None):
         if fc is None:
             fc = self.fc
 
@@ -212,12 +212,12 @@ class PiRadioFR3Trx(RESTComPiradio):
             f"Nearest frequency: {nearest_fc} GHz, Optimal LO suppression: {optimal_lo_supp}",
             thr=1,
         )
-        self.set_bias_piradio(chan=0, iq="I", bias_voltage=optimal_lo_supp[0])
-        self.set_bias_piradio(chan=0, iq="Q", bias_voltage=optimal_lo_supp[1])
-        self.set_bias_piradio(chan=1, iq="I", bias_voltage=optimal_lo_supp[0])
-        self.set_bias_piradio(chan=1, iq="Q", bias_voltage=optimal_lo_supp[1])
+        self.set_bias(chan=0, iq="I", bias_voltage=optimal_lo_supp[0])
+        self.set_bias(chan=0, iq="Q", bias_voltage=optimal_lo_supp[1])
+        self.set_bias(chan=1, iq="I", bias_voltage=optimal_lo_supp[0])
+        self.set_bias(chan=1, iq="Q", bias_voltage=optimal_lo_supp[1])
 
-    def set_optimal_gain_piradio(self, side="both", tx_rx_distance=3.0):
+    def set_optimal_gain(self, side="both", tx_rx_distance=3.0):
         self.print("Setting optimal TX/RX gains in Pi-Radio", thr=0)
 
         freq_list = list(self.optimal_gains[tx_rx_distance].keys())
@@ -225,12 +225,12 @@ class PiRadioFR3Trx(RESTComPiradio):
 
         if side == "rx" or side == "both":
             rx_gain_optimal = self.optimal_gains[tx_rx_distance][nearest_fc]["rx_gain"]
-            self.set_gain_piradio(trx="rx", chan=0, gain_db=rx_gain_optimal)
-            self.set_gain_piradio(trx="rx", chan=1, gain_db=rx_gain_optimal)
+            self.set_gain(trx="rx", chan=0, gain_db=rx_gain_optimal)
+            self.set_gain(trx="rx", chan=1, gain_db=rx_gain_optimal)
         if side == "tx" or side == "both":
             tx_gain_optimal = self.optimal_gains[tx_rx_distance][nearest_fc]["tx_gain"]
-            self.set_gain_piradio(trx="tx", chan=0, gain_db=tx_gain_optimal)
-            self.set_gain_piradio(trx="tx", chan=1, gain_db=tx_gain_optimal)
+            self.set_gain(trx="tx", chan=0, gain_db=tx_gain_optimal)
+            self.set_gain(trx="tx", chan=1, gain_db=tx_gain_optimal)
 
 
 @dataclass(kw_only=True)
@@ -1555,7 +1555,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def _action_loop(self, target_objects, value, **kwargs):
         self.print(f"Starting loop iteration with value: {value}", thr=1)
-        pass  # This can be used for any setup needed at the start of each loop iteration
 
     def _action_change_phys_config(self, target_objs, value, **kwargs):
         if not self.config.measurement_configs:
@@ -1649,7 +1648,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         rx_signal = self.rx_signal
         if rx_signal is None:
             raise ValueError("update_plot requires a valid rx_signal; run capture first")
-
         self.animate_plotter.update_once(rx_signal)
 
     def _action_save(self, target_objects, value, save_list=("signal",), **kwargs):
@@ -1704,10 +1702,10 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.print(f"Total time elapsed from last start: {elapsed_time:0.3f} s", thr=0)
         self.print(f"Total time remaining: {n_rep * elapsed_time:0.3f} s", thr=0)
 
-    def _action_rotate_table(self, target_objects, value, **kwargs):
+    def _action_rotate_turntable(self, target_objects, value, **kwargs):
         angle = float(value)
         for client_turntable in target_objects:
-            client_turntable.move_to_position(angle)
+            client_turntable.move_to_position_turntable(angle)
 
     def _action_move_lintrack(self, target_objects, value, **kwargs):
         distance = float(value)
@@ -1745,7 +1743,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             if self.config.RFFE == "sivers":
                 client.set_frequency_sivers(fc=frequency)
             elif self.config.RFFE == "piradio":
-                client.hop_freq(fc=frequency)
+                client.hop_freq_piradio(fc=frequency)
 
     def _action_set_gain_db_tx(self, target_objects, value, **kwargs):
         gain_db = int(value)
@@ -1811,25 +1809,22 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def _action_move_lintrack_trurtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_lintrack = target_objects
         position = client_turtlebot.get_next_lintrack_position()
-        client_lintrack.go2pos(lintrack_id=0, position=position)
+        client_lintrack.go2pos_lintrack(lintrack_id=0, position=position)
 
     def _action_move_gimbal_trurtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_gimbal = target_objects
         az = client_turtlebot.get_next_gimbal_az()
-        current_deg = client_gimbal.get_deg()
-        client_gimbal.set_deg([az, current_deg[1]])
+        client_gimbal.goto_deg_d48ptu(azimuth_deg=az)
 
     def _action_set_gimbal_az(self, target_objects, value, **kwargs):
         az = float(value)
         for client_gimbal in target_objects:
-            current_deg = client_gimbal.get_deg()
-            client_gimbal.set_deg([az, current_deg[1]])
+            client_gimbal.goto_deg_d48ptu(azimuth_deg=az)
 
     def _action_set_gimbal_el(self, target_objects, value, **kwargs):
         el = float(value)
         for client_gimbal in target_objects:
-            current_deg = client_gimbal.get_deg()
-            client_gimbal.set_deg([current_deg[0], el])
+            client_gimbal.goto_deg_d48ptu(elevation_deg=el)
 
     def _action_set_mode_sivers(self, target_objects, value, **kwargs):
         mode = str(value)
