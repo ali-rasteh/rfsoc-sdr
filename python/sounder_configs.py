@@ -142,6 +142,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     })
         # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
     action_loop: tuple = (
+        {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
         {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
         {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
         {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},

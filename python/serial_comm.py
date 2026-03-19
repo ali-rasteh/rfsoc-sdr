@@ -330,13 +330,13 @@ class SerialComD48PTU(SerialCom):
         """Return [azimuth_deg, elevation_deg]."""
         pan_pos = self._get_pan_pos()
         tilt_pos = self._get_tilt_pos()
-        return [self.pos_to_deg(pan_pos), self.pos_to_deg(tilt_pos)]
+        return [-self.pos_to_deg(pan_pos), self.pos_to_deg(tilt_pos)]
 
     def get_rad(self) -> list[float]:
         """Return [azimuth_rad, elevation_rad]."""
         pan_pos = self._get_pan_pos()
         tilt_pos = self._get_tilt_pos()
-        return [self.pos_to_rad(pan_pos), self.pos_to_rad(tilt_pos)]
+        return [-self.pos_to_rad(pan_pos), self.pos_to_rad(tilt_pos)]
 
     def set_deg(self, angles_deg: list[float]) -> None:
         """
@@ -345,7 +345,7 @@ class SerialComD48PTU(SerialCom):
         """
         if len(angles_deg) != 2:
             raise ValueError("set_deg expects [azimuth_deg, elevation_deg]")
-        az_deg, el_deg = float(angles_deg[0]), float(angles_deg[1])
+        az_deg, el_deg = float(-angles_deg[0]), float(angles_deg[1])
 
         az_deg = self._clamp_deg("pan", az_deg)
         el_deg = self._clamp_deg("tilt", el_deg)
@@ -360,7 +360,7 @@ class SerialComD48PTU(SerialCom):
         """
         if len(angles_rad) != 2:
             raise ValueError("set_rad expects [azimuth_rad, elevation_rad]")
-        az_rad, el_rad = float(angles_rad[0]), float(angles_rad[1])
+        az_rad, el_rad = float(-angles_rad[0]), float(angles_rad[1])
 
         az_deg = math.degrees(az_rad)
         el_deg = math.degrees(el_rad)
@@ -376,6 +376,7 @@ class SerialComD48PTU(SerialCom):
     ) -> None:
         """Convenience: set only one axis if you want."""
         if azimuth_deg is not None:
+            azimuth_deg = -azimuth_deg
             az = self._clamp_deg("pan", float(azimuth_deg))
             self._set_pan_pos(self.deg_to_pos(az))
         if elevation_deg is not None:
@@ -387,6 +388,7 @@ class SerialComD48PTU(SerialCom):
     ) -> None:
         """Convenience: set only one axis if you want."""
         if azimuth_rad is not None:
+            azimuth_rad =- azimuth_rad
             az_deg = self._clamp_deg("pan", math.degrees(float(azimuth_rad)))
             self._set_pan_pos(self.deg_to_pos(az_deg))
         if elevation_rad is not None:

@@ -290,30 +290,46 @@ class Turtlebot(General):
 
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
-        lintrack_length = 1.0
+        lintrack_length = 1.2
         # Moving room size in meters [length, width]
-        self.moving_room_size = [3.0, 6.0]
+        self.moving_room_size = [2.0, -3.0]
         # Grid size for the moving room in meters [length, width]
-        moving_room_grid_size = [0.2, 0.2]
+        moving_room_grid_size = [0.2, -0.2]
         # Offset of the linear track from the origin point in meters [length, width]
-        self.lintrack_offset = np.array([0.5, 0.5])
+        self.lintrack_offset = np.array([1.0, 1.0])
         # Tilt of the linear track in degrees
         self.lintrack_tilt_deg = 180.0 + 10.0
         # Grid size for the linear track in meters
-        lintrack_grid_size = 0.1
+        lintrack_grid_size = 0.05
         # Offset of the gimbal azimuth angle in degrees
-        self.gimbal_az_offset_deg = 0.0
+        # To compensate for the linear track tilt and point the gimbal towards the center of the room
+        self.gimbal_az_offset_deg = -45.0 + (self.lintrack_tilt_deg - 180.0)
         # Grid size for the gimbal azimuth angles in degrees
         self.gimbal_az_grid_size_deg = 5.0
         # TX beam width in degrees, used to limit the gimbal angles range
         self.tx_beam_width_deg = 60.0
         # Height difference between the TX and RX in meters, used to calculate the gimbal elevation angle
-        self.tx_rx_height_diff = 0.5
+        self.tx_rx_height_diff = -0.5
 
         self.moving_room_grid = np.mgrid[
             0 : self.moving_room_size[0] : moving_room_grid_size[0],
             0 : self.moving_room_size[1] : moving_room_grid_size[1],
         ].reshape(2, -1).T
+
+        # Sort the grid points in a snake-like pattern to minimize the movement distance of the turtlebot
+        def zigzag_sort(arr):
+            ys = np.unique(arr[:, 1])
+            ys.sort()
+            rows = []
+            for i, y in enumerate(ys):
+                row = arr[arr[:, 1] == y]
+                row = row[np.argsort(row[:, 0])]
+                if i % 2 == 0:
+                    row = row[::-1]
+                rows.append(row)
+            return np.vstack(rows)
+
+        self.moving_room_grid = zigzag_sort(self.moving_room_grid)
         self.lintrack_grid = np.linspace(0, lintrack_length,\
                             int(lintrack_length / lintrack_grid_size))
 
@@ -349,8 +365,6 @@ class Turtlebot(General):
 
     def reset_gimbal_position(self):
         min_angle, max_angle, exact_angle = get_viewing_angle_range(
-            width=self.moving_room_size[0],
-            length=self.moving_room_size[1],
             ref_x=self.tx_pos[0],
             ref_y=self.tx_pos[1],
             obj_x=self.turtlebot_pos[0],
@@ -359,7 +373,7 @@ class Turtlebot(General):
         )
         # self.gimbal_az_grid = np.linspace(min_angle, max_angle,
         #                     int((max_angle - min_angle) / self.gimbal_az_grid_size_deg))  # Gimbal azimuth angles grid in degrees
-        self.gimbal_az_grid = np.array([exact_angle])  # Only use the exact angle for the gimbal azimuth
+        self.gimbal_az_grid = np.array([exact_angle-self.gimbal_az_offset_deg])  # Only use the exact angle for the gimbal azimuth
         self.gimbal_az_grid_id = 0
 
     def get_next_gimbal_angle(self):
@@ -368,7 +382,7 @@ class Turtlebot(General):
             raise StopIteration("No more gimbal angles available")
         az = self.gimbal_az_grid[self.gimbal_az_grid_id]
         tx_rx_dist = np.linalg.norm(self.tx_pos - self.turtlebot_pos)
-        el = -np.arctan2(self.tx_rx_height_diff, tx_rx_dist)
+        el = np.arctan2(self.tx_rx_height_diff, tx_rx_dist)
         self.tx_orientation = [az+self.gimbal_az_offset_deg, el]
         self.gimbal_az_grid_id += 1
         return (az, el)
