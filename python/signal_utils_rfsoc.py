@@ -1437,10 +1437,10 @@ class ExperimentOperator(SignalUtilsRfsoc):
         controller.init_tcp_server()
         for item in self.network_topology.items():
             item_name, item_info = item
-            # if item_info["type"] in ["piradio", "rfsoc"]:
-            controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
-                item_name
-            ]
+            if not item_info["type"] in ["controller", "controller_server"]:
+                controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
+                    item_name
+                ]
         self._network_objects["self"] = controller
         controller.run_tcp_server(controller.parse_and_execute)
 
