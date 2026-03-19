@@ -194,7 +194,7 @@ class TcpCommRFSoC(TcpComm):
         super().__init__(config, **overrides)
 
         self.obj_rfsoc = None
-        self.methods_suffix = "_rfsoc"
+        self.methods_suffix_list = ["_rfsoc"]
 
         if self.config.RFFE == "sivers":
             self.tx_bb_gain = 0x3
@@ -543,7 +543,7 @@ class TcpCommLinTrack(TcpComm):
     def __init__(self, config: TCPComLinTrackConfig, **overrides):
         super().__init__(config, **overrides)
         self.obj_lintrack = None
-        self.methods_suffix = "_lintrack"
+        self.methods_suffix_list = ["_lintrack"]
 
         # command -> handler
         self._command_handlers.update({
@@ -625,7 +625,7 @@ class TCPComControllerConfig(TCPComRFSoCConfig, TCPComLinTrackConfig):
 class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
     def __init__(self, config: TCPComControllerConfig, **overrides):
         super().__init__(config, **overrides)
-        self.methods_suffix = "_controller"
+        self.methods_suffix_list = ["_controller", "_rfsoc", "_lintrack"]
 
         self.obj_piradio = None
         self.obj_gimbal = None
@@ -921,7 +921,7 @@ class RESTComPiradio(RESTCom):
     def __init__(self, config: RestComPiradioConfig, **overrides):
         super().__init__(config, **overrides)
 
-        self.methods_suffix = "_piradio"
+        self.methods_suffix_list = ["_piradio"]
         self.print("RESTComPiradio object init done", thr=1)
 
     def initialize(self, verif_keyword="done"):

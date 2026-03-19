@@ -1428,7 +1428,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         controller_config = TCPComControllerConfig(server_ip=ip).update_from_config(self.config)
         controller = TcpCommController(controller_config)
         controller.init_tcp_client()
-        controller.set_frequency_piradio(self.config.fc)
         return controller
 
     def _init_controller_server(self, **kwargs):
@@ -1437,7 +1436,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         controller.init_tcp_server()
         for item in self.network_topology.items():
             item_name, item_info = item
-            if not item_info["type"] in ["controller", "controller_server"]:
+            if item_info["type"] not in ["controller", "controller_server"]:
                 controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
                     item_name
                 ]

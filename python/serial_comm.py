@@ -130,7 +130,7 @@ class SerialComTurnTable(SerialCom):
         """
         super().__init__(config, **overrides)
 
-        self.methods_suffix = "_turntable"
+        self.methods_suffix_list = ["_turntable"]
         self.position = 0.0
         self.print("SerialComTurnTable Client object created", thr=1)
 
@@ -232,7 +232,7 @@ class SerialComD48PTU(SerialCom):
 
     def __init__(self, config: SerialComD48PTUConfig, **overrides):
         super().__init__(config, **overrides)
-        self.methods_suffix = "_d48ptu"
+        self.methods_suffix_list = ["_d48ptu"]
 
     # ----------------- serial I/O -----------------
     def _write_line(self, line: str) -> None:
