@@ -550,7 +550,7 @@ class RFSoC(General):
         self.rxtd = np.array(self.rxtd)
         self.print("Loading rxtd data from ADC RX buffer done", thr=5)
 
-    def send_frame(self, txtd):
+    def transmit_samples(self, txtd):
         self.load_data_to_tx_buffer(txtd)
 
         self.gpio_dic["dac_mux_sel"].write(0)
@@ -573,7 +573,7 @@ class RFSoC(General):
         time.sleep(0.01)
         self.print("Frame sent via DAC", thr=1)
 
-    def recv_frame_once(self, n_frame=1):
+    def receive_samples_once(self, n_frame=1):
         # if 'ddr4' in self.config.project:
         #     self.gpio_dic['led'].write(1)
         if "ddr4" in self.config.project:
@@ -612,7 +612,7 @@ class RFSoC(General):
 
         return self.rxtd
 
-    def recv_frame(self, n_frame=1):
+    def receive_samples_beams(self, n_frame=1):
         rxtd = np.zeros(
             (len(self.config.beam_test), self.config.n_rx_ant * n_frame * self.config.n_samples),
             dtype="complex",
@@ -621,7 +621,7 @@ class RFSoC(General):
         for i, beam_index in enumerate(self.config.beam_test):
             if self.config.RFFE == "sivers":
                 self.siversControllerObj.set_beam_index_rx(beam_index)
-            self.recv_frame_once(n_frame=n_frame)
+            self.receive_samples_once(n_frame=n_frame)
             rxtd[i, :] = self.rxtd.flatten()
 
         rxfd = fft(rxtd, axis=1)

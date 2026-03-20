@@ -211,7 +211,7 @@ class TcpCommRFSoC(TcpComm):
         # command -> handler
         self._command_handlers.update({
             "receive_samples_once": self._handle_receive_samples_once,
-            "receive_samples": self._handle_receive_samples,
+            "receive_samples_beams": self._handle_receive_samples_beams,
             "transmit_samples_default": self._handle_transmit_samples_default,
             "transmit_samples": self._handle_transmit_samples,
             "set_frequency_mixer": self._handle_set_frequency_mixer,
@@ -298,7 +298,7 @@ class TcpCommRFSoC(TcpComm):
         self.print(f"Result of transmit_data: {data}", thr=3)
         return data
 
-    def receive_data_once(self, mode="once"):
+    def receive_samples_once(self, mode="once"):
         if mode == "once":
             nbeams = 1
             self.radio_control.sendall(b"receive_samples_once")
@@ -306,7 +306,7 @@ class TcpCommRFSoC(TcpComm):
             if self.config.beam_test is None:
                 raise ValueError("Cannot use 'beams' mode: config.beam_test is None")
             nbeams = len(self.config.beam_test)
-            self.radio_control.sendall(b"receive_samples")
+            self.radio_control.sendall(b"receive_samples_beams")
         nbytes = nbeams * self.config.nbytes * self.nread * 2
         buf = bytearray()
 
@@ -321,15 +321,15 @@ class TcpCommRFSoC(TcpComm):
         rxtd = rxtd.reshape(nbeams, self.config.n_rx_ant, self.nread // self.config.n_rx_ant)
 
         resp = self.radio_control.recv(1024)
-        self.print(f"Result of receive_data_once: {resp}", thr=3)
+        self.print(f"Result of receive_samples_once: {resp}", thr=3)
         return rxtd
 
-    def receive_data(self, n_rd_rep=1, mode="once", verbose=False):
+    def receive_samples(self, n_rd_rep=1, mode="once", verbose=False):
         rxtd = []
         for i in range(n_rd_rep):
             if verbose:
                 self.print(f"Reading iteration: {i + 1}", thr=0)
-            rxtd_ = self.receive_data_once(mode=mode)
+            rxtd_ = self.receive_samples_once(mode=mode)
             rxtd_ = rxtd_.squeeze(axis=0)
             rxtd.append(rxtd_)
         rxtd = np.array(rxtd)
@@ -341,7 +341,7 @@ class TcpCommRFSoC(TcpComm):
     def _handle_receive_samples_once(self, args):
         if len(args) != 0:
             return self.config.invalid_number_of_arguments_message
-        iq_data = self.obj_rfsoc.recv_frame_once(n_frame=self.config.n_frame_rd)
+        iq_data = self.obj_rfsoc.receive_samples_once(n_frame=self.config.n_frame_rd)
         iq_data = np.array(iq_data).flatten()
         iq_data = iq_data * (2 ** (self.config.adc_bits + 1) - 1)
         re = iq_data.real.astype(np.int16)
@@ -350,10 +350,10 @@ class TcpCommRFSoC(TcpComm):
         self.connectionData.sendall(iq_data.tobytes())
         return self.config.success_message
 
-    def _handle_receive_samples(self, args):
+    def _handle_receive_samples_beams(self, args):
         if len(args) != 0:
             return self.config.invalid_number_of_arguments_message
-        iq_data = self.obj_rfsoc.recv_frame(n_frame=self.config.n_frame_rd)
+        iq_data = self.obj_rfsoc.receive_samples_beams(n_frame=self.config.n_frame_rd)
         re = iq_data.real.astype(np.int16)
         im = iq_data.imag.astype(np.int16)
         iq_data = np.concatenate((re, im))
@@ -363,7 +363,7 @@ class TcpCommRFSoC(TcpComm):
     def _handle_transmit_samples_default(self, args):
         if len(args) != 0:
             return self.config.invalid_number_of_arguments_message
-        self.obj_rfsoc.send_frame(txtd=self.obj_rfsoc.txtd)
+        self.obj_rfsoc.transmit_samples(txtd=self.obj_rfsoc.txtd)
         return self.config.success_message
 
     def _handle_transmit_samples(self, args):
@@ -384,7 +384,7 @@ class TcpCommRFSoC(TcpComm):
         txtd = data[:nread] + 1j * data[nread:]
         txtd = txtd.reshape(self.config.n_tx_ant, nread // self.config.n_tx_ant)
 
-        self.obj_rfsoc.send_frame(txtd=txtd)
+        self.obj_rfsoc.transmit_samples(txtd=txtd)
         return self.config.success_message
 
     def _handle_set_frequency_mixer(self, args):

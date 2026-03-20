@@ -125,7 +125,7 @@ class ClientRFSoC(TcpCommRFSoC):
             phase_diff_list = []
             delay_list = []
             for _ in range(self.config.calib_iter):
-                rxtd = self.receive_data(mode="once")
+                rxtd = self.receive_samples(mode="once")
                 phase_diff = SignalUtils.calc_phase_offset(rxtd[0, 0, :], rxtd[0, 1, :])
                 delay = phase_diff / (2 * np.pi * self.config.fc)
                 phase_diff_list.append(phase_diff)
@@ -949,7 +949,7 @@ class SignalUtilsRfsoc(SignalUtils):
                     if client_piradio_rx.config.gain_sw_dly == 0:
                         time.sleep(2 * client_piradio_rx.config.piradio_gain_sw_dly_default)
 
-                    rxtd = client_rfsoc_rx.receive_data_rfsoc(mode="once")
+                    rxtd = client_rfsoc_rx.receive_samples(mode="once")
                     snr = self.calculate_snr(
                         sig_td=rxtd[0, :, : self.config.n_samples_trx],
                         sig_sc_range=self.config.sc_range,
@@ -1611,7 +1611,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         rxtd_save = []
 
         n_rd_rep = n_frames // self.config.n_frame_rd
-        rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once", verbose=False)
+        rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once", verbose=False)
         self.rx_signal = RxSignal(
             rxtd=rxtd,
             rxtd_base=rxtd,
@@ -1621,7 +1621,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             n_rd_rep = 1
             for i in range(n_frames):
                 self.print(f"Channel Save Iteration: {i + 1}", thr=0)
-                rxtd = client_rfsoc.receive_data_rfsoc(n_rd_rep=n_rd_rep, mode="once")
+                rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                 # to handle the dimenstion needed for read repeat
                 rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd)

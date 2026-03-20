@@ -186,10 +186,10 @@ class Sounder(General):
         rfsoc_inst = RFSoC(rfsoc_config)
         rfsoc_inst.txtd = self.operator.tx_signal.txtd
         if self.config.transmit_signal:
-            rfsoc_inst.send_frame(rfsoc_inst.txtd)
+            rfsoc_inst.transmit_samples(rfsoc_inst.txtd)
 
         # Receiving a test frame to verify connection
-        rfsoc_inst.recv_frame_once(n_frame=self.config.n_frame_rd)
+        rfsoc_inst.receive_samples_once(n_frame=self.config.n_frame_rd)
         rfsoc_inst.run_tcp()
 
     def run(self):
