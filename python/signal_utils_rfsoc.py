@@ -282,15 +282,19 @@ class Turtlebot(General):
         self.print(f"Moving turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
+        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
         mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=mv_dis)
         self.turtlebot_pos = position
         time.sleep(2.0)
+        cur_x, cur_y, yaw = api.read_pos()
+        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
 
     def rotate_to(self, position):
         self.print(f"Rotating turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
+        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
         mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=0.0)
         self.turtlebot_orientation = mv_yaw
