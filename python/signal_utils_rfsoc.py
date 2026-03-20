@@ -279,6 +279,7 @@ class Turtlebot(General):
         self.close()
 
     def move_to(self, position):
+        self.print(f"Moving turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
         mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
@@ -286,6 +287,7 @@ class Turtlebot(General):
         self.turtlebot_pos = position
 
     def rotate_to(self, position):
+        self.print(f"Moving turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
         mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
@@ -363,7 +365,7 @@ class Turtlebot(General):
         if self.lintrack_grid_id >= len(self.lintrack_grid):
             raise StopIteration("No more linear track positions available")
         position = self.lintrack_grid[self.lintrack_grid_id]
-        self.tx_pos = self.lintrack_offset + pos * np.array([
+        self.tx_pos = self.lintrack_offset + position * np.array([
                     np.cos(np.deg2rad(self.lintrack_tilt_deg)),
                     np.sin(np.deg2rad(self.lintrack_tilt_deg))])
         self.lintrack_grid_id += 1
