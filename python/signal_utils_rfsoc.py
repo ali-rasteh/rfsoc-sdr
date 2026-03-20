@@ -339,6 +339,7 @@ class Turtlebot(General):
 
         self.turtlebot_pos = None
         self.tx_pos = None
+        self.room_grid_id = 0
         self.lintrack_grid_id = 0
         self.gimbal_az_grid = None
         self.gimbal_az_grid_id = 0
@@ -347,9 +348,10 @@ class Turtlebot(General):
 
     def get_next_turtlebot_position(self):
         # This function should return the next position of the turtlebot in the room grid
-        for pos in self.moving_room_grid:
-            self.reset_lintrack_position()
-            yield pos
+        position = self.moving_room_grid[self.room_grid_id]
+        self.room_grid_id += 1
+        self.reset_lintrack_position()
+        return position
 
     def reset_lintrack_position(self):
         self.reset_gimbal_position()
@@ -359,13 +361,13 @@ class Turtlebot(General):
         # This function should return the next position of the linear track
         if self.lintrack_grid_id >= len(self.lintrack_grid):
             raise StopIteration("No more linear track positions available")
-        pos = self.lintrack_grid[self.lintrack_grid_id]
+        position = self.lintrack_grid[self.lintrack_grid_id]
         self.tx_pos = self.lintrack_offset + pos * np.array([
                     np.cos(np.deg2rad(self.lintrack_tilt_deg)),
                     np.sin(np.deg2rad(self.lintrack_tilt_deg))])
         self.lintrack_grid_id += 1
         self.reset_gimbal_position()
-        return pos
+        return position
 
     def reset_gimbal_position(self):
         min_angle, max_angle, exact_angle = get_viewing_angle_range(
