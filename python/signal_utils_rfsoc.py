@@ -296,7 +296,7 @@ class Turtlebot(General):
         # Origin is the point that turtlebot is powered on on the corner of the room
         lintrack_length = 1.2
         # Moving room size in meters [length, width]
-        self.moving_room_size = [2.0, -3.0]
+        self.moving_room_size = [1.0, -1.0]
         # Grid size for the moving room in meters [length, width]
         moving_room_grid_size = [0.2, -0.2]
         # Offset of the linear track from the origin point in meters [length, width]
