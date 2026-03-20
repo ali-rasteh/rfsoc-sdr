@@ -135,7 +135,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
                 "turtlebot_rx": {"type": "turtlebot"},
             }
-        else:
+        elif self.role == "slave":
             self.network_topology: dict = {
                 "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1"},
                 "piradio_tx": {

@@ -1378,7 +1378,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return lintrack
 
     def _init_lintrack(self, run_server=False, **kwargs):
-        lintrack_config = LinearTrackControllerConfig()
+        lintrack_config = LinearTrackControllerConfig().update_from_config(self.config)
         lintrack = LinearTrackController(lintrack_config)
         if run_server:
             lintrack.run_tcp()
