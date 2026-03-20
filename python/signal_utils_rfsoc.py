@@ -337,14 +337,15 @@ class Turtlebot(General):
         self.lintrack_grid = np.linspace(0, lintrack_length,\
                             int(lintrack_length / lintrack_grid_size))
 
-        self.turtlebot_pos = None
-        self.tx_pos = None
+        self.turtlebot_pos = [0.0, 0.0]
+        self.turtlebot_orientation = [0.0, 0.0]
+        self.tx_pos = [0.0, 0.0]
+        self.tx_orientation = [0.0, 0.0]
         self.room_grid_id = 0
         self.lintrack_grid_id = 0
         self.gimbal_az_grid = None
         self.gimbal_az_grid_id = 0
-        self.turtlebot_orientation = None
-        self.tx_orientation = None
+        self.reset_lintrack_position()
 
     def get_next_turtlebot_position(self):
         # This function should return the next position of the turtlebot in the room grid
