@@ -235,38 +235,42 @@ class PiRadioFR3Trx(RESTComPiradio):
 
 @dataclass(kw_only=True)
 class TurtlebotConfig(GeneralConfig):
-    cmd_topic: str = ("/cmd_vel_unstamped",)
-    odom_topic: str = ("/odom",)
-    rate: float = (10.0,)
-    max_linear: float = (0.50,)
-    max_angular: float = (0.25,)
-    target_frame: str = ("map",)
-    source_frame: str = ("base_link",)
-    tf_timeout: float = (20.0,)
-    lin_accel_limit: float = (0.05,)
-    ang_accel_limit: float = (0.8,)
+    cmd_topic: str = "/cmd_vel_unstamped"
+    odom_topic: str = "/odom"
+    rate: float = 10.0
+    max_linear: float = 0.50
+    max_angular: float = 0.25
+    target_frame: str = "map"
+    source_frame: str = "base_link"
+    tf_timeout: float = 20.0
+    lin_accel_limit: float = 0.05
+    ang_accel_limit: float = 0.8
 
 
 class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
-        # from turtlebot.map_motion_api import MapMotionAPI
-        # self.map_motion_api = MapMotionAPI(
-        #     cmd_topic=self.config.cmd_topic,
-        #     odom_topic=self.config.odom_topic,
-        #     rate=self.config.rate,
-        #     max_linear=self.config.max_linear,
-        #     max_angular=self.config.max_angular,
-        #     target_frame=self.config.target_frame,
-        #     source_frame=self.config.source_frame,
-        #     tf_timeout=self.config.tf_timeout,
-        #     lin_accel_limit=self.config.lin_accel_limit,
-        #     ang_accel_limit=self.config.ang_accel_limit,
-        # )
+        from turtlebot.map_motion_api import MapMotionAPI
+        self.map_motion_api = MapMotionAPI(
+            cmd_topic=self.config.cmd_topic,
+            odom_topic=self.config.odom_topic,
+            rate=self.config.rate,
+            max_linear=self.config.max_linear,
+            max_angular=self.config.max_angular,
+            target_frame=self.config.target_frame,
+            source_frame=self.config.source_frame,
+            tf_timeout=self.config.tf_timeout,
+            lin_accel_limit=self.config.lin_accel_limit,
+            ang_accel_limit=self.config.ang_accel_limit,
+        )
+
+        # from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
+        # from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
+        # self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
+        # self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
 
         self.init()
-        exit()
 
     def close(self):
         self.map_motion_api.shutdown()
@@ -1407,19 +1411,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return piradio
 
     def _init_turtlebot(self, **kwargs):
-        # try:
-        #     from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
-        #     from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
-
-        #     self.publish_aoa_turtlebot = get_publish_aoa_fn("/aoa_angle")
-        #     self.publish_snr_turtlebot = get_publish_snr_fn("/snr_db")
-        # except ImportError:
-        #     self.print(
-        #         "tb4_aoa_viz package not found, turtlebot publishing disabled", thr=0
-        #     )
-        #     self.publish_aoa_turtlebot = lambda x: None
-        #     self.publish_snr_turtlebot = lambda x: None
-
         turtlebot_config = TurtlebotConfig().update_from_config(self.config)
         turtlebot = Turtlebot(turtlebot_config)
         return turtlebot
@@ -1747,16 +1738,17 @@ class ExperimentOperator(SignalUtilsRfsoc):
             client_lintrack.return2home_lintrack(lintrack_id=0)
 
     def _action_publish_ros2(self, target_objects, value, publish_list=(), **kwargs):
+        client_turtlebot = target_objects[0]
         if "aoa" in publish_list:
             aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
-            self.publish_aoa_turtlebot(aoa)
+            client_turtlebot.publish_aoa_turtlebot(aoa)
         if "snr" in publish_list:
             snr = self.calculate_snr(
                 sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
                 sig_sc_range=self.config.sc_range,
             )
             snr_db = self.lin_to_db(snr, mode="pow")
-            self.publish_snr_turtlebot(snr_db)
+            client_turtlebot.publish_snr_turtlebot(snr_db)
 
     def _action_print(self, target_objects, value, print_list=(), **kwargs):
         if "snr" in print_list:

@@ -22,7 +22,7 @@ from rclpy.executors import SingleThreadedExecutor
 
 from tf2_ros import Buffer, TransformListener, TransformException
 
-from motion_simple import MotionSimple, normalize_angle
+from .motion_simple import MotionSimple, normalize_angle
 
 
 Pose = Tuple[float, float, float]
