@@ -14,7 +14,7 @@ from tcp_comm import TCPComLinTrackConfig, TcpCommLinTrack
 
 class LinearTrackControllerConfig(GeneralConfig):
     output_mode: str = "dc"  # "stepper" or "dc"
-    dis_per_rev: float = 8.0  # distance per revolution in mm
+    dis_per_rev_mm: float = 8.0  # distance per revolution in mm
     pulse_per_rev: int = 400  # number of pulses per revolution
     pulse_freq: int = 1600  # frequency of the pulse in Hz
     dis_coeff: float = 0.972  # coefficient to convert the distance to time
@@ -22,9 +22,9 @@ class LinearTrackControllerConfig(GeneralConfig):
     position_file_path: str = os.path.join(os.getcwd(), "data/lintrack_position.txt")  # file path to store the position of the linear track
     n_motors: int = 1  # number of motors to control
 
-    total_length = 1500  # length of the linear track in mm
-    plate_length = 125
-    margin2edge = 5
+    total_length = 1.500  # length of the linear track in m
+    plate_length = 0.125
+    margin2edge = 0.005
 
     def __post_init__(self):
         super().__post_init__()
@@ -63,7 +63,7 @@ class LinearTrackController(General):
     def calibrate(self, motor_id=0, mode="start"):
         self.print(f"Calibrating the linear track {motor_id} with mode {mode}", thr=1)
         while True:
-            dis_str = input("Enter the distance to move in mm, empty if need to break: ")
+            dis_str = input("Enter the distance to move in m, empty if need to break: ")
             if dis_str == "":
                 if mode == "start":
                     self.position[motor_id] = 0.0
@@ -83,7 +83,7 @@ class LinearTrackController(General):
     def interactive_move(self, motor_id=0):
         self.print(f"Starting interactive move for linear track {motor_id}", thr=1)
         while True:
-            dis_str = input("Enter the distance to move in mm, empty if need to break: ")
+            dis_str = input("Enter the distance to move in m, empty if need to break: ")
             if dis_str == "":
                 break
             try:
@@ -128,11 +128,11 @@ class LinearTrackController(General):
 
     def dis2time(self, dis=0.0):
         dis = self.config.dis_coeff * dis
-        t = dis * (self.config.pulse_per_rev) / (self.config.pulse_freq * self.config.dis_per_rev)
+        t = dis * (self.config.pulse_per_rev) / (self.config.pulse_freq * self.config.dis_per_rev_mm / 1000.0)
         return t
 
     def time2dis(self, t=0.0):
-        dis = t * (self.config.pulse_freq * self.config.dis_per_rev) / (self.config.pulse_per_rev)
+        dis = t * (self.config.pulse_freq * self.config.dis_per_rev_mm / 1000.0) / (self.config.pulse_per_rev)
         dis = dis / self.config.dis_coeff
         return dis
 
@@ -149,11 +149,11 @@ class LinearTrackController(General):
         else:
             success = True
 
-        self.print(f"The new distance from home for linear track {motor_id} is {position}mm", thr=2)
+        self.print(f"The new distance from home for linear track {motor_id} is {position}m", thr=2)
         return success, position
 
     def displace(self, motor_id=0, dis=0.0, pos_check=True):
-        self.print(f"Displacing linear track {motor_id} by {dis}mm", thr=1)
+        self.print(f"Displacing linear track {motor_id} by {dis}m", thr=1)
         if pos_check:
             result, position = self.position_check(motor_id, dis)
         else:
@@ -177,7 +177,7 @@ class LinearTrackController(General):
         return success, status
 
     def go2pos(self, motor_id=0, pos=0.0):
-        self.print(f"Moving linear track {motor_id} to position {pos}mm", thr=1)
+        self.print(f"Moving linear track {motor_id} to position {pos}m", thr=1)
         dis = pos - self.position[motor_id]
         success, status = self.displace(motor_id=motor_id, dis=dis)
         return success, status
