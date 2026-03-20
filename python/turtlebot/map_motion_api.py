@@ -341,7 +341,7 @@ class MapMotionAPI:
                 return False
 
         # small settle
-        time.sleep(7.0)
+        time.sleep(2.0)
 
         # forward if needed
         if abs(distance) > 1e-4:

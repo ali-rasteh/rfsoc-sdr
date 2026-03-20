@@ -63,9 +63,9 @@ class SerialCom(General):
         try:
             self.client.reset_input_buffer()
             self.client.reset_output_buffer()
+            time.sleep(0.1)  # Wait for target to reset
         except Exception:
             pass
-        time.sleep(1)  # Wait for target to reset
         if self.client.is_open:
             self.print("Client serial connected!", thr=1)
         else:

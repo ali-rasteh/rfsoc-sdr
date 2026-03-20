@@ -548,6 +548,7 @@ class TcpCommLinTrack(TcpComm):
         # command -> handler
         self._command_handlers.update({
             "move": self._handle_move,
+            "go2pos": self._handle_go2pos,
             "return2home": self._handle_return2home,
             "go2end": self._handle_go2end,
         })

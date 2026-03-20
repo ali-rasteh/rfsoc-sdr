@@ -86,6 +86,7 @@ class TxSignal:
 class ClientRFSoCConfig(TCPComRFSoCConfig):
     calib_config_dir: str = os.path.join(os.getcwd(), "calib/")
     calib_iter: int = 100  # Number of iterations for calibration
+    fc: float = 10.0e9
 
     def __post_init__(self):
         super().__post_init__()
@@ -251,19 +252,20 @@ class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
-        from turtlebot.map_motion_api import MapMotionAPI
-        self.map_motion_api = MapMotionAPI(
-            cmd_topic=self.config.cmd_topic,
-            odom_topic=self.config.odom_topic,
-            rate=self.config.rate,
-            max_linear=self.config.max_linear,
-            max_angular=self.config.max_angular,
-            target_frame=self.config.target_frame,
-            source_frame=self.config.source_frame,
-            tf_timeout=self.config.tf_timeout,
-            lin_accel_limit=self.config.lin_accel_limit,
-            ang_accel_limit=self.config.ang_accel_limit,
-        )
+        # from turtlebot.map_motion_api import MapMotionAPI
+        # self.map_motion_api = MapMotionAPI(
+        #     cmd_topic=self.config.cmd_topic,
+        #     odom_topic=self.config.odom_topic,
+        #     rate=self.config.rate,
+        #     max_linear=self.config.max_linear,
+        #     max_angular=self.config.max_angular,
+        #     target_frame=self.config.target_frame,
+        #     source_frame=self.config.source_frame,
+        #     tf_timeout=self.config.tf_timeout,
+        #     lin_accel_limit=self.config.lin_accel_limit,
+        #     ang_accel_limit=self.config.ang_accel_limit,
+        # )
+        self.map_motion_api = None
 
         # from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
         # from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
@@ -286,7 +288,7 @@ class Turtlebot(General):
         mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=mv_dis)
         self.turtlebot_pos = position
-        time.sleep(2.0)
+        time.sleep(1.0)
         cur_x, cur_y, yaw = api.read_pos()
         print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
 
@@ -1845,7 +1847,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def _action_move_gimbal_trurtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_gimbal = target_objects
-        az, el = client_turtlebot.get_next_gimbal_angles()
+        az, el = client_turtlebot.get_next_gimbal_angle()
         client_gimbal.goto_deg_d48ptu(azimuth_deg=az, elevation_deg=el)
 
     def _action_set_gimbal_az(self, target_objects, value, **kwargs):
