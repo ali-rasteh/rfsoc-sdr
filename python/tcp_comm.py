@@ -278,13 +278,13 @@ class TcpCommRFSoC(TcpComm):
         self.print(f"Result of set_rx_gain_sivers: {data}", thr=3)
         return data
 
-    def transmit_data_default(self):
+    def transmit_samples_default(self):
         self.radio_control.sendall(b"transmit_samples_default")
         data = self.radio_control.recv(1024)
-        self.print(f"Result of transmit_data_default: {data}", thr=3)
+        self.print(f"Result of transmit_samples_default: {data}", thr=3)
         return data
 
-    def transmit_data(self, txtd):
+    def transmit_samples(self, txtd):
         txtd = txtd.copy()
         txtd = np.array(txtd).flatten()
         txtd = txtd * (2 ** (self.config.dac_bits + 1) - 1)
@@ -295,7 +295,7 @@ class TcpCommRFSoC(TcpComm):
         self.radio_control.sendall(b"transmit_samples")
         self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
-        self.print(f"Result of transmit_data: {data}", thr=3)
+        self.print(f"Result of transmit_samples: {data}", thr=3)
         return data
 
     def receive_samples_once(self, mode="once"):
