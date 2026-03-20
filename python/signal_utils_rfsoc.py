@@ -1603,7 +1603,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
 
     def _action_transmit_signal(self, target_objects, value, **kwargs):
         for client_rfsoc in target_objects:
-            client_rfsoc.transmit_data_rfsoc(self.tx_signal.txtd)
+            client_rfsoc.transmit_samples_rfsoc(self.tx_signal.txtd)
 
     def _action_capture(self, target_objects, value, process_signal=False, **kwargs):
         client_rfsoc = target_objects[0]
@@ -1828,7 +1828,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         tx_signal.txtd /= (256 / signal_length) ** 0.5
         tx_signal.txtd_base /= (256 / signal_length) ** 0.5
         for client_rfsoc in target_objects:
-            client_rfsoc.transmit_data_rfsoc(tx_signal.txtd)
+            client_rfsoc.transmit_samples_rfsoc(tx_signal.txtd)
 
     def _action_move_turtlebot(self, target_objects, value, **kwargs):
         for client_turtlebot in target_objects:
@@ -2058,7 +2058,7 @@ class AnimatePlot(PlotUtils):
                     raise ValueError(f"Unsupported signal name: {signal_name}")
 
                 if sig is not None and x is not None:
-                    n_samples_plot = min(len(x), len(sig_final))
+                    n_samples_plot = min(len(x), len(sig))
                     sig = sig[:n_samples_plot]
                     x = x[:n_samples_plot]
                 sig, title_post = self.signals_obj.process_sig(

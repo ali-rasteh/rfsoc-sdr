@@ -121,14 +121,14 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     sig_gen_mode: str = "ZadoffChu"
     sig_mode: str = "wideband"
     network_topology: dict = field(default_factory=lambda: {
-        # "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
-        # "piradio_rx": {
-        #     "type": "piradio",
-        #     "role": "rx",
-        #     "ip": "192.168.185.51",
-        # },
+        "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+        "piradio_rx": {
+            "type": "piradio",
+            "role": "rx",
+            "ip": "192.168.185.51",
+        },
         "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
-        # "turtlebot_rx": {"type": "turtlebot"},
+        "turtlebot_rx": {"type": "turtlebot"},
 
         # "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1"},
         # "piradio_tx": {
@@ -141,26 +141,19 @@ class FR3RoboticLocalizationConfig(BaseConfig):
         # "controller_tx": {"type": "controller_server"},
     })
         # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
-    # action_loop: tuple = (
-    #     {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
-    #     {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-    #     {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
-    #     {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
-    #     {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
-    #     {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
-    #     {"targets": ["controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20"},
-    #     {"targets": ["controller_tx"],      "actions": ["move_gimbal_trurtlebot"], "values": [1]},
-    #     {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
-    #                                         "params": {"process_signal": False}},
-    #     {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
-    #     {"targets": ["self"],               "actions": ["save", "store"], "values": [1],
-    #                                     "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
-    # )
     action_loop: tuple = (
+        # {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
+        {"targets": ["piradio_rx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+        # {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
+        {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
         {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
-        {"targets": ["controller_tx"],      "actions": ["capture"], "values": [2],
+        # {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
+        # {"targets": ["controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20"},
+        # {"targets": ["controller_tx"],      "actions": ["move_gimbal_trurtlebot"], "values": [1]},
+        {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
+        {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
                                             "params": {"process_signal": False}},
         {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
-        {"targets": ["self"],               "actions": ["save", "store"], "values": [1],
-                                        "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
+        # {"targets": ["self"],               "actions": ["save", "store"], "values": [1],
+        #                                 "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
     )
