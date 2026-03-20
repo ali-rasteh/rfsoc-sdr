@@ -287,7 +287,7 @@ class Turtlebot(General):
         self.turtlebot_pos = position
 
     def rotate_to(self, position):
-        self.print(f"Moving turtlebot to position: {position}", thr=0)
+        self.print(f"Rotating turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
         cur_x, cur_y, yaw = api.read_pos()
         mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
