@@ -125,7 +125,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     def __post_init__(self):
         super().__post_init__()
         if self.role == "master":
-            self.network_topology: dict = field(default_factory=lambda: {
+            self.network_topology: dict = {
                 "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
                 "piradio_rx": {
                     "type": "piradio",
@@ -134,9 +134,9 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 },
                 "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
                 "turtlebot_rx": {"type": "turtlebot"},
-            })
+            }
         else:
-            self.network_topology: dict = field(default_factory=lambda: {
+            self.network_topology: dict = {
                 "rfsoc_tx": {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1"},
                 "piradio_tx": {
                     "type": "piradio",
@@ -146,7 +146,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 "lintrack_tx": {"type": "lintrack"},
                 "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
                 "controller_tx": {"type": "controller_server"},
-            })
+            }
         self.action_loop: tuple = (
             # {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
             {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
