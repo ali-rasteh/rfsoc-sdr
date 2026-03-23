@@ -265,7 +265,33 @@ class Turtlebot(General):
         #     lin_accel_limit=self.config.lin_accel_limit,
         #     ang_accel_limit=self.config.ang_accel_limit,
         # )
-        self.map_motion_api = None
+        import math
+        def normalize_angle(a: float) -> float:
+            a = math.fmod(a + math.pi, 2.0 * math.pi)
+            if a <= 0:
+                a += 2.0 * math.pi
+            return a - math.pi
+        class DummyMove:
+            def __init__(self):
+                self.position = [0.0, 0.0]
+                self.orientation = 0.0
+            def read_pos(self):
+                return self.position[0], self.position[1], self.orientation
+            def compute_yaw_distance_to_target(self, current_xy, target_xy):
+                x, y = float(current_xy[0]), float(current_xy[1])
+                tx, ty = float(target_xy[0]), float(target_xy[1])
+                dx = tx - x
+                dy = ty - y
+                yaw_abs = math.atan2(dy, dx)              # [-pi, pi]
+                yaw_abs = normalize_angle(yaw_abs)
+                distance = math.hypot(dx, dy)             # >= 0
+                return yaw_abs, distance
+            def move(self, yaw, distance):
+                self.position = [self.position[0] + distance * np.cos(yaw), self.position[1] + distance * np.sin(yaw)]
+                self.orientation = yaw
+            def shutdown(self):
+                pass
+        self.map_motion_api = DummyMove()
 
         # from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
         # from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
@@ -274,49 +300,51 @@ class Turtlebot(General):
 
         self.init()
 
-    def close(self):
-        self.map_motion_api.shutdown()
-
     def __del__(self):
         self.close()
+
+    def close(self):
+        self.map_motion_api.shutdown()
 
     def move_to(self, position):
         self.print(f"Moving turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
+
         cur_x, cur_y, yaw = api.read_pos()
-        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
         mv_yaw, mv_dis = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=mv_dis)
-        self.turtlebot_pos = position
         time.sleep(1.0)
         cur_x, cur_y, yaw = api.read_pos()
-        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
+        self.turtlebot_pos = np.array([cur_x, cur_y])
+        self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
 
     def rotate_to(self, position):
         self.print(f"Rotating turtlebot to position: {position}", thr=0)
         api = self.map_motion_api
+
         cur_x, cur_y, yaw = api.read_pos()
-        print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {yaw:0.2f}")
         mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
         api.move(yaw=mv_yaw, distance=0.0)
-        self.turtlebot_orientation = mv_yaw
+        cur_x, cur_y, yaw = api.read_pos()
+        self.turtlebot_orientation[0] = yaw
+        self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
 
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
         lintrack_length = 1.2
         # Moving room size in meters [length, width]
-        self.moving_room_size = [1.0, -1.0]
+        self.moving_room_size = np.array([1.0, -1.0])
         # Grid size for the moving room in meters [length, width]
-        moving_room_grid_size = [0.2, -0.2]
+        moving_room_grid_size = np.array([0.2, -0.2])
         # Offset of the linear track from the origin point in meters [length, width]
         self.lintrack_offset = np.array([1.0, 1.0])
         # Tilt of the linear track in degrees
-        self.lintrack_tilt_deg = 180.0 + 10.0
+        self.lintrack_tilt_deg = 180.0 + 0.0
         # Grid size for the linear track in meters
         lintrack_grid_size = 0.05
         # Offset of the gimbal azimuth angle in degrees
         # To compensate for the linear track tilt and point the gimbal towards the center of the room
-        self.gimbal_az_offset_deg = -45.0 + (self.lintrack_tilt_deg - 180.0)
+        self.gimbal_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
         # Grid size for the gimbal azimuth angles in degrees
         self.gimbal_az_grid_size_deg = 5.0
         # TX beam width in degrees, used to limit the gimbal angles range
@@ -343,13 +371,12 @@ class Turtlebot(General):
             return np.vstack(rows)
 
         self.moving_room_grid = zigzag_sort(self.moving_room_grid)
-        self.lintrack_grid = np.linspace(0, lintrack_length,\
-                            int(lintrack_length / lintrack_grid_size))
+        self.lintrack_grid = np.arange(0, lintrack_length + lintrack_grid_size, lintrack_grid_size)
 
-        self.turtlebot_pos = [0.0, 0.0]
-        self.turtlebot_orientation = [0.0, 0.0]
-        self.tx_pos = [0.0, 0.0]
-        self.tx_orientation = [0.0, 0.0]
+        self.turtlebot_pos = np.array([0.0, 0.0])
+        self.turtlebot_orientation = np.array([0.0, 0.0])
+        self.tx_pos = np.array([0.0, 0.0])
+        self.tx_orientation = np.array([0.0, 0.0])
         self.room_grid_id = 0
         self.lintrack_grid_id = 0
         self.gimbal_az_grid = None
@@ -398,8 +425,8 @@ class Turtlebot(General):
             raise StopIteration("No more gimbal angles available")
         az = self.gimbal_az_grid[self.gimbal_az_grid_id]
         tx_rx_dist = np.linalg.norm(self.tx_pos - self.turtlebot_pos)
-        el = np.arctan2(self.tx_rx_height_diff, tx_rx_dist)
-        self.tx_orientation = [az+self.gimbal_az_offset_deg, el]
+        el = np.rad2deg(np.arctan2(self.tx_rx_height_diff, tx_rx_dist))
+        self.tx_orientation = np.array([az+self.gimbal_az_offset_deg, el])
         self.gimbal_az_grid_id += 1
         return (az, el)
 
@@ -1555,7 +1582,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 changed_idxs = [
                     i
                     for i, (a, b) in enumerate(zip(prev, values, strict=False))
-                    if a != b or any(action in default_actions for action in actions[i])
+                    if a != b
+                    or len(ranges[i]) == 1
+                    or any(action in default_actions for action in actions[i])
                     or any(action_contain in action for action in actions[i] for \
                             action_contain in default_actions_contain)
                 ]
@@ -1704,10 +1733,10 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.measurement["aoa"] = aoa
         if "turtlebot_info" in save_list:
             client_turtlebot = target_objects[0]
-            self.measurement["tx_pos"] = client_turtlebot.tx_pos
-            self.measurement["tx_orientation"] = client_turtlebot.tx_orientation
-            self.measurement["rx_pos"] = client_turtlebot.turtlebot_pos
-            self.measurement["rx_orientation"] = client_turtlebot.turtlebot_orientation
+            self.measurement["tx_pos"] = np.array(client_turtlebot.tx_pos)
+            self.measurement["tx_orientation"] = np.array(client_turtlebot.tx_orientation)
+            self.measurement["rx_pos"] = np.array(client_turtlebot.turtlebot_pos)
+            self.measurement["rx_orientation"] = np.array(client_turtlebot.turtlebot_orientation)
 
     def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""

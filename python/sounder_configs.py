@@ -63,9 +63,7 @@ class BaseConfig(SounderConfig):
     animate_plot_mode: tuple = (
         [PlotSymbols.rxtd00_r, PlotSymbols.rxtd00_i],
         [PlotSymbols.rxfd00],
-        # [PlotSymbols.txfd00],
-        # [PlotSymbols.h00],
-        # PlotSymbols.aoa_gauge,
+        [PlotSymbols.txfd00],
     )
 
 @dataclass(kw_only=True)
@@ -121,17 +119,21 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "ZadoffChu"
     sig_mode: str = "wideband"
+    animate_plot_mode: tuple = (
+        [PlotSymbols.rxfd00],
+        PlotSymbols.aoa_gauge,
+    )
 
     def __post_init__(self):
         super().__post_init__()
         if self.role == "master":
             self.network_topology: dict = {
-                "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
-                "piradio_rx": {
-                    "type": "piradio",
-                    "role": "rx",
-                    "ip": "192.168.185.51",
-                },
+                # "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+                # "piradio_rx": {
+                #     "type": "piradio",
+                #     "role": "rx",
+                #     "ip": "192.168.185.51",
+                # },
                 "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
                 "turtlebot_rx": {"type": "turtlebot"},
             }
@@ -147,19 +149,19 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 "gimbal_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
                 "controller_tx": {"type": "controller_server"},
             }
-        self.action_loop: tuple = (
             # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
-            {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
-            {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-            {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
-            {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
-            {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
-            # {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
+        self.action_loop: tuple = (
+            # {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
+            # {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+            # {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
+            # {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
+            # {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
+            {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
             {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20"},
             {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_gimbal_trurtlebot"], "values": [1]},
-            {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
-                                                "params": {"process_signal": False}},
-            {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
-            {"targets": ["turtlebot_rx"],       "actions": ["save", "store"], "values": [1],
-                                            "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
+            # {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
+                                            # "params": {"process_signal": False}},
+            # {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
+            # {"targets": ["turtlebot_rx"],       "actions": ["save", "store"], "values": [1],
+            #                                 "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
         )

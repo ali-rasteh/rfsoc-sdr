@@ -556,7 +556,7 @@ class TcpCommLinTrack(TcpComm):
         self.print("TcpCommLinTrack object init done", thr=1)
 
     def move(self, lintrack_id=0, distance=0.0):
-        self.print(f"Moving linear track {lintrack_id} by {distance} mm", thr=2)
+        self.print(f"Moving linear track {lintrack_id} by {distance} m", thr=2)
         self.radio_control.sendall(
             b"move " + str.encode(str(lintrack_id) + " ") + str.encode(str(distance))
         )
@@ -565,7 +565,7 @@ class TcpCommLinTrack(TcpComm):
         return data
 
     def go2pos(self, lintrack_id=0, position=0.0):
-        self.print(f"Moving linear track {lintrack_id} to position {position} mm", thr=2)
+        self.print(f"Moving linear track {lintrack_id} to position {position} m", thr=2)
         self.radio_control.sendall(
             b"go2pos " + str.encode(str(lintrack_id) + " ") + str.encode(str(position))
         )
@@ -678,7 +678,7 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
 
     def goto_deg_d48ptu(self, azimuth_deg: float | None = None, elevation_deg: float | None = None):
         self.print(f"Setting gimbal azimuth/elevation to {azimuth_deg}/{elevation_deg} degrees", thr=3)
-        self.radio_control.sendall(b"goto_deg_d48ptu " + str.encode(str(azimuth_deg))
+        self.radio_control.sendall(b"goto_deg_d48ptu " + str.encode(str(azimuth_deg) + " ")
                                     + str.encode(str(elevation_deg)))
         data = self.radio_control.recv(1024)
         self.print(f"Result of goto_deg_d48ptu: {data}", thr=3)
