@@ -1451,7 +1451,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             bias_sw_dly=bias_sw_dly,
         ).update_from_config(self.config)
         piradio = PiRadioFR3Trx(piradio_config)
-        piradio.set_frequency_piradio(fc=self.config.fc)
+        # piradio.set_frequency_piradio(fc=self.config.fc)
         return piradio
 
     def _init_turtlebot(self, **kwargs):
