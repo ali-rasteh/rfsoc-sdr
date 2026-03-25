@@ -42,11 +42,14 @@ class TcpComm(General):
 
     def close(self):
         sockets_to_close = (
-            "radio_control", "radio_data",
-            "TCPServerSocketCmd", "TCPServerSocketData",
-            "connectionCMD", "connectionData"
+            "radio_control",
+            "radio_data",
+            "TCPServerSocketCmd",
+            "TCPServerSocketData",
+            "connectionCMD",
+            "connectionData",
         )
-        for attr_name in (sockets_to_close):
+        for attr_name in sockets_to_close:
             sock = getattr(self, attr_name, None)
             if sock is not None:
                 with contextlib.suppress(Exception):
@@ -209,25 +212,27 @@ class TcpCommRFSoC(TcpComm):
         self.nread = self.config.n_rx_ant * self.config.n_frame_rd * self.config.n_samples
 
         # command -> handler
-        self._command_handlers.update({
-            "receive_samples_once": self._handle_receive_samples_once,
-            "receive_samples_beams": self._handle_receive_samples_beams,
-            "transmit_samples_default": self._handle_transmit_samples_default,
-            "transmit_samples": self._handle_transmit_samples,
-            "set_frequency_mixer": self._handle_set_frequency_mixer,
-            "get_beam_index_tx_sivers": self._handle_get_beam_index_tx_sivers,
-            "set_beam_index_tx_sivers": self._handle_set_beam_index_tx_sivers,
-            "get_beam_index_rx_sivers": self._handle_get_beam_index_rx_sivers,
-            "set_beam_index_rx_sivers": self._handle_set_beam_index_rx_sivers,
-            "get_mode_sivers": self._handle_get_mode_sivers,
-            "set_mode_sivers": self._handle_set_mode_sivers,
-            "get_gain_rx_sivers": self._handle_get_gain_rx_sivers,
-            "set_gain_rx_sivers": self._handle_set_gain_rx_sivers,
-            "get_gain_tx_sivers": self._handle_get_gain_tx_sivers,
-            "set_gain_tx_sivers": self._handle_set_gain_tx_sivers,
-            "get_carrier_frequency_sivers": self._handle_get_carrier_frequency_sivers,
-            "set_carrier_frequency_sivers": self._handle_set_carrier_frequency_sivers,
-        })
+        self._command_handlers.update(
+            {
+                "receive_samples_once": self._handle_receive_samples_once,
+                "receive_samples_beams": self._handle_receive_samples_beams,
+                "transmit_samples_default": self._handle_transmit_samples_default,
+                "transmit_samples": self._handle_transmit_samples,
+                "set_frequency_mixer": self._handle_set_frequency_mixer,
+                "get_beam_index_tx_sivers": self._handle_get_beam_index_tx_sivers,
+                "set_beam_index_tx_sivers": self._handle_set_beam_index_tx_sivers,
+                "get_beam_index_rx_sivers": self._handle_get_beam_index_rx_sivers,
+                "set_beam_index_rx_sivers": self._handle_set_beam_index_rx_sivers,
+                "get_mode_sivers": self._handle_get_mode_sivers,
+                "set_mode_sivers": self._handle_set_mode_sivers,
+                "get_gain_rx_sivers": self._handle_get_gain_rx_sivers,
+                "set_gain_rx_sivers": self._handle_set_gain_rx_sivers,
+                "get_gain_tx_sivers": self._handle_get_gain_tx_sivers,
+                "set_gain_tx_sivers": self._handle_set_gain_tx_sivers,
+                "get_carrier_frequency_sivers": self._handle_get_carrier_frequency_sivers,
+                "set_carrier_frequency_sivers": self._handle_set_carrier_frequency_sivers,
+            }
+        )
 
         self.print("TcpCommRFSoC object init done", thr=1)
 
@@ -313,7 +318,7 @@ class TcpCommRFSoC(TcpComm):
         while len(buf) < nbytes:
             data = self.radio_data.recv(nbytes - len(buf))
             if not data:
-                break # Connection dropped, break to avoid infinite loop
+                break  # Connection dropped, break to avoid infinite loop
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
         data = data / (2 ** (self.config.adc_bits + 1) - 1)
@@ -377,7 +382,7 @@ class TcpCommRFSoC(TcpComm):
         while len(buf) < nbytes:
             data = self.connectionData.recv(nbytes - len(buf))
             if not data:
-                break # Connection dropped, break to avoid infinite loop
+                break  # Connection dropped, break to avoid infinite loop
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
         data = data / (2 ** (self.config.dac_bits + 1) - 1)
@@ -546,12 +551,14 @@ class TcpCommLinTrack(TcpComm):
         self.methods_suffix_list = ["_lintrack"]
 
         # command -> handler
-        self._command_handlers.update({
-            "move": self._handle_move,
-            "go2pos": self._handle_go2pos,
-            "return2home": self._handle_return2home,
-            "go2end": self._handle_go2end,
-        })
+        self._command_handlers.update(
+            {
+                "move": self._handle_move,
+                "go2pos": self._handle_go2pos,
+                "return2home": self._handle_return2home,
+                "go2end": self._handle_go2end,
+            }
+        )
 
         self.print("TcpCommLinTrack object init done", thr=1)
 
@@ -629,14 +636,16 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
         self.methods_suffix_list = ["_controller", "_rfsoc", "_lintrack"]
 
         self.obj_piradio = None
-        self.obj_gimbal = None
+        self.obj_d48ptu = None
 
-        self._command_handlers.update({
-            "set_frequency_piradio": self._handle_set_frequency_piradio,
-            "set_gain_piradio": self._handle_set_gain_piradio,
-            "set_bias_piradio": self._handle_set_bias_piradio,
-            "goto_deg_d48ptu": self._handle_goto_deg_d48ptu,
-        })
+        self._command_handlers.update(
+            {
+                "set_frequency_piradio": self._handle_set_frequency_piradio,
+                "set_gain_piradio": self._handle_set_gain_piradio,
+                "set_bias_piradio": self._handle_set_bias_piradio,
+                "goto_deg_d48ptu": self._handle_goto_deg_d48ptu,
+            }
+        )
 
         self.print("TcpCommController object init done", thr=1)
 
@@ -677,9 +686,14 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
         return data
 
     def goto_deg_d48ptu(self, azimuth_deg: float | None = None, elevation_deg: float | None = None):
-        self.print(f"Setting gimbal azimuth/elevation to {azimuth_deg}/{elevation_deg} degrees", thr=3)
-        self.radio_control.sendall(b"goto_deg_d48ptu " + str.encode(str(azimuth_deg) + " ")
-                                    + str.encode(str(elevation_deg)))
+        self.print(
+            f"Setting d48ptu azimuth/elevation to {azimuth_deg}/{elevation_deg} degrees", thr=3
+        )
+        self.radio_control.sendall(
+            b"goto_deg_d48ptu "
+            + str.encode(str(azimuth_deg) + " ")
+            + str.encode(str(elevation_deg))
+        )
         data = self.radio_control.recv(1024)
         self.print(f"Result of goto_deg_d48ptu: {data}", thr=3)
         return data
@@ -720,7 +734,7 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
             return self.config.invalid_number_of_arguments_message
         az_deg = float(args[0]) if args[0].lower() != "none" else None
         el_deg = float(args[1]) if args[1].lower() != "none" else None
-        self.obj_gimbal.goto_deg(azimuth_deg=az_deg, elevation_deg=el_deg)
+        self.obj_d48ptu.goto_deg(azimuth_deg=az_deg, elevation_deg=el_deg)
 
 
 @dataclass(kw_only=True)

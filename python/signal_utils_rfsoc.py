@@ -344,14 +344,14 @@ class Turtlebot(General):
         moving_room_grid_size = np.array([0.2, -0.2])
         # Grid size for the linear track in meters
         lintrack_grid_size = 0.05
-        # Offset of the gimbal azimuth angle in degrees
-        # To compensate for the linear track tilt and point the gimbal towards the center of the room
-        self.gimbal_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
-        # Grid size for the gimbal azimuth angles in degrees
-        self.gimbal_az_grid_size_deg = 5.0
-        # TX beam width in degrees, used to limit the gimbal angles range
+        # Offset of the d48ptu azimuth angle in degrees
+        # To compensate for the linear track tilt and point the d48ptu towards the center of the room
+        self.d48ptu_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
+        # Grid size for the d48ptu azimuth angles in degrees
+        self.d48ptu_az_grid_size_deg = 5.0
+        # TX beam width in degrees, used to limit the d48ptu angles range
         self.tx_beam_width_deg = 60.0
-        # Height difference between the TX and RX in meters, used to calculate the gimbal elevation angle
+        # Height difference between the TX and RX in meters, used to calculate the d48ptu elevation angle
         self.tx_rx_height_diff = 0.615-1.185
 
         self.moving_room_grid = np.mgrid[
@@ -381,8 +381,8 @@ class Turtlebot(General):
         self.tx_orientation = np.array([0.0, 0.0])
         self.room_grid_id = 0
         self.lintrack_grid_id = 0
-        self.gimbal_az_grid = None
-        self.gimbal_az_grid_id = 0
+        self.d48ptu_az_grid = None
+        self.d48ptu_az_grid_id = 0
         self.reset_lintrack_position()
 
     def get_next_turtlebot_position(self):
@@ -393,7 +393,7 @@ class Turtlebot(General):
         return position
 
     def reset_lintrack_position(self):
-        self.reset_gimbal_position()
+        self.reset_d48ptu_position()
         self.lintrack_grid_id = 0
 
     def get_next_lintrack_position(self):
@@ -405,10 +405,10 @@ class Turtlebot(General):
                     np.cos(np.deg2rad(self.lintrack_tilt_deg)),
                     np.sin(np.deg2rad(self.lintrack_tilt_deg))])
         self.lintrack_grid_id += 1
-        self.reset_gimbal_position()
+        self.reset_d48ptu_position()
         return position
 
-    def reset_gimbal_position(self):
+    def reset_d48ptu_position(self):
         min_angle, max_angle, exact_angle = get_viewing_angle_range(
             ref_x=self.tx_pos[0],
             ref_y=self.tx_pos[1],
@@ -416,20 +416,20 @@ class Turtlebot(General):
             obj_y=self.turtlebot_pos[1],
             alpha_deg=self.tx_beam_width_deg / 2,
         )
-        # self.gimbal_az_grid = np.linspace(min_angle, max_angle,
-        #                     int((max_angle - min_angle) / self.gimbal_az_grid_size_deg))  # Gimbal azimuth angles grid in degrees
-        self.gimbal_az_grid = np.array([exact_angle-self.gimbal_az_offset_deg])  # Only use the exact angle for the gimbal azimuth
-        self.gimbal_az_grid_id = 0
+        # self.d48ptu_az_grid = np.linspace(min_angle, max_angle,
+        #                     int((max_angle - min_angle) / self.d48ptu_az_grid_size_deg))  # d48ptu azimuth angles grid in degrees
+        self.d48ptu_az_grid = np.array([exact_angle-self.d48ptu_az_offset_deg])  # Only use the exact angle for the d48ptu azimuth
+        self.d48ptu_az_grid_id = 0
 
-    def get_next_gimbal_angle(self):
-        # This function should return the next angle of the gimbal
-        if self.gimbal_az_grid_id >= len(self.gimbal_az_grid):
-            raise StopIteration("No more gimbal angles available")
-        az = self.gimbal_az_grid[self.gimbal_az_grid_id]
+    def get_next_d48ptu_angle(self):
+        # This function should return the next angle of the d48ptu
+        if self.d48ptu_az_grid_id >= len(self.d48ptu_az_grid):
+            raise StopIteration("No more d48ptu angles available")
+        az = self.d48ptu_az_grid[self.d48ptu_az_grid_id]
         tx_rx_dist = np.linalg.norm(self.tx_pos - self.turtlebot_pos)
         el = np.rad2deg(np.arctan2(self.tx_rx_height_diff, tx_rx_dist))
-        self.tx_orientation = np.array([az+self.gimbal_az_offset_deg, el])
-        self.gimbal_az_grid_id += 1
+        self.tx_orientation = np.array([az+self.d48ptu_az_offset_deg, el])
+        self.d48ptu_az_grid_id += 1
         return (az, el)
 
 
@@ -1427,11 +1427,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
         return turntable
 
     def _init_d48ptu(self, port="/dev/ttyUSB0", baudrate=9600, **kwargs):
-        gimbal_config = SerialComD48PTUConfig(
+        d48ptu_config = SerialComD48PTUConfig(
             port=port,
             baudrate=baudrate,
         )
-        D48PTU = SerialComD48PTU(gimbal_config)
+        D48PTU = SerialComD48PTU(d48ptu_config)
         try:
             D48PTU.connect()
         except Exception as e:
@@ -1572,7 +1572,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         params = [item[3] for item in loop_list]
 
         prev = None
-        default_actions = ["capture", "save", "store", "wait", "update_plot", "print_snr"]
+        default_actions = ["capture", "save", "store", "wait", "update_plot"]
         default_actions_contain = ["print"]
 
         for values in itertools.product(*ranges):
@@ -1585,7 +1585,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     i
                     for i, (a, b) in enumerate(zip(prev, values, strict=False))
                     if a != b
-                    or len(ranges[i]) == 1
+                    # or len(ranges[i]) == 1
                     or any(action in default_actions for action in actions[i])
                     or any(action_contain in action for action in actions[i] for \
                             action_contain in default_actions_contain)
@@ -1876,20 +1876,20 @@ class ExperimentOperator(SignalUtilsRfsoc):
         position = client_turtlebot.get_next_lintrack_position()
         client_lintrack.go2pos_lintrack(lintrack_id=0, position=position)
 
-    def _action_move_gimbal_trurtlebot(self, target_objects, value, **kwargs):
-        client_turtlebot, client_gimbal = target_objects
-        az, el = client_turtlebot.get_next_gimbal_angle()
-        client_gimbal.goto_deg_d48ptu(azimuth_deg=az, elevation_deg=el)
+    def _action_move_d48ptu_trurtlebot(self, target_objects, value, **kwargs):
+        client_turtlebot, client_d48ptu = target_objects
+        az, el = client_turtlebot.get_next_d48ptu_angle()
+        client_d48ptu.goto_deg_d48ptu(azimuth_deg=az, elevation_deg=el)
 
-    def _action_set_gimbal_az(self, target_objects, value, **kwargs):
+    def _action_set_d48ptu_az(self, target_objects, value, **kwargs):
         az = float(value)
-        for client_gimbal in target_objects:
-            client_gimbal.goto_deg_d48ptu(azimuth_deg=az)
+        for client_d48ptu in target_objects:
+            client_d48ptu.goto_deg_d48ptu(azimuth_deg=az)
 
-    def _action_set_gimbal_el(self, target_objects, value, **kwargs):
+    def _action_set_d48ptu_el(self, target_objects, value, **kwargs):
         el = float(value)
-        for client_gimbal in target_objects:
-            client_gimbal.goto_deg_d48ptu(elevation_deg=el)
+        for client_d48ptu in target_objects:
+            client_d48ptu.goto_deg_d48ptu(elevation_deg=el)
 
     def _action_set_mode_sivers(self, target_objects, value, **kwargs):
         mode = str(value)
