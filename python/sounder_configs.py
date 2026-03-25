@@ -128,12 +128,12 @@ class FR3RoboticLocalizationConfig(BaseConfig):
         super().__post_init__()
         if self.role == "master":
             self.network_topology: dict = {
-                # "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
-                # "piradio_rx": {
-                #     "type": "piradio",
-                #     "role": "rx",
-                #     "ip": "192.168.185.51",
-                # },
+                "rfsoc_rx": {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+                "piradio_rx": {
+                    "type": "piradio",
+                    "role": "rx",
+                    "ip": "192.168.185.51",
+                },
                 "controller_tx": {"type": "controller_client", "ip": "10.20.47.103"},
                 "turtlebot_rx": {"type": "turtlebot"},
             }

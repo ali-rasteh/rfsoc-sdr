@@ -331,15 +331,17 @@ class Turtlebot(General):
 
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
-        lintrack_length = 1.2
         # Moving room size in meters [length, width]
-        self.moving_room_size = np.array([1.0, -1.0])
-        # Grid size for the moving room in meters [length, width]
-        moving_room_grid_size = np.array([0.2, -0.2])
+        self.moving_room_size = np.array([1.5, -3.0])
+        # Length of the free space linear track in meters
+        lintrack_length = 1.0
         # Offset of the linear track from the origin point in meters [length, width]
-        self.lintrack_offset = np.array([1.0, 1.0])
+        self.lintrack_offset = np.array([1.0, 2.0])
         # Tilt of the linear track in degrees
         self.lintrack_tilt_deg = 180.0 + 0.0
+
+        # Grid size for the moving room in meters [length, width]
+        moving_room_grid_size = np.array([0.2, -0.2])
         # Grid size for the linear track in meters
         lintrack_grid_size = 0.05
         # Offset of the gimbal azimuth angle in degrees
@@ -350,7 +352,7 @@ class Turtlebot(General):
         # TX beam width in degrees, used to limit the gimbal angles range
         self.tx_beam_width_deg = 60.0
         # Height difference between the TX and RX in meters, used to calculate the gimbal elevation angle
-        self.tx_rx_height_diff = -0.5
+        self.tx_rx_height_diff = 0.615-1.185
 
         self.moving_room_grid = np.mgrid[
             0 : self.moving_room_size[0] : moving_room_grid_size[0],
