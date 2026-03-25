@@ -1472,7 +1472,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for item in self.network_topology.items():
             item_name, item_info = item
             if item_info["type"] not in ["controller", "controller_server"]:
-                controller.__dict__[f"obj_{item_info['type']}"] = self._network_objects[
+                controller.__dict__[f"obj_{item_info['type'].lower()}"] = self._network_objects[
                     item_name
                 ]
         self._network_objects["self"] = controller
