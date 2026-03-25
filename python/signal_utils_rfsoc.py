@@ -315,7 +315,7 @@ class Turtlebot(General):
         api.move(yaw=mv_yaw, distance=mv_dis)
         time.sleep(1.0)
         cur_x, cur_y, yaw = api.read_pos()
-        self.turtlebot_pos = np.array([cur_x, cur_y])
+        self.turtlebot_pos[:2] = np.array([cur_x, cur_y])
         self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
 
     def rotate_to(self, position):
@@ -323,7 +323,7 @@ class Turtlebot(General):
         api = self.map_motion_api
 
         cur_x, cur_y, yaw = api.read_pos()
-        mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position)
+        mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position[:2])
         api.move(yaw=mv_yaw, distance=0.0)
         cur_x, cur_y, yaw = api.read_pos()
         self.turtlebot_orientation[0] = yaw
@@ -352,7 +352,9 @@ class Turtlebot(General):
         # TX beam width in degrees, used to limit the d48ptu angles range
         self.tx_beam_width_deg = 60.0
         # Height difference between the TX and RX in meters, used to calculate the d48ptu elevation angle
-        self.tx_rx_height_diff = 0.615-1.185
+        self.turtlebot_height_m = 0.615
+        self.tx_height_m = 1.185
+        self.tx_rx_height_diff = self.turtlebot_height_m-self.tx_height_m
 
         self.moving_room_grid = np.mgrid[
             0 : self.moving_room_size[0] : moving_room_grid_size[0],
@@ -375,9 +377,9 @@ class Turtlebot(General):
         self.moving_room_grid = zigzag_sort(self.moving_room_grid)
         self.lintrack_grid = np.arange(0, lintrack_length + lintrack_grid_size, lintrack_grid_size)
 
-        self.turtlebot_pos = np.array([0.0, 0.0])
+        self.turtlebot_pos = np.array([0.0, 0.0, self.turtlebot_height_m])
         self.turtlebot_orientation = np.array([0.0, 0.0])
-        self.tx_pos = np.array([0.0, 0.0])
+        self.tx_pos = np.array([0.0, 0.0, self.tx_height_m])
         self.tx_orientation = np.array([0.0, 0.0])
         self.room_grid_id = 0
         self.lintrack_grid_id = 0
@@ -401,7 +403,7 @@ class Turtlebot(General):
         if self.lintrack_grid_id >= len(self.lintrack_grid):
             raise StopIteration("No more linear track positions available")
         position = self.lintrack_grid[self.lintrack_grid_id]
-        self.tx_pos = self.lintrack_offset + position * np.array([
+        self.tx_pos[:2] = self.lintrack_offset + position * np.array([
                     np.cos(np.deg2rad(self.lintrack_tilt_deg)),
                     np.sin(np.deg2rad(self.lintrack_tilt_deg))])
         self.lintrack_grid_id += 1
@@ -426,7 +428,7 @@ class Turtlebot(General):
         if self.d48ptu_az_grid_id >= len(self.d48ptu_az_grid):
             raise StopIteration("No more d48ptu angles available")
         az = self.d48ptu_az_grid[self.d48ptu_az_grid_id]
-        tx_rx_dist = np.linalg.norm(self.tx_pos - self.turtlebot_pos)
+        tx_rx_dist = np.linalg.norm(self.tx_pos[:2] - self.turtlebot_pos[:2])
         el = np.rad2deg(np.arctan2(self.tx_rx_height_diff, tx_rx_dist))
         self.tx_orientation = np.array([az+self.d48ptu_az_offset_deg, el])
         self.d48ptu_az_grid_id += 1
