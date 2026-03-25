@@ -474,10 +474,6 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     )  # Range of samples around the strongest peak to consider for channel estimation
     sparse_ch_n_ignore: int = 5  # Number of samples to ignore around the strongest peak
     rx_same_delay: bool = True  # If True, all applies the same time shift to all RX antennas
-    rx_chain: tuple = (
-        "sync_time",
-        "channel_est",
-    )  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, estimate_sparse_params, channel_eq
     channel_limit: bool = (
         True  # If True, limits the channel to a specific range in the frequency domain
     )
@@ -1027,7 +1023,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
         return optimal_gains
 
-    def rx_operations(self, txtd_base, rxtd):
+    def rx_operations(self, txtd_base, rxtd, process_chain=(), client_rfsoc_rx=None):
         self.print("Performing RX operations", thr=5)
 
         sparse_est_params = None
@@ -1046,7 +1042,7 @@ class SignalUtilsRfsoc(SignalUtils):
         else:
             rxtd_base = rxtd.copy()
 
-        if "filter" in self.config.rx_chain:
+        if "filter" in process_chain:
             for frm_id in range(n_rd_rep):
                 for ant_id in range(self.config.n_rx_ant):
                     cf = (self.config.filter_bw_range[0] + self.config.filter_bw_range[1]) / 2
@@ -1087,19 +1083,19 @@ class SignalUtilsRfsoc(SignalUtils):
                 thr=4,
             )
 
-        if "pilot_separate" in self.config.rx_chain:
+        if "pilot_separate" in process_chain:
             n_samples_rx = self.config.n_samples_trx * 2
         else:
             n_samples_rx = self.config.n_samples_trx
 
         txtd_base = txtd_base[:, :, : self.config.n_samples_trx]
-        if "integrate" in self.config.rx_chain:
+        if "integrate" in process_chain:
             rxtd_base = self.integrate_signal(rxtd_base, n_samples=n_samples_rx)
 
-        if "sync_time" in self.config.rx_chain:
+        if "sync_time" in process_chain:
             rxtd_base_s = []
             for frm_id in range(n_rd_rep):
-                sync_frac = "sync_time_frac" in self.config.rx_chain
+                sync_frac = "sync_time_frac" in process_chain
                 rxtd_base_s_ = self.sync_time(
                     rxtd_base[frm_id],
                     txtd_base[0],
@@ -1113,7 +1109,7 @@ class SignalUtilsRfsoc(SignalUtils):
             rxtd_base_s = rxtd_base.copy()
             rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=2)
 
-        if "sync_freq" in self.config.rx_chain:
+        if "sync_freq" in process_chain:
             cfo_coarse = self.estimate_cfo(
                 txtd_base[0], rxtd_base_s[0], mode="coarse", sc_range=self.config.sc_range
             )
@@ -1129,7 +1125,7 @@ class SignalUtilsRfsoc(SignalUtils):
             for frm_id in range(n_rd_rep):
                 rxtd_base_s[frm_id] = self.sync_frequency(rxtd_base_s[frm_id], cfo, mode="time")
 
-        if "pilot_separate" in self.config.rx_chain:
+        if "pilot_separate" in process_chain:
             rxtd_pilot_s = rxtd_base_s[:, :, :, : n_samples_rx // 2]
             rxtd_base_s = rxtd_base_s[:, :, :, n_samples_rx // 2 :]
         else:
@@ -1150,14 +1146,14 @@ class SignalUtilsRfsoc(SignalUtils):
             axis=1,
         )
 
-        if "channel_est" in self.config.rx_chain:
-            if "sys_res_deconv" in self.config.rx_chain:
+        if "channel_est" in process_chain:
+            if "sys_res_deconv" in process_chain:
                 self.sys_response = self.process_sys_response()
             else:
                 self.sys_response = None
             snr_est = self.db_to_lin(self.config.snr_est_db, mode="pow")
 
-            if "estimate_sparse_params" in self.config.rx_chain:
+            if "estimate_sparse_params" in process_chain:
                 h = []
                 for frm_id in range(n_rd_rep):
                     h_est = self.estimate_channel(
@@ -1199,17 +1195,9 @@ class SignalUtilsRfsoc(SignalUtils):
                     sc_range_ch=self.config.sc_range_ch,
                     snr_est=snr_est,
                 )
-            self.rx_phase_list, self.aoa_list = self.angle_of_arrival(
-                rxtd=rxtd_pilot,
-                rx_phase_list=self.rx_phase_list,
-                aoa_list=self.aoa_list,
-                fc=self.config.fc,
-                rx_phase_offset=self.rx_phase_offset,
-                rx_delay_offset=self.rx_delay_offset,
-            )
         else:
             h_est = None
-        if "channel_eq" in self.config.rx_chain and "channel_est" in self.config.rx_chain:
+        if "channel_eq" in process_chain and "channel_est" in process_chain:
             rxtd_base = self.equalize_channel(
                 txtd_base[0],
                 rxtd_base[plt_frm_id],
@@ -1218,6 +1206,18 @@ class SignalUtilsRfsoc(SignalUtils):
                 sc_range_ch=self.config.sc_range_ch,
                 null_sc_range=self.config.null_sc_range,
                 n_rx_ch_eq=self.config.n_rx_ch_eq,
+            )
+
+        if "aoa" in process_chain:
+            rx_phase_offset = client_rfsoc_rx.rx_phase_offset if client_rfsoc_rx is not None else 0
+            rx_delay_offset = client_rfsoc_rx.rx_delay_offset if client_rfsoc_rx is not None else 0
+            self.rx_phase_list, self.aoa_list = self.angle_of_arrival(
+                rxtd=rxtd_pilot,
+                rx_phase_list=self.rx_phase_list,
+                aoa_list=self.aoa_list,
+                fc=self.config.fc,
+                rx_phase_offset=rx_phase_offset,
+                rx_delay_offset=rx_delay_offset,
             )
 
         self.rx_signal = RxSignal(
@@ -1247,6 +1247,7 @@ class SignalUtilsRfsoc(SignalUtils):
             elif item == "psd":
                 nfft = 2 ** int(np.ceil(np.log2(len(sig))))
                 sig = self.psd(sig, fs=self.config.fs_rx, nfft=nfft)
+                title += "-PSD"
             elif item == "ifft":
                 sig = ifft(sig, axis=-1)
                 title += "-IFFT"
@@ -1589,6 +1590,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     or any(action in default_actions for action in actions[i])
                     or any(action_contain in action for action in actions[i] for \
                             action_contain in default_actions_contain)
+                    or "persistent" in params[i] and params[i]["persistent"] is True
                 ]
             prev = values
 
@@ -1639,7 +1641,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_samples_rfsoc(self.tx_signal.txtd)
 
-    def _action_capture(self, target_objects, value, process_signal=False, **kwargs):
+    def _action_capture(self, target_objects, value, process_chain=False, **kwargs):
         client_rfsoc = target_objects[0]
         n_frames = int(value)
         rxtd_save = []
@@ -1651,14 +1653,14 @@ class ExperimentOperator(SignalUtilsRfsoc):
             rxtd_base=rxtd,
         )
 
-        if process_signal:
+        if process_chain:
             n_rd_rep = 1
             for i in range(n_frames):
                 self.print(f"Channel Save Iteration: {i + 1}", thr=0)
                 rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                 # to handle the dimenstion needed for read repeat
-                rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd)
+                rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd, client_rfsoc_rx=client_rfsoc)
                 self.rx_signal = rx_signal
 
                 rxtd_save.append(rx_signal.rxtd_base)
@@ -1733,8 +1735,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
         if "aoa" in save_list:
             aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
             self.measurement["aoa"] = aoa
+        if "phase_offset" in save_list:
+            client_rfsoc = target_objects[0]
+            self.measurement["phase_offset"] = client_rfsoc.rx_phase_offset
         if "turtlebot_info" in save_list:
-            client_turtlebot = target_objects[0]
+            client_turtlebot = target_objects[1]
             self.measurement["tx_pos"] = np.array(client_turtlebot.tx_pos)
             self.measurement["tx_orientation"] = np.array(client_turtlebot.tx_orientation)
             self.measurement["rx_pos"] = np.array(client_turtlebot.turtlebot_pos)

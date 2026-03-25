@@ -34,7 +34,6 @@ class BaseConfig(SounderConfig):
     wb_sc_range: tuple = (-260, 260)
     rx_same_delay: bool = False
     n_frame_rd: int = 32
-    rx_chain: tuple = ("sync_time", "channel_est")
 
     plot_configs: dict = field(default_factory=lambda: {
             "title_size": 11,
@@ -69,7 +68,6 @@ class BaseConfig(SounderConfig):
 @dataclass(kw_only=True)
 class FR3SpectrumSweepConfig(BaseConfig):
     n_frame_rd: int = 1
-    rx_chain: tuple = ("sync_time",)
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "fft"
     sig_mode: str = "wideband"
@@ -101,7 +99,7 @@ class FR3SpectrumSweepConfig(BaseConfig):
         {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:5"},
         # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
         {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
-                                        "params": {"process_signal": False}},
+                                        "params": {"process_chain": ("sync_time",)}},
         {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
         # {"targets": ["self"],           "actions": ["print"], "values": [1],
         #                                   "params": {"print_list": ["snr"]}},
@@ -115,7 +113,6 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     ant_d_m: tuple = (0.026,)
     wb_sc_range: tuple = (-260, 260)
     n_frame_rd: int = 1
-    rx_chain: tuple = ()
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "ZadoffChu"
     sig_mode: str = "wideband"
@@ -157,12 +154,13 @@ class FR3RoboticLocalizationConfig(BaseConfig):
             {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
             {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
             {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20"},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_trurtlebot"], "values": [1]},
+            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20",
+                                            "params": {"persistent": True}},
+            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_trurtlebot"], "values": [1],
+                                            "params": {"persistent": True}},
             {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
-                                            "params": {"process_signal": False}},
+                                            "params": {"process_chain": ("aoa",)}},
             {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
-            {"targets": ["turtlebot_rx"],       "actions": ["save", "store"], "values": [1],
-                                            # "params": {"save_list": ["signal", "snr_db", "aoa", "turtlebot_info"]}},
-                                            "params": {"save_list": ["signal", "snr_db", "turtlebot_info"]}},
+            {"targets": ["turtlebot_rx", "rfsoc_rx"],       "actions": ["save", "store"], "values": [1],
+                                            "params": {"save_list": ["signal", "snr_db", "aoa", "phase_offset", "turtlebot_info"]}},
         )
