@@ -401,11 +401,11 @@ class Turtlebot(General):
         position = self.moving_room_grid[self.room_grid_id]
         self.room_grid_id += 1
         self.reset_turtlebot_orientation()
-        # self.reset_lintrack_position()
         return position
 
     def reset_turtlebot_orientation(self):
         self.turtlebot_az_grid = np.random.uniform(-120, 120, size=5)
+        self.print(f"Generated turtlebot azimuth angles grid: {self.turtlebot_az_grid}", thr=0)
         self.turtlebot_az_grid = np.round(self.turtlebot_az_grid, 1)
         self.turtlebot_az_grid = np.sort(self.turtlebot_az_grid)
         self.turtlebot_az_grid_id = 0
@@ -414,6 +414,7 @@ class Turtlebot(General):
     def get_next_turtlebot_orientation(self):
         az = self.turtlebot_az_grid[self.turtlebot_az_grid_id]
         self.turtlebot_az_grid_id += 1
+        self.reset_lintrack_position()
         return az
 
     def reset_lintrack_position(self):
