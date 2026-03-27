@@ -341,7 +341,7 @@ class Turtlebot(General):
         # Moving room size in meters [length, width]
         self.moving_room_size = np.array([1.5, -3.0])
         # Length of the free space linear track in meters
-        lintrack_length = 0.5
+        self.lintrack_length = 0.5
         # Offset of the linear track from the origin point in meters [length, width]
         self.lintrack_offset = np.array([1.0, 2.0])
         # Tilt of the linear track in degrees
@@ -350,7 +350,7 @@ class Turtlebot(General):
         # Grid size for the moving room in meters [length, width]
         moving_room_grid_size = np.array([0.2, -0.2])
         # Grid size for the linear track in meters
-        lintrack_grid_size = 0.05
+        self.lintrack_grid_size = 0.05
         # Offset of the d48ptu azimuth angle in degrees
         # To compensate for the linear track tilt and point the d48ptu towards the center of the room
         self.d48ptu_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
@@ -382,7 +382,6 @@ class Turtlebot(General):
             return np.vstack(rows)
 
         self.moving_room_grid = zigzag_sort(self.moving_room_grid)
-        self.lintrack_grid = np.arange(0, lintrack_length + lintrack_grid_size, lintrack_grid_size)
 
         self.turtlebot_pos = np.array([0.0, 0.0, self.turtlebot_height_m])
         self.turtlebot_orientation = np.array([0.0, 0.0])
@@ -404,7 +403,8 @@ class Turtlebot(General):
         return position
 
     def reset_turtlebot_orientation(self):
-        self.turtlebot_az_grid = np.random.uniform(-120, 120, size=5)
+        self.turtlebot_az_grid = np.random.uniform(-self.tx_beam_width_deg/2, self.tx_beam_width_deg/2, size=1)
+        self.turtlebot_az_grid = np.concatenate([self.turtlebot_az_grid, np.random.uniform(-120, 120, size=2)])
         self.turtlebot_az_grid = np.round(self.turtlebot_az_grid, 1)
         self.turtlebot_az_grid = np.sort(self.turtlebot_az_grid)
         self.print(f"Generated turtlebot azimuth angles grid: {self.turtlebot_az_grid}", thr=0)
@@ -418,8 +418,13 @@ class Turtlebot(General):
         return az
 
     def reset_lintrack_position(self):
-        self.reset_d48ptu_position()
+        # self.lintrack_grid = np.arange(0, self.lintrack_length + self.lintrack_grid_size, self.lintrack_grid_size)
+        self.lintrack_grid = np.random.uniform(0, self.lintrack_length, size=10)
+        self.lintrack_grid = np.round(self.lintrack_grid, 3)
+        self.lintrack_grid = np.sort(self.lintrack_grid)
+        print(self.lintrack_grid)
         self.lintrack_grid_id = 0
+        self.reset_d48ptu_position()
 
     def get_next_lintrack_position(self):
         # This function should return the next position of the linear track

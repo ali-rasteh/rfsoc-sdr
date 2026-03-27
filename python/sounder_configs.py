@@ -154,7 +154,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
             # {"targets": ["controller_tx"],      "actions": ["set_d48ptu_el"], "values": [-15.0]},
             # {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
             {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
-            {"targets": ["turtlebot_rx"],       "actions": ["rotate_turtlebot"], "values": "1:5:5"},
+            {"targets": ["turtlebot_rx"],       "actions": ["rotate_turtlebot"], "values": "1:3:3"},
             {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_turtlebot"], "values": "1:10:10",
                                             "params": {"persistent": False}},
             {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_turtlebot"], "values": [1],
