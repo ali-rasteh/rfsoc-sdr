@@ -252,46 +252,46 @@ class Turtlebot(General):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
-        # from turtlebot.map_motion_api import MapMotionAPI
-        # self.map_motion_api = MapMotionAPI(
-        #     cmd_topic=self.config.cmd_topic,
-        #     odom_topic=self.config.odom_topic,
-        #     rate=self.config.rate,
-        #     max_linear=self.config.max_linear,
-        #     max_angular=self.config.max_angular,
-        #     target_frame=self.config.target_frame,
-        #     source_frame=self.config.source_frame,
-        #     tf_timeout=self.config.tf_timeout,
-        #     lin_accel_limit=self.config.lin_accel_limit,
-        #     ang_accel_limit=self.config.ang_accel_limit,
-        # )
-        import math
-        def normalize_angle(a: float) -> float:
-            a = math.fmod(a + math.pi, 2.0 * math.pi)
-            if a <= 0:
-                a += 2.0 * math.pi
-            return a - math.pi
-        class DummyMove:
-            def __init__(self):
-                self.position = [0.0, 0.0]
-                self.orientation = 0.0
-            def read_pos(self):
-                return self.position[0], self.position[1], self.orientation
-            def compute_yaw_distance_to_target(self, current_xy, target_xy):
-                x, y = float(current_xy[0]), float(current_xy[1])
-                tx, ty = float(target_xy[0]), float(target_xy[1])
-                dx = tx - x
-                dy = ty - y
-                yaw_abs = math.atan2(dy, dx)              # [-pi, pi]
-                yaw_abs = normalize_angle(yaw_abs)
-                distance = math.hypot(dx, dy)             # >= 0
-                return yaw_abs, distance
-            def move(self, yaw, distance):
-                self.position = [self.position[0] + distance * np.cos(yaw), self.position[1] + distance * np.sin(yaw)]
-                self.orientation = yaw
-            def shutdown(self):
-                pass
-        self.map_motion_api = DummyMove()
+        from turtlebot.map_motion_api import MapMotionAPI
+        self.map_motion_api = MapMotionAPI(
+            cmd_topic=self.config.cmd_topic,
+            odom_topic=self.config.odom_topic,
+            rate=self.config.rate,
+            max_linear=self.config.max_linear,
+            max_angular=self.config.max_angular,
+            target_frame=self.config.target_frame,
+            source_frame=self.config.source_frame,
+            tf_timeout=self.config.tf_timeout,
+            lin_accel_limit=self.config.lin_accel_limit,
+            ang_accel_limit=self.config.ang_accel_limit,
+        )
+        # import math
+        # def normalize_angle(a: float) -> float:
+        #     a = math.fmod(a + math.pi, 2.0 * math.pi)
+        #     if a <= 0:
+        #         a += 2.0 * math.pi
+        #     return a - math.pi
+        # class DummyMove:
+        #     def __init__(self):
+        #         self.position = [0.0, 0.0]
+        #         self.orientation = 0.0
+        #     def read_pos(self):
+        #         return self.position[0], self.position[1], self.orientation
+        #     def compute_yaw_distance_to_target(self, current_xy, target_xy):
+        #         x, y = float(current_xy[0]), float(current_xy[1])
+        #         tx, ty = float(target_xy[0]), float(target_xy[1])
+        #         dx = tx - x
+        #         dy = ty - y
+        #         yaw_abs = math.atan2(dy, dx)              # [-pi, pi]
+        #         yaw_abs = normalize_angle(yaw_abs)
+        #         distance = math.hypot(dx, dy)             # >= 0
+        #         return yaw_abs, distance
+        #     def move(self, yaw, distance):
+        #         self.position = [self.position[0] + distance * np.cos(yaw), self.position[1] + distance * np.sin(yaw)]
+        #         self.orientation = yaw
+        #     def shutdown(self):
+        #         pass
+        # self.map_motion_api = DummyMove()
 
         # from tb4_aoa_viz.aoa_bridge import get_publish_aoa_fn  # type: ignore  # noqa: I001
         # from tb4_aoa_viz.snr_bridge import get_publish_snr_fn  # type: ignore  # noqa: I001
@@ -405,9 +405,9 @@ class Turtlebot(General):
 
     def reset_turtlebot_orientation(self):
         self.turtlebot_az_grid = np.random.uniform(-120, 120, size=5)
-        self.print(f"Generated turtlebot azimuth angles grid: {self.turtlebot_az_grid}", thr=0)
         self.turtlebot_az_grid = np.round(self.turtlebot_az_grid, 1)
         self.turtlebot_az_grid = np.sort(self.turtlebot_az_grid)
+        self.print(f"Generated turtlebot azimuth angles grid: {self.turtlebot_az_grid}", thr=0)
         self.turtlebot_az_grid_id = 0
         self.reset_lintrack_position()
 

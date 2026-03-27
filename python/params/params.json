@@ -1,0 +1,267 @@
+{
+    "DynamicPLLConfig": [
+        0,
+        122.88,
+        3932.16
+    ],
+    "RFFE": "piradio",
+    "TCP_port_Cmd": 8080,
+    "TCP_port_Data": 8081,
+    "adc_bits": 14,
+    "anim_interval": 100,
+    "animate_plot_mode": [
+        [
+            "h|0|0|circshift|mag|dbmag",
+            "h|1|0|circshift|mag|dbmag"
+        ],
+        [
+            "rxtd|0|0|fft|fftshift|mag|dbmag",
+            "rxtd|1|0|fft|fftshift|mag|dbmag"
+        ],
+        [
+            "aoa_gauge|0|0"
+        ]
+    ],
+    "ant_dim": 1,
+    "ant_dx": 0.8672666475151953,
+    "ant_dx_m": 0.026,
+    "ant_dy": 0.6671281903963041,
+    "ant_dy_m": 0.02,
+    "beamforming": false,
+    "bit_file_path": "/home/david/sounder_tb/rfsoc-sdr/python/project_v1-0-58_20241001-150336.bit",
+    "board": "rfsoc_4x2",
+    "c": 299792458.0,
+    "calib_iter": 100,
+    "calib_params_dir": "/home/david/sounder_tb/rfsoc-sdr/python/calib/",
+    "calib_params_path": "/home/david/sounder_tb/rfsoc-sdr/python/calib/calib_params.npz",
+    "calibrate_turntable": false,
+    "channel_dir": "/home/david/sounder_tb/rfsoc-sdr/python/channels/",
+    "channel_limit": true,
+    "channel_save_path": "/home/david/sounder_tb/rfsoc-sdr/python/channels/channel.npz",
+    "control_piradio": false,
+    "control_rfsoc": true,
+    "controller_slave_ip": "10.18.251.169",
+    "dac_bits": 14,
+    "do_mixer_settings": false,
+    "do_pll_settings": false,
+    "enable_matlab_stream": false,
+    "f_max": 249600000.0,
+    "f_tone": 9600000.0,
+    "fc": 10000000000.0,
+    "figs_dir": "/home/david/sounder_tb/rfsoc-sdr/python/figs/",
+    "figs_save_path": "/home/david/sounder_tb/rfsoc-sdr/python/figs/plot.pdf",
+    "files_dwnld_target": "rfsoc",
+    "files_to_convert": {
+        "rfsoc_test.py": "rfsoc_test.ipynb"
+    },
+    "files_to_download": [
+        "*.py",
+        "*.txt",
+        "sigcom_toolkit/*.py"
+    ],
+    "filter_bw_range": [
+        -299600000.0,
+        299600000.0
+    ],
+    "freq_hop_config": {
+        "mode": "discrete",
+        "list": [
+            10000000000.0
+        ],
+        "range": [
+            10000000000.0,
+            10000000000.0
+        ],
+        "step": 1000000000.0
+    },
+    "freq_hop_list": [
+        10000000000.0
+    ],
+    "fs": 983040000.0,
+    "fs_rx": 983040000.0,
+    "fs_trx": 983040000.0,
+    "fs_tx": 983040000.0,
+    "host_files_base_addr": "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/",
+    "host_ip": "192.168.2.1",
+    "host_password": "",
+    "host_username": "alira",
+    "lintrack_server_ip": "192.168.137.100",
+    "lmk_freq_mhz": 122.88,
+    "lmx_freq_mhz": 3932.16,
+    "load_parameters": false,
+    "local_base_addr": "./",
+    "matlab_stream_ip": "10.20.38.213",
+    "matlab_stream_port": 50007,
+    "measurement_configs": [],
+    "measurement_type": "turtlebot_demo",
+    "mix_freq": 1000000000.0,
+    "mix_freq_adc": 1000000000.0,
+    "mix_freq_dac": 1000000000.0,
+    "mix_phase_off": 0.0,
+    "mixer_mode": "analog",
+    "mode": "client",
+    "modify_rfsoc_files": true,
+    "n_frame_rd": 32,
+    "n_frame_wr": 1,
+    "n_rd_rep": 1,
+    "n_rx_ant": 2,
+    "n_rx_ch_eq": 1,
+    "n_samples": 1024,
+    "n_samples_ch": 521,
+    "n_samples_rx": 32768,
+    "n_samples_trx": 1024,
+    "n_samples_tx": 1024,
+    "n_save": 100,
+    "n_tx_ant": 2,
+    "nf_n_ant_sep": 3,
+    "nf_n_meas": 9,
+    "nf_n_rx_loc_sep": 3,
+    "nf_npath_max": [
+        20,
+        5
+    ],
+    "nf_param_estimate": false,
+    "nf_stop_thr": 0.03,
+    "nf_tx_ant_sep": 0.5,
+    "nfft": 1024,
+    "nfft_ch": 521,
+    "nfft_rx": 32768,
+    "nfft_trx": 1024,
+    "nfft_tx": 1024,
+    "null_sc_range": [
+        0,
+        0
+    ],
+    "optimal_gains_path": "/home/david/sounder_tb/rfsoc-sdr/python/calib/optimal_gains.json",
+    "overwrite_level": true,
+    "params_dir": "/home/david/sounder_tb/rfsoc-sdr/python/params/",
+    "params_path": "/home/david/sounder_tb/rfsoc-sdr/python/params/params.json",
+    "params_save_path": "/home/david/sounder_tb/rfsoc-sdr/python/params/params.json",
+    "params_to_modify": {
+        "backend.py": {
+            "import_pynq": true,
+            "import_torch": false,
+            "import_sklearn": false,
+            "import_cv2": false,
+            "import_sivers": false,
+            "import_adafruit": false
+        }
+    },
+    "piradio_bias_sw_dly": 0.1,
+    "piradio_bias_sw_dly_default": 0.1,
+    "piradio_freq_range": [
+        6.0,
+        22500000000.0
+    ],
+    "piradio_freq_sw_dly": 0.1,
+    "piradio_freq_sw_dly_default": 0.1,
+    "piradio_gain_sw_dly": 0.1,
+    "piradio_gain_sw_dly_default": 0.1,
+    "piradio_host": "192.168.137.51",
+    "piradio_password": "temppwd",
+    "piradio_rest_port": "5111",
+    "piradio_rest_protocol": "http",
+    "piradio_ssh_port": "22",
+    "piradio_username": "ubuntu",
+    "plot_fonts_dict": {
+        "title_size": 11,
+        "title_max_chars": 35,
+        "xaxis_size": 10,
+        "yaxis_size": 10,
+        "ticks_size": 10,
+        "legend_size": 10,
+        "line_width": 1.0,
+        "marker_size": 8,
+        "hspace": 0.5,
+        "wspace": 0.5
+    },
+    "plot_level": 0,
+    "plt_frame_id": 0,
+    "project": "sounder_if_ddr4",
+    "recv_signal": true,
+    "rfsoc_server_ip": "192.168.185.4",
+    "rotation_angles": [
+        0
+    ],
+    "rotation_delay": 0.0,
+    "rotation_range_deg": [
+        -90,
+        90
+    ],
+    "rotation_step_deg": 1,
+    "run_tcp_server": true,
+    "rx_chain": [
+        "sync_time",
+        "channel_est"
+    ],
+    "rx_same_delay": false,
+    "save_format": "npz",
+    "save_list": [
+        "",
+        ""
+    ],
+    "save_parameters": false,
+    "saved_sig_plot": [],
+    "sc_range": [
+        -260,
+        260
+    ],
+    "sc_range_ch": [
+        -260,
+        260
+    ],
+    "sc_tone": 10,
+    "seed": 100,
+    "seed_list": [
+        100,
+        100
+    ],
+    "send_signal": true,
+    "server_ip": null,
+    "set_piradio_opt_gains": false,
+    "set_piradio_opt_losupp": true,
+    "sig_dir": "/home/david/sounder_tb/rfsoc-sdr/python/sigs/",
+    "sig_gain_db": 0,
+    "sig_gen_mode": "ZadoffChu",
+    "sig_mode": "wideband_null",
+    "sig_modulation": "4qam",
+    "sig_path": "/home/david/sounder_tb/rfsoc-sdr/python/sigs/txtd.npz",
+    "sig_save_path": "/home/david/sounder_tb/rfsoc-sdr/python/sigs/trx.npz",
+    "snr_est_db": 40,
+    "sparse_ch_n_ignore": -1,
+    "sparse_ch_samp_range": [
+        -6,
+        20
+    ],
+    "stable_fc_piradio": 10000000000.0,
+    "steer_phi_deg": 30,
+    "steer_phi_rad": 0.5235987755982988,
+    "steer_theta_deg": 0,
+    "steer_theta_rad": 0.0,
+    "sys_response_path": "/home/david/sounder_tb/rfsoc-sdr/python/channels/sys_response.npz",
+    "tcp_bufferSize": 1024,
+    "tcp_localIP": "0.0.0.0",
+    "tone_f_mode": "sc",
+    "turntable_baudrate": 115200,
+    "turntable_port": "/dev/ttyACM0",
+    "turtlebot_publish_list": [
+        "aoa",
+        "snr"
+    ],
+    "tx_sig_sim": "same",
+    "update_rfsoc_files": false,
+    "use_linear_track": false,
+    "use_turntable": false,
+    "verbose_level": 1,
+    "wb_bw_mode": "sc",
+    "wb_bw_range": [
+        -249600000.0,
+        249600000.0
+    ],
+    "wb_null_sc": 0,
+    "wb_sc_range": [
+        -260,
+        260
+    ],
+    "wl": 0.0299792458
+}
