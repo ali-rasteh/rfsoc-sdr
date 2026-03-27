@@ -219,7 +219,7 @@ class PiRadioFR3Trx(RESTComPiradio):
         self.set_bias(chan=1, iq="Q", bias_voltage=optimal_lo_supp[1])
 
     def set_optimal_gain(self, side="both", tx_rx_distance=3.0):
-        self.print("Setting optimal TX/RX gains in Pi-Radio", thr=0)
+        self.print("Setting optimal TX/RX gains in Pi-Radio", thr=1)
 
         freq_list = list(self.optimal_gains[tx_rx_distance].keys())
         nearest_fc = min(freq_list, key=lambda x: abs(x - self.config.stable_fc_piradio / 1e9))
@@ -350,7 +350,7 @@ class Turtlebot(General):
         # Grid size for the moving room in meters [length, width]
         moving_room_grid_size = np.array([0.2, -0.2])
         # Grid size for the linear track in meters
-        lintrack_grid_size = 0.05
+        lintrack_grid_size = 0.1
         # Offset of the d48ptu azimuth angle in degrees
         # To compensate for the linear track tilt and point the d48ptu towards the center of the room
         self.d48ptu_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
@@ -392,7 +392,7 @@ class Turtlebot(General):
         self.lintrack_grid_id = 0
         self.d48ptu_az_grid = None
         self.d48ptu_az_grid_id = 0
-        self.turtlebot_az_grid = np.array([-60, -30, 0, 30, 60])
+        self.turtlebot_az_grid = None
         self.turtlebot_az_grid_id = 0
         self.reset_lintrack_position()
 
@@ -405,6 +405,9 @@ class Turtlebot(General):
         return position
 
     def reset_turtlebot_orientation(self):
+        self.turtlebot_az_grid = np.random.uniform(-120, 120, size=5)
+        self.turtlebot_az_grid = np.round(self.turtlebot_az_grid, 1)
+        self.turtlebot_az_grid = np.sort(self.turtlebot_az_grid)
         self.turtlebot_az_grid_id = 0
 
     def get_next_turtlebot_orientation(self):
@@ -1671,7 +1674,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         if process_chain:
             n_rd_rep = 1
             for i in range(n_frames):
-                self.print(f"Channel Save Iteration: {i + 1}", thr=0)
+                self.print(f"Channel Save Iteration: {i + 1}", thr=2)
                 rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                 # to handle the dimenstion needed for read repeat
