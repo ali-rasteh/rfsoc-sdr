@@ -118,7 +118,7 @@ class FR3RoboticLocalizationConfig(BaseConfig):
     sig_mode: str = "wideband"
     animate_plot_mode: tuple = (
         [PlotSymbols.rxfd00],
-        # PlotSymbols.aoa_gauge,
+        PlotSymbols.aoa_gauge,
     )
 
     def __post_init__(self):
@@ -146,22 +146,25 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 "d48ptu_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
                 "controller_tx": {"type": "controller_server"},
             }
-            # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
         self.action_loop: tuple = (
-            # {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
+            {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
             {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
             {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
             {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
-            {"targets": ["controller_tx"],      "actions": ["set_d48ptu_el"], "values": [-15.0]},
+            # {"targets": ["controller_tx"],      "actions": ["set_d48ptu_el"], "values": [-15.0]},
             {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
-            {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20",
-                                            "params": {"persistent": True}},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_trurtlebot"], "values": [1],
-                                            "params": {"persistent": True}},
+            # {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
+            # {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_trurtlebot"], "values": "1:20:20",
+            #                                 "params": {"persistent": True}},
+            # {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_trurtlebot"], "values": [1],
+            #                                 "params": {"persistent": True}},
+            {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
+            {"targets": ["self"],               "actions": ["wait"], "values": [1.0]},
             {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
                                             "params": {"process_chain": ("aoa",)}},
             {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
+            # {"targets": ["self"],               "actions": ["print"], "values": [1],
+            #                                     "params": {"print_list": ["snr"]}},
             {"targets": ["rfsoc_rx", "turtlebot_rx"],       "actions": ["save", "store"], "values": [1],
                                             "params": {"save_list": ["signal", "snr_db", "aoa", "phase_offset", "turtlebot_info"]}},
         )

@@ -594,6 +594,13 @@ class TcpCommLinTrack(TcpComm):
         self.print(f"Result of go2end: {data}", thr=3)
         return data
 
+    def calibrate(self, lintrack_id=0):
+        self.print(f"Calibrating linear track {lintrack_id}", thr=2)
+        self.radio_control.sendall(b"calibrate " + str.encode(str(lintrack_id)))
+        data = self.radio_control.recv(1024)
+        self.print(f"Result of calibrate: {data}", thr=3)
+        return data
+
     def _handle_move(self, args):
         if len(args) != 2:
             return self.config.invalid_number_of_arguments_message
@@ -622,6 +629,13 @@ class TcpCommLinTrack(TcpComm):
             return self.config.invalid_number_of_arguments_message
         motor_id = int(args[0])
         success, status = self.obj_lintrack.go2end(motor_id=motor_id)
+        return self.config.success_message if success else status
+
+    def _handle_calibrate(self, args):
+        if len(args) != 1:
+            return self.config.invalid_number_of_arguments_message
+        motor_id = int(args[0])
+        success, status = self.obj_lintrack.calibrate(motor_id=motor_id)
         return self.config.success_message if success else status
 
 

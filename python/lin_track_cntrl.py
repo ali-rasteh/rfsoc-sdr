@@ -62,6 +62,7 @@ class LinearTrackController(General):
 
     def calibrate(self, motor_id=0, mode="start"):
         self.print(f"Calibrating the linear track {motor_id} with mode {mode}", thr=1)
+        success, status = False, None
         while True:
             dis_str = input("Enter the distance to move in m, empty if need to break: ")
             if dis_str == "":
@@ -76,9 +77,11 @@ class LinearTrackController(General):
             except Exception:
                 self.print("Invalid distance entered", thr=0)
                 continue
-            self.displace(motor_id=motor_id, dis=dis, pos_check=False)
+            success, status = self.displace(motor_id=motor_id, dis=dis, pos_check=False)
 
         self.print(f"Calibration for linear track {motor_id} complete", thr=1)
+
+        return success, status
 
     def interactive_move(self, motor_id=0):
         self.print(f"Starting interactive move for linear track {motor_id}", thr=1)

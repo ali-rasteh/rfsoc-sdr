@@ -432,6 +432,8 @@ class Turtlebot(General):
         el = np.rad2deg(np.arctan2(self.tx_rx_height_diff, tx_rx_dist))
         self.tx_orientation = np.array([az+self.d48ptu_az_offset_deg, el])
         self.d48ptu_az_grid_id += 1
+        az = np.round(az, 2)
+        el = np.round(el, 2)
         return (az, el)
 
 
@@ -1237,7 +1239,7 @@ class SignalUtilsRfsoc(SignalUtils):
         if sig is None:
             return None
 
-        sig = sig.copy()
+        sig = sig.copy() if isinstance(sig, np.ndarray) else sig
         title = ""
         for item in process_list:
             if item in ["tx", "rx", "h", "H"]:
@@ -1414,6 +1416,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         lintrack = LinearTrackController(lintrack_config)
         if run_server:
             lintrack.run_tcp()
+        lintrack.calibrate()
         return lintrack
 
     def _init_turntable(self, port="COM6", baudrate=115200, rotation_delay=0.0, **kwargs):
@@ -1579,7 +1582,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         default_actions_contain = ["print"]
 
         for values in itertools.product(*ranges):
-            print(f"Current Sweep Values: {values}")
             if prev is None:
                 changed_idxs = range(len(values))  # first iteration: everything is "changed"
             else:
@@ -1648,13 +1650,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
         n_frames = int(value)
         rxtd_save = []
 
-        n_rd_rep = n_frames // self.config.n_frame_rd
-        rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once", verbose=False)
-        self.rx_signal = RxSignal(
-            rxtd=rxtd,
-            rxtd_base=rxtd,
-        )
-
         if process_chain:
             n_rd_rep = 1
             for i in range(n_frames):
@@ -1662,13 +1657,20 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                 # to handle the dimenstion needed for read repeat
-                rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd, client_rfsoc_rx=client_rfsoc)
-                self.rx_signal = rx_signal
+                self.rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd, process_chain=process_chain, client_rfsoc_rx=client_rfsoc)
 
-                rxtd_save.append(rx_signal.rxtd_base)
+                rxtd_save.append(self.rx_signal.rxtd_base)
             rxtd_save = np.array(rxtd_save)
             rxtd_save = rxtd_save.reshape(-1, *rxtd_save.shape[-2:])
         else:
+            n_rd_rep = n_frames // self.config.n_frame_rd
+            rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once", verbose=False)
+            self.rx_signal = RxSignal(
+                rxtd=rxtd,
+                rxtd_base=rxtd,
+            )
+            print(rxtd.shape)
+
             rxtd_save = np.empty(
                 (n_frames, self.config.n_rx_ant, self.config.n_samples_tx),
                 dtype=rxtd.dtype,
@@ -1735,7 +1737,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
             snr_db = self.lin_to_db(snr, mode="pow")
             self.measurement["snr_db"] = snr_db
         if "aoa" in save_list:
-            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
+            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0.0
             self.measurement["aoa"] = aoa
         if "phase_offset" in save_list:
             client_rfsoc = target_objects[0]
@@ -1746,19 +1748,20 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.measurement["tx_orientation"] = np.array(client_turtlebot.tx_orientation)
             self.measurement["rx_pos"] = np.array(client_turtlebot.turtlebot_pos)
             self.measurement["rx_orientation"] = np.array(client_turtlebot.turtlebot_orientation)
+        print([f"{key}: {self.measurement[key]}" for key in self.measurement if "rxtd" not in key and "txtd" not in key])
+        print([f"{key}: {np.mean(self.measurement[key])}" for key in self.measurement if "rxtd" in key])
 
     def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
         save_name = f"{save_prefix}_{save_postfix}{self.save_id}.{self.config.save_format}"
         self.measurement["id"] = self.save_id
+        self.save_id += 1
 
         save_path = os.path.join(self.config.sig_dir, save_name)
         if self.config.save_format == "npz":
             np.savez(save_path, **self.measurement)
         elif self.config.save_format == "mat":
             scipy.io.savemat(save_path, self.measurement)
-
-        self.save_id += 1
 
     def _action_wait(self, target_objects, value, **kwargs):
         wait_time = float(value)
@@ -1790,7 +1793,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def _action_publish_ros2(self, target_objects, value, publish_list=(), **kwargs):
         client_turtlebot = target_objects[0]
         if "aoa" in publish_list:
-            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0
+            aoa = self.aoa_list[-1] if len(self.aoa_list) > 0 else 0.0
             client_turtlebot.publish_aoa_turtlebot(aoa)
         if "snr" in publish_list:
             snr = self.calculate_snr(
@@ -2087,7 +2090,8 @@ class AnimatePlot(PlotUtils):
                     ylabel_mode = "phase"
                 elif signal_name == "aoa_gauge":
                     # Return the last AOA gauge value in radians
-                    sig = self.signals_obj.aoa_list[-1]
+                    sig = self.signals_obj.aoa_list[-1] if len(self.signals_obj.aoa_list) > 0 else 0.0
+                    sig = np.array([sig])  # Make it an array for consistent processing
                     title += "AOA Gauge"
                     xlabel_mode = "aoa_gauge"
                     ylabel_mode = "aoa_gauge"
@@ -2230,7 +2234,7 @@ class AnimatePlot(PlotUtils):
                         self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
                         line_id += 1
                     elif signal_name == "aoa_gauge":
-                        self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
+                        self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data[0]))
                         self.ax[i][j].set_xlim(0, 1)
                         self.ax[i][j].set_ylim(0.5, 1)
                         self.ax[i][j].axis("off")
