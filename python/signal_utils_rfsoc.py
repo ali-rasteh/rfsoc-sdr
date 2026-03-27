@@ -341,7 +341,7 @@ class Turtlebot(General):
         # Moving room size in meters [length, width]
         self.moving_room_size = np.array([1.5, -3.0])
         # Length of the free space linear track in meters
-        lintrack_length = 1.0
+        lintrack_length = 0.5
         # Offset of the linear track from the origin point in meters [length, width]
         self.lintrack_offset = np.array([1.0, 2.0])
         # Tilt of the linear track in degrees
@@ -350,7 +350,7 @@ class Turtlebot(General):
         # Grid size for the moving room in meters [length, width]
         moving_room_grid_size = np.array([0.2, -0.2])
         # Grid size for the linear track in meters
-        lintrack_grid_size = 0.1
+        lintrack_grid_size = 0.05
         # Offset of the d48ptu azimuth angle in degrees
         # To compensate for the linear track tilt and point the d48ptu towards the center of the room
         self.d48ptu_az_offset_deg = 270.0 + (self.lintrack_tilt_deg - 180.0)
