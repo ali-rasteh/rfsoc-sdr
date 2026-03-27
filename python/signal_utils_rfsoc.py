@@ -316,16 +316,23 @@ class Turtlebot(General):
         time.sleep(1.0)
         cur_x, cur_y, yaw = api.read_pos()
         self.turtlebot_pos[:2] = np.array([cur_x, cur_y])
+        self.turtlebot_orientation[0] = yaw
         self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
 
-    def rotate_to(self, position):
-        self.print(f"Rotating turtlebot to position: {position}", thr=0)
+    def rotate_to(self, position=None, orientation_deg=None):
+        self.print(f"Rotating turtlebot to position: {position}, orientation: {orientation_deg}", thr=0)
         api = self.map_motion_api
 
+        if position is not None:
+            cur_x, cur_y, yaw = api.read_pos()
+            mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position[:2])
+            if orientation_deg is not None:
+                yaw = mv_yaw + np.deg2rad(orientation_deg)
+            api.move(yaw=yaw, distance=0.0)
+        elif orientation_deg is not None:
+            api.move(yaw=np.deg2rad(orientation_deg), distance=0.0)
         cur_x, cur_y, yaw = api.read_pos()
-        mv_yaw, _ = api.compute_yaw_distance_to_target([cur_x, cur_y], position[:2])
-        api.move(yaw=mv_yaw, distance=0.0)
-        cur_x, cur_y, yaw = api.read_pos()
+        self.turtlebot_pos[:2] = np.array([cur_x, cur_y])
         self.turtlebot_orientation[0] = yaw
         self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
 
@@ -385,14 +392,25 @@ class Turtlebot(General):
         self.lintrack_grid_id = 0
         self.d48ptu_az_grid = None
         self.d48ptu_az_grid_id = 0
+        self.turtlebot_az_grid = np.array([-60, -30, 0, 30, 60])
+        self.turtlebot_az_grid_id = 0
         self.reset_lintrack_position()
 
     def get_next_turtlebot_position(self):
         # This function should return the next position of the turtlebot in the room grid
         position = self.moving_room_grid[self.room_grid_id]
         self.room_grid_id += 1
+        self.reset_turtlebot_orientation()
         self.reset_lintrack_position()
         return position
+
+    def reset_turtlebot_orientation(self):
+        self.turtlebot_az_grid_id = 0
+
+    def get_next_turtlebot_orientation(self):
+        az = self.turtlebot_az_grid[self.turtlebot_az_grid_id]
+        self.turtlebot_az_grid_id += 1
+        return az
 
     def reset_lintrack_position(self):
         self.reset_d48ptu_position()
@@ -1669,17 +1687,16 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 rxtd=rxtd,
                 rxtd_base=rxtd,
             )
-            print(rxtd.shape)
 
             rxtd_save = np.empty(
-                (n_frames, self.config.n_rx_ant, self.config.n_samples_tx),
+                (n_frames, self.config.n_rx_ant, self.config.n_samples),
                 dtype=rxtd.dtype,
             )
             for i in range(self.config.n_frame_rd):
                 rxtd_save[i :: self.config.n_frame_rd] = rxtd[
                     :,
                     :,
-                    i * self.config.n_samples_tx : (i + 1) * self.config.n_samples_tx,
+                    i * self.config.n_samples : (i + 1) * self.config.n_samples,
                 ]
 
         self.txtd_save = self.tx_signal.txtd_base
@@ -1748,8 +1765,8 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.measurement["tx_orientation"] = np.array(client_turtlebot.tx_orientation)
             self.measurement["rx_pos"] = np.array(client_turtlebot.turtlebot_pos)
             self.measurement["rx_orientation"] = np.array(client_turtlebot.turtlebot_orientation)
-        print([f"{key}: {self.measurement[key]}" for key in self.measurement if "rxtd" not in key and "txtd" not in key])
-        print([f"{key}: {np.mean(self.measurement[key])}" for key in self.measurement if "rxtd" in key])
+        # print([f"{key}: {self.measurement[key]}" for key in self.measurement if "rxtd" not in key and "txtd" not in key])
+        # print([f"{key}: {np.mean(self.measurement[key])}, {self.measurement[key].shape}" for key in self.measurement if "rxtd" in key])
 
     def _action_store(self, target_objects, value, save_prefix="m", **kwargs):
         save_postfix = f"{self.phys_config}_" if self.phys_config is not None else ""
@@ -1879,14 +1896,18 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for client_turtlebot in target_objects:
             position = client_turtlebot.get_next_turtlebot_position()
             client_turtlebot.move_to(position)
-            client_turtlebot.rotate_to(client_turtlebot.tx_pos)
 
-    def _action_move_lintrack_trurtlebot(self, target_objects, value, **kwargs):
+    def _action_rotate_turtlebot(self, target_objects, value, **kwargs):
+        for client_turtlebot in target_objects:
+            orientation_deg = client_turtlebot.get_next_turtlebot_orientation()
+            client_turtlebot.rotate_to(position=client_turtlebot.tx_pos, orientation_deg=orientation_deg)
+
+    def _action_move_lintrack_turtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_lintrack = target_objects
         position = client_turtlebot.get_next_lintrack_position()
         client_lintrack.go2pos_lintrack(lintrack_id=0, position=position)
 
-    def _action_move_d48ptu_trurtlebot(self, target_objects, value, **kwargs):
+    def _action_move_d48ptu_turtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_d48ptu = target_objects
         az, el = client_turtlebot.get_next_d48ptu_angle()
         client_d48ptu.goto_deg_d48ptu(azimuth_deg=az, elevation_deg=el)
