@@ -1,13 +1,16 @@
-from logging import config
 import os
 import platform
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
 from file_utils import FileUtils, FileUtilsConfig
 from sigcom_toolkit.general import General
-from signal_utils_rfsoc import AnimatePlot, AnimationPlotConfig, ExperimentOperator, ExperimentOperatorConfig
+from signal_utils_rfsoc import (
+    AnimatePlot,
+    AnimationPlotConfig,
+    ExperimentOperator,
+    ExperimentOperatorConfig,
+)
 
 
 @dataclass(kw_only=True)

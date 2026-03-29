@@ -253,6 +253,7 @@ class Turtlebot(General):
         super().__init__(config, **overrides)
 
         from turtlebot.map_motion_api import MapMotionAPI
+
         self.map_motion_api = MapMotionAPI(
             cmd_topic=self.config.cmd_topic,
             odom_topic=self.config.odom_topic,
@@ -317,10 +318,15 @@ class Turtlebot(General):
         cur_x, cur_y, yaw = api.read_pos()
         self.turtlebot_pos[:2] = np.array([cur_x, cur_y])
         self.turtlebot_orientation[0] = yaw
-        self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
+        self.print(
+            f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg",
+            thr=0,
+        )
 
     def rotate_to(self, position=None, orientation_deg=None):
-        self.print(f"Rotating turtlebot to position: {position}, orientation: {orientation_deg}", thr=0)
+        self.print(
+            f"Rotating turtlebot to position: {position}, orientation: {orientation_deg}", thr=0
+        )
         api = self.map_motion_api
 
         if position is not None:
@@ -334,7 +340,10 @@ class Turtlebot(General):
         cur_x, cur_y, yaw = api.read_pos()
         self.turtlebot_pos[:2] = np.array([cur_x, cur_y])
         self.turtlebot_orientation[0] = yaw
-        self.print(f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg", thr=0)
+        self.print(
+            f"Current turtlebot position: ({cur_x:0.2f}, {cur_y:0.2f}), yaw: {np.rad2deg(yaw):0.2f} deg",
+            thr=0,
+        )
 
     def init(self):
         # Origin is the point that turtlebot is powered on on the corner of the room
@@ -361,12 +370,16 @@ class Turtlebot(General):
         # Height difference between the TX and RX in meters, used to calculate the d48ptu elevation angle
         self.turtlebot_height_m = 0.615
         self.tx_height_m = 1.185
-        self.tx_rx_height_diff = self.turtlebot_height_m-self.tx_height_m
+        self.tx_rx_height_diff = self.turtlebot_height_m - self.tx_height_m
 
-        self.moving_room_grid = np.mgrid[
-            0 : self.moving_room_size[0] : moving_room_grid_size[0],
-            0 : self.moving_room_size[1] : moving_room_grid_size[1],
-        ].reshape(2, -1).T
+        self.moving_room_grid = (
+            np.mgrid[
+                0 : self.moving_room_size[0] : moving_room_grid_size[0],
+                0 : self.moving_room_size[1] : moving_room_grid_size[1],
+            ]
+            .reshape(2, -1)
+            .T
+        )
 
         # Sort the grid points in a snake-like pattern to minimize the movement distance of the turtlebot
         def zigzag_sort(arr):
@@ -403,8 +416,12 @@ class Turtlebot(General):
         return position
 
     def reset_turtlebot_orientation(self):
-        self.turtlebot_az_grid = np.random.uniform(-self.tx_beam_width_deg/2, self.tx_beam_width_deg/2, size=1)
-        self.turtlebot_az_grid = np.concatenate([self.turtlebot_az_grid, np.random.uniform(-120, 120, size=2)])
+        self.turtlebot_az_grid = np.random.uniform(
+            -self.tx_beam_width_deg / 2, self.tx_beam_width_deg / 2, size=1
+        )
+        self.turtlebot_az_grid = np.concatenate(
+            [self.turtlebot_az_grid, np.random.uniform(-120, 120, size=2)]
+        )
         self.turtlebot_az_grid = np.round(self.turtlebot_az_grid, 1)
         self.turtlebot_az_grid = np.sort(self.turtlebot_az_grid)
         self.print(f"Generated turtlebot azimuth angles grid: {self.turtlebot_az_grid}", thr=0)
@@ -431,9 +448,9 @@ class Turtlebot(General):
         if self.lintrack_grid_id >= len(self.lintrack_grid):
             raise StopIteration("No more linear track positions available")
         position = self.lintrack_grid[self.lintrack_grid_id]
-        self.tx_pos[:2] = self.lintrack_offset + position * np.array([
-                    np.cos(np.deg2rad(self.lintrack_tilt_deg)),
-                    np.sin(np.deg2rad(self.lintrack_tilt_deg))])
+        self.tx_pos[:2] = self.lintrack_offset + position * np.array(
+            [np.cos(np.deg2rad(self.lintrack_tilt_deg)), np.sin(np.deg2rad(self.lintrack_tilt_deg))]
+        )
         self.lintrack_grid_id += 1
         self.reset_d48ptu_position()
         return position
@@ -448,7 +465,9 @@ class Turtlebot(General):
         )
         # self.d48ptu_az_grid = np.linspace(min_angle, max_angle,
         #                     int((max_angle - min_angle) / self.d48ptu_az_grid_size_deg))  # d48ptu azimuth angles grid in degrees
-        self.d48ptu_az_grid = np.array([exact_angle-self.d48ptu_az_offset_deg])  # Only use the exact angle for the d48ptu azimuth
+        self.d48ptu_az_grid = np.array(
+            [exact_angle - self.d48ptu_az_offset_deg]
+        )  # Only use the exact angle for the d48ptu azimuth
         self.d48ptu_az_grid_id = 0
 
     def get_next_d48ptu_angle(self):
@@ -458,7 +477,7 @@ class Turtlebot(General):
         az = self.d48ptu_az_grid[self.d48ptu_az_grid_id]
         tx_rx_dist = np.linalg.norm(self.tx_pos[:2] - self.turtlebot_pos[:2])
         el = np.rad2deg(np.arctan2(self.tx_rx_height_diff, tx_rx_dist))
-        self.tx_orientation = np.array([az+self.d48ptu_az_offset_deg, el])
+        self.tx_orientation = np.array([az + self.d48ptu_az_offset_deg, el])
         self.d48ptu_az_grid_id += 1
         az = np.round(az, 2)
         el = np.round(el, 2)
@@ -478,26 +497,15 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     rfsoc_mixer_mode: str = "analog"  # Mixer mode, analog or digital
 
     # Signals information
-    sig_gen_mode: str = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu
-    sig_mode: str = (
-        "wideband_null"  # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
-    )
+    sig_gen_mode: str = "fft"  # Signal generation mode, time, or fft or ofdm, or ZadoffChu or load
     sig_modulation: str = "4qam"  # Signal modulation type for sounding, 4qam, 16qam, etc
     tx_sig_sim: str = "same"  # TX signal similarity between antennas, same or orthogonal or shifted
     sig_gain_db: float = 0  # Transmitter Signal gain in dB
     n_frame_wr: int = 1  # Number of frames to write
     n_frame_rd: int = 2  # Number of frames to read
     snr_est_db: float = 40  # SNR for signal estimation
-    wb_bw_mode: str = "sc"  # Wideband signal bandwidth mode, sc or freq
-    wb_sc_range: tuple = (-250, 250)  # Wideband signal subcarrier range, used when wb_bw_mode is sc
-    wb_bw_range: tuple = (
-        -250e6,
-        250e6,
-    )  # Wideband signal bandwidth range, used when wb_bw_mode is freq
-    wb_null_sc: int = 0  # Number of carriers to null in the wideband signal
-    tone_f_mode: str = "sc"  # Tone signal frequency mode, sc or freq
-    sc_tone: int = 10  # Tone signal subcarrier
-    f_tone: float = 250e6  # Tone signal frequency
+    sc_range_sig: tuple = ((-250, 250),)  # Wideband signal subcarrier range
+    bw_range_sig: tuple = None  # Wideband signal bandwidth range
     filter_bw_range: tuple = (-450e6, 450e6)  # Final filter BW range on the RX signal
     n_rx_ch_eq: int = 1  # Number of RX chains for channel equalization
     sparse_ch_samp_range: tuple = (
@@ -506,9 +514,7 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     )  # Range of samples around the strongest peak to consider for channel estimation
     sparse_ch_n_ignore: int = 5  # Number of samples to ignore around the strongest peak
     rx_same_delay: bool = True  # If True, all applies the same time shift to all RX antennas
-    channel_limit: bool = (
-        True  # If True, limits the channel to a specific range in the frequency domain
-    )
+    channel_limit: bool = True  # If True, limits the channel to a specific range in the frequency domain
     npath_max: tuple = (
         20,
         5,
@@ -562,45 +568,32 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
         elif self.tx_sig_sim == "shifted":
             self.seed_list = [self.seed for i in range(self.n_tx_ant)]
 
-        if self.tone_f_mode == "sc":
-            self.f_tone = self.sc_tone * self.fs_tx / self.nfft_tx
-        elif self.tone_f_mode == "freq":
-            self.sc_tone = int(np.round((self.f_tone) * self.nfft_tx / self.fs_tx))
-        else:
-            raise ValueError("Invalid tone_f_mode mode: " + self.tone_f_mode)
-
-        if self.wb_bw_mode == "sc":
-            self.wb_bw_range = [
-                self.wb_sc_range[0] * self.fs_tx / self.nfft_tx,
-                self.wb_sc_range[1] * self.fs_tx / self.nfft_tx,
+        if self.sc_range_sig is not None:
+            self.bw_range_sig = [
+                [
+                    sc_range_sig[0] * self.fs_tx / self.nfft_tx,
+                    sc_range_sig[1] * self.fs_tx / self.nfft_tx,
+                ]
+                for sc_range_sig in self.sc_range_sig
             ]
-        elif self.wb_bw_mode == "freq":
-            self.wb_sc_range = [
-                int(np.round(self.wb_bw_range[0] * self.nfft_tx / self.fs_tx)),
-                int(np.round(self.wb_bw_range[1] * self.nfft_tx / self.fs_tx)),
+        elif self.bw_range_sig is not None:
+            self.sc_range_sig = [
+                [
+                    int(np.round(bw_range_sig[0] * self.nfft_tx / self.fs_tx)),
+                    int(np.round(bw_range_sig[1] * self.nfft_tx / self.fs_tx)),
+                ]
+                for bw_range_sig in self.bw_range_sig
             ]
         else:
-            raise ValueError("Invalid wb_bw_mode mode: " + self.tone_f_mode)
+            raise ValueError("Either sc_range_sig or bw_range_sig must be specified")
 
-        if "tone" in self.sig_mode:
-            self.f_max = abs(self.f_tone)
-            if self.sig_mode == "tone_1":
-                self.sc_range = [self.sc_tone, self.sc_tone]
-                self.filter_bw_range = [self.f_tone - 50e6, self.f_tone + 50e6]
-            elif self.sig_mode == "tone_2":
-                self.sc_range = [-1 * self.sc_tone, self.sc_tone]
-                self.filter_bw_range = [-1 * self.f_tone - 50e6, self.f_tone + 50e6]
-            self.null_sc_range = [0, 0]
-        elif "wideband" in self.sig_mode or self.sig_mode == "load":
-            self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
-            self.sc_range = self.wb_sc_range
-            self.filter_bw_range = [self.wb_bw_range[0] - 50e6, self.wb_bw_range[1] + 50e6]
-            self.null_sc_range = [-1 * self.wb_null_sc, self.wb_null_sc]
-        else:
-            raise ValueError("Unsupported signal mode: " + self.sig_mode)
+        self.f_max = max([max(abs(bw_range_sig[0]), abs(bw_range_sig[1])) for bw_range_sig in self.bw_range_sig])
+        self.filter_bw_range = [min([bw_range_sig[0] for bw_range_sig in self.bw_range_sig]) - 50e6,
+                                max([bw_range_sig[1] for bw_range_sig in self.bw_range_sig]) + 50e6]
 
         if self.channel_limit:
-            self.sc_range_ch = self.sc_range
+            self.sc_range_ch = [min([sc_range_sig[0] for sc_range_sig in self.sc_range_sig]),
+                                max([sc_range_sig[1] for sc_range_sig in self.sc_range_sig])]
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
             self.freq_ch = self.freq_trx[
@@ -631,33 +624,20 @@ class SignalUtilsRfsoc(SignalUtils):
         txtd_base = []
         txtd = []
         for ant_id in range(self.config.n_tx_ant):
-            if "tone" in self.config.sig_mode:
-                if self.config.sig_mode == "tone_1":
-                    nsc = 1
-                elif self.config.sig_mode == "tone_2":
-                    nsc = 2
-                txtd_base_s = self.generate_tone(
-                    freq_mode=self.config.tone_f_mode,
-                    sc=self.config.sc_tone,
-                    f=self.config.f_tone,
-                    sig_mode=self.config.sig_mode,
-                    gen_mode=self.config.sig_gen_mode,
-                )
-            elif "wideband" in self.config.sig_mode:
-                nsc = self.config.wb_sc_range[1] - self.config.wb_sc_range[0] + 1
+            if self.config.sig_gen_mode == "load":
+                txtd_base_s = np.load(self.config.sig_path)
+            else:
                 txtd_base_s = self.generate_wideband(
-                    bw_mode=self.config.wb_bw_mode,
-                    sc_range=self.config.wb_sc_range,
-                    bw_range=self.config.wb_bw_range,
+                    sc_range=self.config.sc_range_sig,
+                    bw_range=self.config.bw_range_sig,
                     modulation=self.config.sig_modulation,
-                    sig_mode=self.config.sig_mode,
                     gen_mode=self.config.sig_gen_mode,
                     seed=self.config.seed_list[ant_id],
                 )
-            elif self.config.sig_mode == "load":
-                txtd_base_s = np.load(self.config.sig_path)
-            else:
-                raise ValueError("Unsupported signal mode: " + self.config.sig_mode)
+            nsc = 0
+            for sc_range_sig in self.config.sc_range_sig:
+                nsc += sc_range_sig[1] - sc_range_sig[0] + 1
+
             txtd_base_s /= np.max([np.abs(txtd_base_s.real), np.abs(txtd_base_s.imag)])
             txtd_base_s *= self.db_to_lin(self.config.sig_gain_db, mode="mag")
             txtd_base.append(txtd_base_s)
@@ -666,8 +646,8 @@ class SignalUtilsRfsoc(SignalUtils):
                 self.lin_to_db(0.5 * 1000, mode="pow") + self.config.sig_gain_db
             )
             bw = (nsc / self.config.nfft_tx) * self.config.fs_tx
-            self.config.sig_psd_dbm = self.config.sig_pow_dbm - self.lin_to_db(bw, mode="pow")
-            self.config.sig_psd_dbm_sc = self.config.sig_pow_dbm - self.lin_to_db(nsc, mode="pow")
+            sig_psd_dbm = self.config.sig_pow_dbm - self.lin_to_db(bw, mode="pow")
+            sig_psd_dbm_sc = self.config.sig_pow_dbm - self.lin_to_db(nsc, mode="pow")
             self.print(
                 f"TX Signal power for antenna {ant_id}: {self.config.sig_pow_dbm:0.3f} dbm",
                 thr=4,
@@ -675,9 +655,9 @@ class SignalUtilsRfsoc(SignalUtils):
             self.print(
                 "TX Signal PSD for antenna {}: {:0.3f} dBm/Hz = {:0.3f} dBm/MHz = {:0.3f} dBm/sc".format(
                     ant_id,
-                    self.config.sig_psd_dbm,
-                    self.config.sig_psd_dbm + self.lin_to_db(1e6, mode="pow"),
-                    self.config.sig_psd_dbm_sc,
+                    sig_psd_dbm,
+                    sig_psd_dbm + self.lin_to_db(1e6, mode="pow"),
+                    sig_psd_dbm_sc,
                 ),
                 thr=4,
             )
@@ -1025,7 +1005,7 @@ class SignalUtilsRfsoc(SignalUtils):
                     rxtd = client_rfsoc_rx.receive_samples(mode="once")
                     snr = self.calculate_snr(
                         sig_td=rxtd[0, :, : self.config.n_samples_trx],
-                        sig_sc_range=self.config.sc_range,
+                        sc_range_sig=self.config.sc_range_sig,
                     )
                     snr_db = self.lin_to_db(snr, mode="pow")
                     self.print(
@@ -1131,7 +1111,7 @@ class SignalUtilsRfsoc(SignalUtils):
                 rxtd_base_s_ = self.sync_time(
                     rxtd_base[frm_id],
                     txtd_base[0],
-                    sc_range=self.config.sc_range,
+                    sc_range=self.config.sc_range_sig[0],
                     rx_same_delay=self.config.rx_same_delay,
                     sync_frac=sync_frac,
                 )
@@ -1143,7 +1123,7 @@ class SignalUtilsRfsoc(SignalUtils):
 
         if "sync_freq" in process_chain:
             cfo_coarse = self.estimate_cfo(
-                txtd_base[0], rxtd_base_s[0], mode="coarse", sc_range=self.config.sc_range
+                txtd_base[0], rxtd_base_s[0], mode="coarse", sc_range=self.config.sc_range_sig[0]
             )
             rxtd_base_t = []
             for frm_id in range(n_rd_rep):
@@ -1151,7 +1131,7 @@ class SignalUtilsRfsoc(SignalUtils):
                 rxtd_base_t.append(rxtd_base_t_)
             rxtd_base_t = np.array(rxtd_base_t)
             cfo_fine = self.estimate_cfo(
-                txtd_base[0], rxtd_base_t[0], mode="fine", sc_range=self.config.sc_range
+                txtd_base[0], rxtd_base_t[0], mode="fine", sc_range=self.config.sc_range_sig[0]
             )
             cfo = cfo_coarse + cfo_fine
             for frm_id in range(n_rd_rep):
@@ -1234,9 +1214,8 @@ class SignalUtilsRfsoc(SignalUtils):
                 txtd_base[0],
                 rxtd_base[plt_frm_id],
                 h_est,
-                sc_range=self.config.sc_range,
+                sc_range=self.config.sc_range_sig[0],
                 sc_range_ch=self.config.sc_range_ch,
-                null_sc_range=self.config.null_sc_range,
                 n_rx_ch_eq=self.config.n_rx_ch_eq,
             )
 
@@ -1307,11 +1286,15 @@ class SignalUtilsRfsoc(SignalUtils):
                 title += "-Imag"
             elif item == "IQ":
                 n_samples = sig.shape[-1]
-                sig = sig[
-                    self.config.sc_range[0] + n_samples // 2 : self.config.sc_range[1]
-                    + n_samples // 2
-                    + 1
-                ]
+                sig_iq = []
+                for sc_range in self.config.sc_range_sig:
+                    sig_iq.append(
+                        sig[
+                            sc_range[0] + n_samples // 2 : sc_range[1]
+                            + n_samples // 2 + 1
+                        ]
+                    )
+                sig = np.concatenate(sig_iq, axis=-1)
                 title += "-IQ"
             elif item == "conj":
                 sig = np.conj(sig)
@@ -1620,9 +1603,13 @@ class ExperimentOperator(SignalUtilsRfsoc):
                     if a != b
                     # or len(ranges[i]) == 1
                     or any(action in default_actions for action in actions[i])
-                    or any(action_contain in action for action in actions[i] for \
-                            action_contain in default_actions_contain)
-                    or "persistent" in params[i] and params[i]["persistent"] is True
+                    or any(
+                        action_contain in action
+                        for action in actions[i]
+                        for action_contain in default_actions_contain
+                    )
+                    or "persistent" in params[i]
+                    and params[i]["persistent"] is True
                 ]
             prev = values
 
@@ -1685,7 +1672,12 @@ class ExperimentOperator(SignalUtilsRfsoc):
                 rxtd = client_rfsoc.receive_samples_rfsoc(n_rd_rep=n_rd_rep, mode="once")
 
                 # to handle the dimenstion needed for read repeat
-                self.rx_signal = self.rx_operations(self.tx_signal.txtd_base, rxtd, process_chain=process_chain, client_rfsoc_rx=client_rfsoc)
+                self.rx_signal = self.rx_operations(
+                    self.tx_signal.txtd_base,
+                    rxtd,
+                    process_chain=process_chain,
+                    client_rfsoc_rx=client_rfsoc,
+                )
 
                 rxtd_save.append(self.rx_signal.rxtd_base)
             rxtd_save = np.array(rxtd_save)
@@ -1753,13 +1745,16 @@ class ExperimentOperator(SignalUtilsRfsoc):
             self.measurement[f"rxtd_{self.config.fc / 1e9}"] = self.rxtd_save.copy()
         if "sig_interval" in save_list:
             self.measurement["sig_interval"] = [
-                self.config.wb_sc_range[0] + (self.config.nfft_tx >> 1),
-                self.config.wb_sc_range[1] + (self.config.nfft_tx >> 1),
+                [
+                    sc_range_sig[0] + (self.config.nfft_tx >> 1),
+                    sc_range_sig[1] + (self.config.nfft_tx >> 1),
+                ]
+                for sc_range_sig in self.config.sc_range_sig
             ]
         if "snr_db" in save_list:
             snr = self.calculate_snr(
                 sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
-                sig_sc_range=self.config.sc_range,
+                sc_range_sig=self.config.sc_range_sig,
             )
             snr_db = self.lin_to_db(snr, mode="pow")
             self.measurement["snr_db"] = snr_db
@@ -1825,7 +1820,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         if "snr" in publish_list:
             snr = self.calculate_snr(
                 sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
-                sig_sc_range=self.config.sc_range,
+                sc_range_sig=self.config.sc_range_sig,
             )
             snr_db = self.lin_to_db(snr, mode="pow")
             client_turtlebot.publish_snr_turtlebot(snr_db)
@@ -1834,7 +1829,7 @@ class ExperimentOperator(SignalUtilsRfsoc):
         if "snr" in print_list:
             snr = self.calculate_snr(
                 sig_td=self.rx_signal.rxtd_base[:, 0, : self.config.n_samples_trx],
-                sig_sc_range=self.config.wb_sc_range,
+                sc_range_sig=self.config.sc_range_sig,
             )
             snr_db = self.lin_to_db(snr, mode="pow")
             self.print(f"Estimated SNR: {snr_db:.2f} dB", thr=0)
@@ -1891,11 +1886,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
         region = SpecSenseUtils.generate_random_regions(
             shape=(sc_limit,), n_regions=1, min_size=[self.sig_size], max_size=[self.sig_size]
         )
-        self.config.wb_sc_range = [
+        self.config.sc_range_sig = [
             region[0][0].start - (sc_limit >> 1),
             region[0][0].stop - 1 - (sc_limit >> 1),
         ]
-        signal_length = self.config.wb_sc_range[1] - self.config.wb_sc_range[0] + 1
+        signal_length = self.config.sc_range_sig[1] - self.config.sc_range_sig[0] + 1
         tx_signal = self.gen_tx_signal()
         tx_signal.txtd /= (256 / signal_length) ** 0.5
         tx_signal.txtd_base /= (256 / signal_length) ** 0.5
@@ -1910,7 +1905,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def _action_rotate_turtlebot(self, target_objects, value, **kwargs):
         for client_turtlebot in target_objects:
             orientation_deg = client_turtlebot.get_next_turtlebot_orientation()
-            client_turtlebot.rotate_to(position=client_turtlebot.tx_pos, orientation_deg=orientation_deg)
+            client_turtlebot.rotate_to(
+                position=client_turtlebot.tx_pos, orientation_deg=orientation_deg
+            )
 
     def _action_move_lintrack_turtlebot(self, target_objects, value, **kwargs):
         client_turtlebot, client_lintrack = target_objects
@@ -2121,7 +2118,9 @@ class AnimatePlot(PlotUtils):
                     ylabel_mode = "phase"
                 elif signal_name == "aoa_gauge":
                     # Return the last AOA gauge value in radians
-                    sig = self.signals_obj.aoa_list[-1] if len(self.signals_obj.aoa_list) > 0 else 0.0
+                    sig = (
+                        self.signals_obj.aoa_list[-1] if len(self.signals_obj.aoa_list) > 0 else 0.0
+                    )
                     sig = np.array([sig])  # Make it an array for consistent processing
                     title += "AOA Gauge"
                     xlabel_mode = "aoa_gauge"

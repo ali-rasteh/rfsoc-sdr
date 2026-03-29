@@ -31,11 +31,12 @@ class PlotSymbols:
 @dataclass(kw_only=True)
 class BaseConfig(SounderConfig):
     ant_d_m: tuple = (0.026,)
-    wb_sc_range: tuple = (-260, 260)
+    sc_range_sig: tuple = ((-260, 260),)
     rx_same_delay: bool = False
     n_frame_rd: int = 32
 
-    plot_configs: dict = field(default_factory=lambda: {
+    plot_configs: dict = field(
+        default_factory=lambda: {
             "title_size": 11,
             "title_max_chars": 35,
             "xaxis_size": 10,
@@ -46,7 +47,8 @@ class BaseConfig(SounderConfig):
             "marker_size": 8,
             "hspace": 0.5,
             "wspace": 0.5,
-        })
+        }
+    )
 
     update_rfsoc_files: bool = False
     host_files_base_addr: str = ""
@@ -60,62 +62,20 @@ class BaseConfig(SounderConfig):
     save_format: str = "npz"
 
     animate_plot_mode: tuple = (
-        [PlotSymbols.rxtd00_r, PlotSymbols.rxtd00_i],
         [PlotSymbols.rxfd00],
         [PlotSymbols.txfd00],
+        [PlotSymbols.rxtd00_r, PlotSymbols.rxtd00_i],
     )
 
-@dataclass(kw_only=True)
-class FR3SpectrumSweepConfig(BaseConfig):
-    n_frame_rd: int = 1
-    tx_sig_sim: str = "same"
-    sig_gen_mode: str = "fft"
-    sig_mode: str = "wideband"
-    sig_modulation: str = "4qam"
-    network_topology: dict = field(default_factory=lambda: {
-        "rfsoc_trx": {"type": "rfsoc", "role": "tx", "ip": "192.168.185.4"},
-        "d48ptu_tx": {"type": "D48PTU", "port": "/dev/ttyUSB0"},
-        "piradio_rx": {
-            "type": "piradio",
-            "role": "rx",
-            "ip": "192.168.185.51",
-        },
-        "piradio_tx": {
-            "type": "piradio",
-            "role": "tx",
-            "ip": "192.168.137.51",
-        },
-    })
-    action_loop: tuple = (
-        # {"targets": ["piradio_rx"],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
-        {"targets": ["piradio_rx", "piradio_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-        {"targets": ["piradio_tx"],     "actions": ["set_gain_db_tx"], "values": [35.0]},
-        {"targets": ["rfsoc_trx"],      "actions": ["transmit_signal"]},
-        {"targets": ["self"],           "actions": ["switch_sig_size"], "values": [8, 16, 64, 256]},
-        {"targets": ["d48ptu_tx"],      "actions": ["set_d48ptu_el"], "values": "-20:0.0:3"},
-        {"targets": ["d48ptu_tx"],      "actions": ["set_d48ptu_az"], "values": "-45:45:2"},
-        {"targets": ["piradio_rx"],     "actions": ["set_gain_db_rx"], "values": "15:38:10"},
-        # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:10:log"},
-        {"targets": ["rfsoc_trx"],      "actions": ["switch_sig_ss"], "values": "1:100:5"},
-        # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
-        {"targets": ["rfsoc_trx"],      "actions": ["capture"], "values": [2],
-                                        "params": {"process_chain": ("sync_time",)}},
-        {"targets": ["self"],           "actions": ["update_plot"], "values": [1]},
-        # {"targets": ["self"],           "actions": ["print"], "values": [1],
-        #                                   "params": {"print_list": ["snr"]}},
-        {"targets": ["self"],           "actions": ["save", "store"], "values": [1],
-                                        "params": {"save_list": ["signal", "sig_interval"]}},
-    )
 
 @dataclass(kw_only=True)
 class FR3RoboticLocalizationConfig(BaseConfig):
     role = "master"
     ant_d_m: tuple = (0.026,)
-    wb_sc_range: tuple = (-260, 260)
+    sc_range_sig: tuple = ((-260, 260),)
     n_frame_rd: int = 1
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "ZadoffChu"
-    sig_mode: str = "wideband"
     animate_plot_mode: tuple = (
         [PlotSymbols.rxfd00],
         PlotSymbols.aoa_gauge,
@@ -147,25 +107,133 @@ class FR3RoboticLocalizationConfig(BaseConfig):
                 "controller_tx": {"type": "controller_server"},
             }
         self.action_loop: tuple = (
-            {"targets": ["piradio_rx", "controller_tx"],    "actions": ["hop_freq"], "values": [10.0e9]},
-            {"targets": ["controller_tx"],      "actions": ["set_gain_db_tx"], "values": [25.0]},
-            {"targets": ["piradio_rx"],         "actions": ["set_gain_db_rx"], "values": [25.0]},
-            {"targets": ["controller_tx"],      "actions": ["transmit_signal"]},
+            {
+                "targets": ["piradio_rx", "controller_tx"],
+                "actions": ["hop_freq"],
+                "values": [10.0e9],
+            },
+            {"targets": ["controller_tx"], "actions": ["set_gain_db_tx"], "values": [25.0]},
+            {"targets": ["piradio_rx"], "actions": ["set_gain_db_rx"], "values": [25.0]},
+            {"targets": ["controller_tx"], "actions": ["transmit_signal"]},
             # {"targets": ["controller_tx"],      "actions": ["set_d48ptu_el"], "values": [-15.0]},
             # {"targets": ["rfsoc_rx"],           "actions": ["calibrate_rfsoc"], "values": [1]},
-            {"targets": ["turtlebot_rx"],       "actions": ["move_turtlebot"], "values": "1:1000:1000"},
-            {"targets": ["turtlebot_rx"],       "actions": ["rotate_turtlebot"], "values": "1:3:3"},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_lintrack_turtlebot"], "values": "1:10:10",
-                                            "params": {"persistent": False}},
-            {"targets": ["turtlebot_rx", "controller_tx"],      "actions": ["move_d48ptu_turtlebot"], "values": [1],
-                                            "params": {"persistent": True}},
+            {"targets": ["turtlebot_rx"], "actions": ["move_turtlebot"], "values": "1:1000:1000"},
+            {"targets": ["turtlebot_rx"], "actions": ["rotate_turtlebot"], "values": "1:3:3"},
+            {
+                "targets": ["turtlebot_rx", "controller_tx"],
+                "actions": ["move_lintrack_turtlebot"],
+                "values": "1:10:10",
+                "params": {"persistent": False},
+            },
+            {
+                "targets": ["turtlebot_rx", "controller_tx"],
+                "actions": ["move_d48ptu_turtlebot"],
+                "values": [1],
+                "params": {"persistent": True},
+            },
             # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
             # {"targets": ["self"],               "actions": ["wait"], "values": [1.0]},
-            {"targets": ["rfsoc_rx"],           "actions": ["capture"], "values": [2],
-                                            "params": {"process_chain": ("aoa",)}},
-            {"targets": ["self"],               "actions": ["update_plot"], "values": [1]},
+            {
+                "targets": ["rfsoc_rx"],
+                "actions": ["capture"],
+                "values": [2],
+                "params": {"process_chain": ("aoa",)},
+            },
+            {"targets": ["self"], "actions": ["update_plot"], "values": [1]},
             # {"targets": ["self"],               "actions": ["print"], "values": [1],
             #                                     "params": {"print_list": ["snr"]}},
-            {"targets": ["rfsoc_rx", "turtlebot_rx"],       "actions": ["save", "store"], "values": [1],
-                                            "params": {"save_list": ["signal", "snr_db", "aoa", "phase_offset", "turtlebot_info"]}},
+            {
+                "targets": ["rfsoc_rx", "turtlebot_rx"],
+                "actions": ["save", "store"],
+                "values": [1],
+                "params": {
+                    "save_list": ["signal", "snr_db", "aoa", "phase_offset", "turtlebot_info"]
+                },
+            },
+        )
+
+
+@dataclass(kw_only=True)
+class FR3SpectrumSweepConfig(BaseConfig):
+    role = "master"
+    n_frame_rd: int = 1
+    tx_sig_sim: str = "same"
+    sig_gen_mode: str = "fft"
+    sig_modulation: str = "4qam"
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        rfsoc_rx = "rfsoc_rx"
+        piradio_rx = "piradio_rx"
+        controller_tx = "controller_tx"
+
+        if self.role == "master":
+            rfsoc_tx = controller_tx
+            piradio_tx = controller_tx
+            d48ptu_tx = controller_tx
+            lintrack_tx = controller_tx
+
+            self.network_topology: dict = {
+                rfsoc_rx: {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+                piradio_rx: {
+                    "type": "piradio",
+                    "role": "rx",
+                    "ip": "192.168.185.51",
+                },
+                controller_tx: {"type": "controller_client", "ip": "10.20.47.103"},
+                # piradio_tx: {
+                #     "type": "piradio",
+                #     "role": "tx",
+                #     "ip": "192.168.137.51",
+                # },
+                # d48ptu_tx: {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+            }
+        elif self.role == "slave":
+            rfsoc_tx = "rfsoc_tx"
+            piradio_tx = "piradio_tx"
+            d48ptu_tx = "d48ptu_tx"
+            lintrack_tx = "lintrack_tx"
+
+            self.network_topology: dict = {
+                rfsoc_tx: {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1"},
+                piradio_tx: {
+                    "type": "piradio",
+                    "role": "tx",
+                    "ip": "192.168.137.51",
+                },
+                lintrack_tx: {"type": "lintrack"},
+                d48ptu_tx: {"type": "D48PTU", "port": "/dev/ttyUSB0"},
+                controller_tx: {"type": "controller_server"},
+            }
+
+        self.action_loop: tuple = (
+            # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
+            {"targets": ["rfsoc_rx"], "actions": ["calibrate_rfsoc"], "values": [1]},
+            # {"targets": [piradio_rx],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
+            {"targets": [piradio_rx, piradio_tx], "actions": ["hop_freq"], "values": [10.0e9]},
+            {"targets": [piradio_tx], "actions": ["set_gain_db_tx"], "values": [35.0]},
+            {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
+            {"targets": ["self"], "actions": ["switch_sig_size"], "values": [8, 16, 64, 256]},
+            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_el"], "values": "-20:0.0:3"},
+            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_az"], "values": "-45:45:2"},
+            {"targets": [piradio_rx], "actions": ["set_gain_db_rx"], "values": "15:38:10"},
+            # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:10:log"},
+            {"targets": [rfsoc_tx], "actions": ["switch_sig_ss"], "values": "1:100:5"},
+            # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
+            {
+                "targets": [rfsoc_rx],
+                "actions": ["capture"],
+                "values": [2],
+                "params": {"process_chain": ()},
+            },
+            {"targets": ["self"], "actions": ["update_plot"], "values": [1]},
+            # {"targets": ["self"],           "actions": ["print"], "values": [1],
+            #                                   "params": {"print_list": ["snr"]}},
+            {
+                "targets": ["self"],
+                "actions": ["save", "store"],
+                "values": [1],
+                "params": {"save_list": ["signal", "sig_interval", "phase_offset"]},
+            },
         )
