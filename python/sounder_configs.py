@@ -215,6 +215,7 @@ class FR3SpectrumSweepConfig(BaseConfig):
             {"targets": [piradio_tx], "actions": ["set_gain_db_tx"], "values": [35.0]},
             {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
             {"targets": ["self"], "actions": ["switch_sig_size"], "values": [8, 16, 64, 256]},
+            {"targets": ["self"], "actions": ["switch_sig_number"], "values": "3:5:5"},
             {"targets": [d48ptu_tx], "actions": ["set_d48ptu_el"], "values": "-20:0.0:3"},
             {"targets": [d48ptu_tx], "actions": ["set_d48ptu_az"], "values": "-45:45:2"},
             {"targets": [piradio_rx], "actions": ["set_gain_db_rx"], "values": "15:38:10"},

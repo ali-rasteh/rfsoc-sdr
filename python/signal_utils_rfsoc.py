@@ -569,21 +569,21 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
             self.seed_list = [self.seed for i in range(self.n_tx_ant)]
 
         if self.sc_range_sig is not None:
-            self.bw_range_sig = [
-                [
+            self.bw_range_sig = tuple([
+                (
                     sc_range_sig[0] * self.fs_tx / self.nfft_tx,
                     sc_range_sig[1] * self.fs_tx / self.nfft_tx,
-                ]
+                )
                 for sc_range_sig in self.sc_range_sig
-            ]
+            ])
         elif self.bw_range_sig is not None:
-            self.sc_range_sig = [
-                [
+            self.sc_range_sig = tuple([
+                (
                     int(np.round(bw_range_sig[0] * self.nfft_tx / self.fs_tx)),
                     int(np.round(bw_range_sig[1] * self.nfft_tx / self.fs_tx)),
-                ]
+                )
                 for bw_range_sig in self.bw_range_sig
-            ]
+            ])
         else:
             raise ValueError("Either sc_range_sig or bw_range_sig must be specified")
 
@@ -592,8 +592,8 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
                                 max([bw_range_sig[1] for bw_range_sig in self.bw_range_sig]) + 50e6]
 
         if self.channel_limit:
-            self.sc_range_ch = [min([sc_range_sig[0] for sc_range_sig in self.sc_range_sig]),
-                                max([sc_range_sig[1] for sc_range_sig in self.sc_range_sig])]
+            self.sc_range_ch = (min([sc_range_sig[0] for sc_range_sig in self.sc_range_sig]),
+                                max([sc_range_sig[1] for sc_range_sig in self.sc_range_sig]))
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
             self.freq_ch = self.freq_trx[
@@ -602,7 +602,7 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
                 )
             ]
         else:
-            self.sc_range_ch = [-1 * self.nfft_trx // 2, self.nfft_trx // 2 - 1]
+            self.sc_range_ch = (-1 * self.nfft_trx // 2, self.nfft_trx // 2 - 1)
             self.n_samples_ch = self.n_samples_trx
             self.nfft_ch = self.nfft_trx
             self.freq_ch = self.freq_trx
@@ -628,8 +628,8 @@ class SignalUtilsRfsoc(SignalUtils):
                 txtd_base_s = np.load(self.config.sig_path)
             else:
                 txtd_base_s = self.generate_wideband(
-                    sc_range=self.config.sc_range_sig,
-                    bw_range=self.config.bw_range_sig,
+                    sc_ranges=self.config.sc_range_sig,
+                    bw_ranges=self.config.bw_range_sig,
                     modulation=self.config.sig_modulation,
                     gen_mode=self.config.sig_gen_mode,
                     seed=self.config.seed_list[ant_id],
@@ -1880,20 +1880,25 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def _action_switch_sig_size(self, target_objects, value, **kwargs):
         self.sig_size = int(value)
 
+    def _action_switch_sig_number(self, target_objects, value, **kwargs):
+        self.n_signals = int(value)
+
     def _action_switch_sig_ss(self, target_objects, value, **kwargs):
         bw_limit = 390.0e6
         sc_limit = int(np.round(bw_limit * self.config.nfft_tx / self.config.fs_tx)) * 2
-        region = SpecSenseUtils.generate_random_regions(
-            shape=(sc_limit,), n_regions=1, min_size=[self.sig_size], max_size=[self.sig_size]
+        regions = SpecSenseUtils.generate_random_regions(
+            shape=(sc_limit,), n_regions=self.n_signals, min_size=[self.sig_size], max_size=[self.sig_size]
         )
-        self.config.sc_range_sig = [
-            region[0][0].start - (sc_limit >> 1),
-            region[0][0].stop - 1 - (sc_limit >> 1),
-        ]
-        signal_length = self.config.sc_range_sig[1] - self.config.sc_range_sig[0] + 1
+        self.config.sc_range_sig = tuple([
+            (region[0].start - (sc_limit >> 1),
+            region[0].stop - 1 - (sc_limit >> 1),)
+        for region in regions])
+        signal_length = 0
+        for sc_range in self.config.sc_range_sig:
+            signal_length += sc_range[1] - sc_range[0] + 1
         tx_signal = self.gen_tx_signal()
-        tx_signal.txtd /= (256 / signal_length) ** 0.5
-        tx_signal.txtd_base /= (256 / signal_length) ** 0.5
+        tx_signal.txtd /= ((256 / signal_length) ** 0.5)
+        tx_signal.txtd_base /= ((256 / signal_length) ** 0.5)
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_samples_rfsoc(tx_signal.txtd)
 

@@ -139,7 +139,7 @@ class Sounder(General):
 
         operator_config = ExperimentOperatorConfig().update_from_config(self.config)
         self.operator = ExperimentOperator(operator_config)
- 
+
         if self.config.save_parameters:
             self.save_class_attributes_to_json(self.config, self.config.config_save_path)
             self.config.save_parameters = False
