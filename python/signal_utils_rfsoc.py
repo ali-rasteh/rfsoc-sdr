@@ -1886,9 +1886,11 @@ class ExperimentOperator(SignalUtilsRfsoc):
     def _action_switch_sig_ss(self, target_objects, value, **kwargs):
         bw_limit = 390.0e6
         sc_limit = int(np.round(bw_limit * self.config.nfft_tx / self.config.fs_tx)) * 2
-        regions = SpecSenseUtils.generate_random_regions(
-            shape=(sc_limit,), n_regions=self.n_signals, min_size=[self.sig_size], max_size=[self.sig_size]
+        regions = SpecSenseUtils.generate_random_regions_with_guards(
+            shape=(sc_limit,), n_regions=self.n_signals,
+            min_size=[self.sig_size], max_size=[self.sig_size], n_guards=100
         )
+        # print(f"#############################{regions}")
         self.config.sc_range_sig = tuple([
             (region[0].start - (sc_limit >> 1),
             region[0].stop - 1 - (sc_limit >> 1),)
@@ -1897,8 +1899,9 @@ class ExperimentOperator(SignalUtilsRfsoc):
         for sc_range in self.config.sc_range_sig:
             signal_length += sc_range[1] - sc_range[0] + 1
         tx_signal = self.gen_tx_signal()
-        tx_signal.txtd /= ((256 / signal_length) ** 0.5)
-        tx_signal.txtd_base /= ((256 / signal_length) ** 0.5)
+        max_length = 5*128
+        tx_signal.txtd /= ((max_length / signal_length) ** 0.5)
+        tx_signal.txtd_base /= ((max_length / signal_length) ** 0.5)
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_samples_rfsoc(tx_signal.txtd)
 
