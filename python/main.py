@@ -6,9 +6,7 @@ from sounder_configs import FR3RoboticLocalizationConfig, FR3SpectrumSweepConfig
 config = FR3SpectrumSweepConfig()
 # config = FR3RoboticLocalizationConfig()
 apply_cli_overrides(config, SounderConfig)
-config.debug_mode = DebugMode.HIGH
+# config.debug_mode = DebugMode.HIGH
 
 sounder = Sounder(config)
-sounder.apply_debug_wrapper(sounder)
-sounder.operator.apply_debug_wrapper(sounder.operator)
 sounder.run()

@@ -232,7 +232,7 @@ class FR3SpectrumSweepConfig(BaseConfig):
             # {"targets": ["self"],           "actions": ["print"], "values": [1],
             #                                   "params": {"print_list": ["snr"]}},
             {
-                "targets": ["self"],
+                "targets": [rfsoc_rx],
                 "actions": ["save", "store"],
                 "values": [1],
                 "params": {"save_list": ["signal", "sig_interval", "phase_offset"]},
