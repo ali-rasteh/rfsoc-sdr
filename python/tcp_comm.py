@@ -10,11 +10,11 @@ import numpy as np
 import paramiko
 import requests
 from scp import SCPClient
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 
 
 @dataclass(kw_only=True)
-class TCPComConfig(GeneralConfig):
+class TCPComConfig(BaseConfig):
     server_ip: str = "0.0.0.0"
     TCP_port_Cmd: int = 8080
     TCP_port_Data: int = 8081
@@ -32,7 +32,7 @@ class TCPComConfig(GeneralConfig):
     dropped_message: str = "Connection dropped?"
 
 
-class TcpComm(General):
+class TcpComm(Base):
     def __init__(self, config: TCPComConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -752,14 +752,14 @@ class TcpCommController(TcpCommRFSoC, TcpCommLinTrack):
 
 
 @dataclass(kw_only=True)
-class SshComConfig(GeneralConfig):
+class SshComConfig(BaseConfig):
     host_ip: str = "0.0.0.0"
     port: int = 22
     username: str = "root"
     password: str = " root"
 
 
-class SshCom(General):
+class SshCom(Base):
     def __init__(self, config: SshComConfig, **overrides):
         super().__init__(config, **overrides)
 
@@ -880,14 +880,14 @@ class ScpCom(SshCom):
 
 
 @dataclass(kw_only=True)
-class RestComConfig(GeneralConfig):
+class RestComConfig(BaseConfig):
     ip_address: str = "0.0.0.0"
     port: int = 5000
     protocol: str = "http"
     timeout: float = 5.0
 
 
-class RESTCom(General):
+class RESTCom(Base):
     def __init__(self, config: RestComConfig, **overrides):
         super().__init__(config, **overrides)
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from file_utils import FileUtils, FileUtilsConfig
-from sigcom_toolkit.general import General
+from sigcom_toolkit.base import Base
 from signal_utils_rfsoc import (
     AnimatePlot,
     AnimationPlotConfig,
@@ -131,7 +131,7 @@ class SounderConfig(ExperimentOperatorConfig):
             self.files_to_convert = {"sounder.py": "sounder.ipynb"}
 
 
-class Sounder(General):
+class Sounder(Base):
     def __init__(self, config: SounderConfig, **overrides: Any):
         super().__init__(config, **overrides)
 

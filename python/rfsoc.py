@@ -8,7 +8,7 @@ import xrfclk  # type: ignore
 import xrfdc  # type: ignore
 from numpy.fft import fft, ifft
 from pynq import GPIO, Overlay, allocate  # type: ignore
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 from tcp_comm import TcpCommRFSoC, TCPComRFSoCConfig
 
 try:
@@ -18,7 +18,7 @@ except Exception as e:
 
 
 @dataclass(kw_only=True)
-class RFSoCConfig(GeneralConfig):
+class RFSoCConfig(BaseConfig):
     beam_test: tuple = (
         1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63
     )
@@ -162,7 +162,7 @@ class RFSoCConfig(GeneralConfig):
                 self.rx_mode = 1
 
 
-class RFSoC(General):
+class RFSoC(Base):
     def __init__(self, config: RFSoCConfig, **overrides):
         super().__init__(config, **overrides)
 

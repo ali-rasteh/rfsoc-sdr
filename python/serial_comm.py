@@ -8,11 +8,11 @@ from dataclasses import dataclass
 
 import serial
 import serial.tools.list_ports
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 
 
 @dataclass(kw_only=True)
-class SerialComConfig(GeneralConfig):
+class SerialComConfig(BaseConfig):
     port: str = "COM6"
     baudrate: int = 115200
     timeout: float = 1.0
@@ -22,7 +22,7 @@ class SerialComConfig(GeneralConfig):
     stopbits: int | None = None
 
 
-class SerialCom(General):
+class SerialCom(Base):
     def __init__(self, config: SerialComConfig, **overrides):
         """
         Initialize the connection to the Target.

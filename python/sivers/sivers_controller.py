@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pyftdi.ftdi import Ftdi  # type: ignore
 from pyftdi.spi import SpiController  # type: ignore
 
-from .general import GeneralConfig  # type: ignore
+from .base import BaseConfig  # type: ignore
 from .sivers_common import int2intlist, intlist2int
 from .sivers_defaults import SiversDefaults
 
@@ -14,7 +14,7 @@ _THIS_DIR = os.path.dirname(__file__)
 
 
 @dataclass(kw_only=True)
-class SiversControllerConfig(GeneralConfig):
+class SiversControllerConfig(BaseConfig):
     pass
 
 

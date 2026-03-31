@@ -1,4 +1,3 @@
-import atexit
 import os
 import time
 
@@ -8,11 +7,11 @@ try:
     from adafruit_motorkit import MotorKit  # type: ignore
 except ImportError:
     print("Adafruit libraries not found.")
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 from tcp_comm import TCPComLinTrackConfig, TcpCommLinTrack
 
 
-class LinearTrackControllerConfig(GeneralConfig):
+class LinearTrackControllerConfig(BaseConfig):
     output_mode: str = "dc"  # "stepper" or "dc"
     dis_per_rev_mm: float = 8.0  # distance per revolution in mm
     pulse_per_rev: int = 400  # number of pulses per revolution
@@ -32,7 +31,7 @@ class LinearTrackControllerConfig(GeneralConfig):
         self.travel_length -= 2 * self.margin2edge
 
 
-class LinearTrackController(General):
+class LinearTrackController(Base):
     def __init__(self, config: LinearTrackControllerConfig, **overrides):
         super().__init__(config, **overrides)
 

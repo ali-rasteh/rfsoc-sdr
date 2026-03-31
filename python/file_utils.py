@@ -3,12 +3,12 @@ import shutil
 from dataclasses import dataclass
 
 import nbformat
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 from tcp_comm import ScpCom, ScpComConfig
 
 
 @dataclass(kw_only=True)
-class FileUtilsConfig(GeneralConfig):
+class FileUtilsConfig(BaseConfig):
     scp_connect: bool = False
     host_ip: str = "192.168.3.100"
     username: str = "root"
@@ -20,7 +20,7 @@ class FileUtilsConfig(GeneralConfig):
     files_to_convert: dict = None
 
 
-class FileUtils(General):
+class FileUtils(Base):
     def __init__(self, config: FileUtilsConfig, **overrides):
         super().__init__(config, **overrides)
 

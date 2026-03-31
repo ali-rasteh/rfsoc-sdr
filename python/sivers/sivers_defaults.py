@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 
 from .sivers_doc import SiversDocClass as Doc
 
 
 @dataclass(kw_only=True)
-class SiversDefaultConfig(GeneralConfig):
+class SiversDefaultConfig(BaseConfig):
     pass
 
 
-class SiversDefaults(General):
+class SiversDefaults(Base):
     def __init__(self, config: SiversDefaultConfig, **overrides):
         super().__init__(config, **overrides)
 

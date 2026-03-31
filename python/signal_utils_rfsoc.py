@@ -20,7 +20,7 @@ from serial_comm import (
     SerialComTurnTable,
     SerialComTurnTableConfig,
 )
-from sigcom_toolkit.general import General, GeneralConfig
+from sigcom_toolkit.base import Base, BaseConfig
 from sigcom_toolkit.plot_utils import PlotUtils, PlotUtilsConfig
 from sigcom_toolkit.signal_utils import SignalUtils, SignalUtilsConfig
 from sigcom_toolkit.specsense_utils import SpecSenseUtils
@@ -235,7 +235,7 @@ class PiRadioFR3Trx(RESTComPiradio):
 
 
 @dataclass(kw_only=True)
-class TurtlebotConfig(GeneralConfig):
+class TurtlebotConfig(BaseConfig):
     cmd_topic: str = "/cmd_vel_unstamped"
     odom_topic: str = "/odom"
     rate: float = 10.0
@@ -248,7 +248,7 @@ class TurtlebotConfig(GeneralConfig):
     ang_accel_limit: float = 0.8
 
 
-class Turtlebot(General):
+class Turtlebot(Base):
     def __init__(self, config: TurtlebotConfig, **overrides: Any):
         super().__init__(config, **overrides)
 
