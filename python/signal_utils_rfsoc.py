@@ -1890,7 +1890,6 @@ class ExperimentOperator(SignalUtilsRfsoc):
             shape=(sc_limit,), n_regions=self.n_signals,
             min_size=[self.sig_size], max_size=[self.sig_size], n_guards=100
         )
-        # print(f"#############################{regions}")
         self.config.sc_range_sig = tuple([
             (region[0].start - (sc_limit >> 1),
             region[0].stop - 1 - (sc_limit >> 1),)

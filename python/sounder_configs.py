@@ -160,6 +160,10 @@ class FR3SpectrumSweepConfig(BaseConfig):
     tx_sig_sim: str = "same"
     sig_gen_mode: str = "fft"
     sig_modulation: str = "4qam"
+    animate_plot_mode: tuple = (
+        [PlotSymbols.rxfd00],
+        [PlotSymbols.txfd00],
+    )
 
     def __post_init__(self):
         super().__post_init__()
@@ -209,19 +213,19 @@ class FR3SpectrumSweepConfig(BaseConfig):
 
         self.action_loop: tuple = (
             # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
-            {"targets": ["rfsoc_rx"], "actions": ["calibrate_rfsoc"], "values": [1]},
             # {"targets": [piradio_rx],    "actions": ["set_gain_db_rx"], "values": [3,7,10,17]},
-            {"targets": [piradio_rx, piradio_tx], "actions": ["hop_freq"], "values": [10.0e9]},
-            {"targets": [piradio_tx], "actions": ["set_gain_db_tx"], "values": [35.0]},
-            {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
-            {"targets": ["self"], "actions": ["switch_sig_size"], "values": [8, 16, 64, 128]},
-            {"targets": ["self"], "actions": ["switch_sig_number"], "values": "1:5:5"},
-            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_el"], "values": "-20:0.0:3"},
-            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_az"], "values": "-45:45:2"},
-            {"targets": [piradio_rx], "actions": ["set_gain_db_rx"], "values": "15:38:10"},
             # {"targets": ["self"],           "actions": ["switch_sig_size"], "values": "2:256:10:log"},
-            {"targets": [rfsoc_tx], "actions": ["switch_sig_ss"], "values": "1:100:5"},
-            # {"targets": ["self"],           "actions": ["wait"], "values": [0.01]},
+            {"targets": ["rfsoc_rx"], "actions": ["calibrate_rfsoc"], "values": [1]},
+            {"targets": [piradio_rx, piradio_tx], "actions": ["hop_freq"], "values": [10.0e9]},
+            {"targets": [piradio_tx], "actions": ["set_gain_db_tx"], "values": [30.0]},
+            {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
+            {"targets": ["self"], "actions": ["switch_sig_number"], "values": "1:3:3"},
+            {"targets": ["self"], "actions": ["switch_sig_size"], "values": [128]},
+            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_el"], "values": "-20:0.0:3"},
+            {"targets": [d48ptu_tx], "actions": ["set_d48ptu_az"], "values": "-45:45:3"},
+            {"targets": [piradio_rx], "actions": ["set_gain_db_rx"], "values": "15:38:10"},
+            {"targets": [rfsoc_tx], "actions": ["switch_sig_ss"], "values": "1:100:4"},
+            # {"targets": ["self"],           "actions": ["wait"], "values": [1.0]},
             {
                 "targets": [rfsoc_rx],
                 "actions": ["capture"],
