@@ -242,3 +242,46 @@ class FR3SpectrumSweepConfig(BaseConfig):
                 "params": {"save_list": ["signal", "sig_interval", "phase_offset"]},
             },
         )
+
+
+@dataclass(kw_only=True)
+class TestConfig(BaseConfig):
+    n_frame_rd: int = 1
+    animate_plot_mode: tuple = (
+        [PlotSymbols.rxfd00],
+        [PlotSymbols.txfd00],
+    )
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        rfsoc_rx = "rfsoc_rx"
+        controller_tx = "controller_tx"
+
+        if self.role == "master":
+            rfsoc_tx = controller_tx
+
+            self.network_topology: dict = {
+                rfsoc_rx: {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+                controller_tx: {"type": "controller_client", "ip": "10.20.47.103"},
+            }
+        elif self.role == "slave":
+            rfsoc_tx = "rfsoc_tx"
+
+            self.network_topology: dict = {
+                rfsoc_tx: {"type": "rfsoc", "role": "tx", "ip": "192.168.3.1"},
+                controller_tx: {"type": "controller_server"},
+            }
+
+        self.action_loop: tuple = (
+            # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
+            {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
+            # {"targets": ["self"],           "actions": ["wait"], "values": [1.0]},
+            {
+                "targets": [rfsoc_tx],
+                "actions": ["capture"],
+                "values": [2],
+                "params": {"process_chain": ()},
+            },
+            {"targets": ["self"], "actions": ["update_plot"], "values": [1]},
+        )
