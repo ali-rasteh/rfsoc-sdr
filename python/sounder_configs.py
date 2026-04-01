@@ -246,6 +246,7 @@ class FR3SpectrumSweepConfig(BaseConfig):
 
 @dataclass(kw_only=True)
 class TestConfig(BaseConfig):
+    role = "master"
     n_frame_rd: int = 1
     animate_plot_mode: tuple = (
         [PlotSymbols.rxfd00],
