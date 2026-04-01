@@ -514,7 +514,9 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
     )  # Range of samples around the strongest peak to consider for channel estimation
     sparse_ch_n_ignore: int = 5  # Number of samples to ignore around the strongest peak
     rx_same_delay: bool = True  # If True, all applies the same time shift to all RX antennas
-    channel_limit: bool = True  # If True, limits the channel to a specific range in the frequency domain
+    channel_limit: bool = (
+        True  # If True, limits the channel to a specific range in the frequency domain
+    )
     npath_max: tuple = (
         20,
         5,
@@ -569,31 +571,41 @@ class SignalUtilsRFSoCConfig(SignalUtilsConfig):
             self.seed_list = [self.seed for i in range(self.n_tx_ant)]
 
         if self.sc_range_sig is not None:
-            self.bw_range_sig = tuple([
-                (
-                    sc_range_sig[0] * self.fs_tx / self.nfft_tx,
-                    sc_range_sig[1] * self.fs_tx / self.nfft_tx,
-                )
-                for sc_range_sig in self.sc_range_sig
-            ])
+            self.bw_range_sig = tuple(
+                [
+                    (
+                        sc_range_sig[0] * self.fs_tx / self.nfft_tx,
+                        sc_range_sig[1] * self.fs_tx / self.nfft_tx,
+                    )
+                    for sc_range_sig in self.sc_range_sig
+                ]
+            )
         elif self.bw_range_sig is not None:
-            self.sc_range_sig = tuple([
-                (
-                    int(np.round(bw_range_sig[0] * self.nfft_tx / self.fs_tx)),
-                    int(np.round(bw_range_sig[1] * self.nfft_tx / self.fs_tx)),
-                )
-                for bw_range_sig in self.bw_range_sig
-            ])
+            self.sc_range_sig = tuple(
+                [
+                    (
+                        int(np.round(bw_range_sig[0] * self.nfft_tx / self.fs_tx)),
+                        int(np.round(bw_range_sig[1] * self.nfft_tx / self.fs_tx)),
+                    )
+                    for bw_range_sig in self.bw_range_sig
+                ]
+            )
         else:
             raise ValueError("Either sc_range_sig or bw_range_sig must be specified")
 
-        self.f_max = max([max(abs(bw_range_sig[0]), abs(bw_range_sig[1])) for bw_range_sig in self.bw_range_sig])
-        self.filter_bw_range = [min([bw_range_sig[0] for bw_range_sig in self.bw_range_sig]) - 50e6,
-                                max([bw_range_sig[1] for bw_range_sig in self.bw_range_sig]) + 50e6]
+        self.f_max = max(
+            [max(abs(bw_range_sig[0]), abs(bw_range_sig[1])) for bw_range_sig in self.bw_range_sig]
+        )
+        self.filter_bw_range = [
+            min([bw_range_sig[0] for bw_range_sig in self.bw_range_sig]) - 50e6,
+            max([bw_range_sig[1] for bw_range_sig in self.bw_range_sig]) + 50e6,
+        ]
 
         if self.channel_limit:
-            self.sc_range_ch = (min([sc_range_sig[0] for sc_range_sig in self.sc_range_sig]),
-                                max([sc_range_sig[1] for sc_range_sig in self.sc_range_sig]))
+            self.sc_range_ch = (
+                min([sc_range_sig[0] for sc_range_sig in self.sc_range_sig]),
+                max([sc_range_sig[1] for sc_range_sig in self.sc_range_sig]),
+            )
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
             self.freq_ch = self.freq_trx[
@@ -1289,10 +1301,7 @@ class SignalUtilsRfsoc(SignalUtils):
                 sig_iq = []
                 for sc_range in self.config.sc_range_sig:
                     sig_iq.append(
-                        sig[
-                            sc_range[0] + n_samples // 2 : sc_range[1]
-                            + n_samples // 2 + 1
-                        ]
+                        sig[sc_range[0] + n_samples // 2 : sc_range[1] + n_samples // 2 + 1]
                     )
                 sig = np.concatenate(sig_iq, axis=-1)
                 title += "-IQ"
@@ -1887,20 +1896,28 @@ class ExperimentOperator(SignalUtilsRfsoc):
         bw_limit = 390.0e6
         sc_limit = int(np.round(bw_limit * self.config.nfft_tx / self.config.fs_tx)) * 2
         regions = SpecSenseUtils.generate_random_regions_with_guards(
-            shape=(sc_limit,), n_regions=self.n_signals,
-            min_size=[self.sig_size], max_size=[self.sig_size], n_guards=100
+            shape=(sc_limit,),
+            n_regions=self.n_signals,
+            min_size=[self.sig_size],
+            max_size=[self.sig_size],
+            n_guards=100,
         )
-        self.config.sc_range_sig = tuple([
-            (region[0].start - (sc_limit >> 1),
-            region[0].stop - 1 - (sc_limit >> 1),)
-        for region in regions])
+        self.config.sc_range_sig = tuple(
+            [
+                (
+                    region[0].start - (sc_limit >> 1),
+                    region[0].stop - 1 - (sc_limit >> 1),
+                )
+                for region in regions
+            ]
+        )
         signal_length = 0
         for sc_range in self.config.sc_range_sig:
             signal_length += sc_range[1] - sc_range[0] + 1
         tx_signal = self.gen_tx_signal()
-        max_length = 5*128
-        tx_signal.txtd /= ((max_length / signal_length) ** 0.5)
-        tx_signal.txtd_base /= ((max_length / signal_length) ** 0.5)
+        max_length = 5 * 128
+        tx_signal.txtd /= (max_length / signal_length) ** 0.5
+        tx_signal.txtd_base /= (max_length / signal_length) ** 0.5
         for client_rfsoc in target_objects:
             client_rfsoc.transmit_samples_rfsoc(tx_signal.txtd)
 
