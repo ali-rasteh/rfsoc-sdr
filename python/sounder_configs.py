@@ -256,14 +256,14 @@ class TestConfig(BaseConfig):
     def __post_init__(self):
         super().__post_init__()
 
-        rfsoc_rx = "rfsoc_rx"
+        # rfsoc_rx = "rfsoc_rx"
         controller_tx = "controller_tx"
 
         if self.role == "master":
             rfsoc_tx = controller_tx
 
             self.network_topology: dict = {
-                rfsoc_rx: {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
+                # rfsoc_rx: {"type": "rfsoc", "role": "rx", "ip": "192.168.185.4"},
                 controller_tx: {"type": "controller_client", "ip": "10.20.47.103"},
             }
         elif self.role == "slave":
