@@ -1,36 +1,40 @@
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 from numpy.fft import fft
+from sigcom_toolkit.nearfield_utils import RoomModel, Sim as Near_Field_Model
 from signal_utils_rfsoc import SignalUtilsRfsoc, SignalUtilsRFSoCConfig
-
-try:
-    from sigcom_toolkit.near_field import RoomModel, Sim as Near_Field_Model
-except Exception:
-    Near_Field_Model = None
-    RoomModel = None
-
-
-# TODO Clean this file and check dependencies
 
 
 @dataclass(kw_only=True)
 class NearFieldSignalUtilsConfig(SignalUtilsRFSoCConfig):
-    nf_param_estimate = False  # If True, performs near field parameter estimation
-    nf_walls = np.array([[-5, 4], [-1, 6]])  # Near field walls coordinates in meters
-    nf_rx_sep_dir = np.array([1, 0])  # Direction of the RX antenna separation
-    nf_tx_sep_dir = np.array([1, 0])  # Direction of the TX antenna separation
-    nf_npath_max = [
+    nf_param_estimate: bool = False  # If True, performs near field parameter estimation
+    nf_walls: np.ndarray = field(
+        default_factory=lambda: np.array([[-5.0, 4.0], [-1.0, 6.0]], dtype=float)
+    )  # Near field walls coordinates in meters
+    nf_rx_sep_dir: np.ndarray = field(
+        default_factory=lambda: np.array([1.0, 0.0], dtype=float)
+    )  # Direction of the RX antenna separation
+    nf_tx_sep_dir: np.ndarray = field(
+        default_factory=lambda: np.array([1.0, 0.0], dtype=float)
+    )  # Direction of the TX antenna separation
+    nf_npath_max: tuple[int, int] = (
         20,
         5,
-    ]  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
-    nf_stop_thr = 0.03  # Stopping threshold for the near field parameter estimation
-    nf_tx_loc = np.array([[0.3, 1.0]])  # TX antenna location in meters
-    nf_rx_loc_sep = np.array([0, 0.2, 0.4])  # RX locations separation in meters
-    nf_tx_ant_sep = 0.5  # TX antenna separation in meters
-    nf_rx_ant_sep = 0.5 * np.array([1, 2, 4])  # RX antenna separation in meters
+    )  # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
+    nf_stop_thr: float = 0.03  # Stopping threshold for the near field parameter estimation
+    nf_tx_loc: np.ndarray = field(
+        default_factory=lambda: np.array([[0.3, 1.0]], dtype=float)
+    )  # TX antenna location in meters
+    nf_rx_loc_sep: np.ndarray = field(
+        default_factory=lambda: np.array([0.0, 0.2, 0.4], dtype=float)
+    )  # RX locations separation in meters
+    nf_tx_ant_sep: float = 0.5  # TX antenna separation in meters
+    nf_rx_ant_sep: np.ndarray = field(
+        default_factory=lambda: 0.5 * np.array([1.0, 2.0, 4.0], dtype=float)
+    )  # RX antenna separation in meters
 
     def __post_init__(self):
         super().__post_init__()
@@ -71,8 +75,8 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
 
     def create_near_field_model(self):
         if Near_Field_Model is None or RoomModel is None:
-            raise ImportError("sigcom_toolkit.near_field is required for near-field modeling")
-        self.RoomModel = RoomModel(xlim=self.nf_walls[0], ylim=self.nf_walls[1])
+            raise ImportError("sigcom_toolkit.nearfield_utils is required for near-field modeling")
+        self.RoomModel = RoomModel(xlim=self.config.nf_walls[0], ylim=self.config.nf_walls[1])
         # # Place a source
         # xsrc = np.array([2,4])
         # # Find the reflections
@@ -80,25 +84,25 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
         # # Create all the transmitters
         # xtx =  np.vstack((xsrc, xref))
 
-        self.nf_region = self.nf_walls.copy()
-        room_width = self.nf_walls[0, 1] - self.nf_walls[0, 0]
-        room_length = self.nf_walls[1, 1] - self.nf_walls[1, 0]
+        self.nf_region = self.config.nf_walls.copy()
+        room_width = self.config.nf_walls[0, 1] - self.config.nf_walls[0, 0]
+        room_length = self.config.nf_walls[1, 1] - self.config.nf_walls[1, 0]
         self.nf_region[0, 0] -= room_width
         self.nf_region[0, 1] += room_width
         # self.nf_region[1,0] -= room_length
         self.nf_region[1, 1] += room_length
         self.nf_model = Near_Field_Model(
-            fc=self.fc,
-            fsamp=self.fs_rx,
-            nfft=self.nfft_ch,
-            nantrx=self.n_rx_ant,
-            rxlocsep=self.nf_rx_loc_sep,
-            sepdir=self.nf_rx_sep_dir,
-            antsep=self.nf_rx_ant_sep,
-            npath_est=self.npath_max[1],
-            stop_thresh=self.nf_stop_thr,
+            fc=self.config.fc,
+            fsamp=self.config.fs_rx,
+            nfft=self.config.nfft_ch,
+            nantrx=self.config.n_rx_ant,
+            rxlocsep=self.config.nf_rx_loc_sep,
+            sepdir=self.config.nf_rx_sep_dir,
+            antsep=self.config.nf_rx_ant_sep,
+            npath_est=self.config.nf_npath_max[1],
+            stop_thresh=self.config.nf_stop_thr,
             region=self.nf_region,
-            tx=self.nf_tx_loc,
+            tx=self.config.nf_tx_loc,
         )
 
         self.nf_model.gen_tx_pos()
@@ -117,7 +121,7 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
     def handle_nf(self, h_est_full, sparse_est_params, client_lintrack):
         use_linear_track = True
 
-        if self.nf_param_estimate:
+        if self.config.nf_param_estimate:
             # h_index = self.animate_plot_mode.index('h')
             if self.nf_loc_idx == 0:
                 self.nf_sep_idx = 0
@@ -149,12 +153,13 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                 if self.nf_sep_idx == 0:
                     if use_linear_track:
                         distance = 1000 * (
-                            self.nf_rx_ant_sep[0] * self.wl - self.nf_rx_ant_sep[-1] * self.wl
+                            self.config.nf_rx_ant_sep[0] * self.config.wl
+                            - self.config.nf_rx_ant_sep[-1] * self.config.wl
                         )
                         distance = np.round(distance, 2)
                         client_lintrack.move(lintrack_id=1, distance=distance)
                         time.sleep(0.5)
-                        self.ant_d[0] = self.nf_rx_ant_sep[0]
+                        self.config.ant_d[0] = self.config.nf_rx_ant_sep[0]
 
                         if self.nf_loc_idx < len(self.nf_rx_loc):
                             distance = 1000 * (
@@ -168,7 +173,7 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
 
                     self.nf_sep_idx += 1
                     self.nf_loc_idx += 1
-                elif self.nf_sep_idx == len(self.nf_rx_ant_sep) + 1:
+                elif self.nf_sep_idx == len(self.config.nf_rx_ant_sep) + 1:
                     self.nf_sep_idx = 0
                 else:
                     self.h_nf.append(h_est_full)
@@ -176,20 +181,19 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
                     self.peaks_nf.append(sparse_est_params.peaks_mat)
                     self.npaths_nf.append(sparse_est_params.npaths_est_mat)
 
-                    if use_linear_track:
-                        if self.nf_sep_idx < len(self.nf_rx_ant_sep):
-                            distance = 1000 * (
-                                self.nf_rx_ant_sep[self.nf_sep_idx] * self.wl
-                                - self.nf_rx_ant_sep[self.nf_sep_idx - 1] * self.wl
-                            )
-                            distance = np.round(distance, 2)
-                            client_lintrack.move(lintrack_id=1, distance=distance)
-                            time.sleep(0.5)
-                            self.ant_d[0] = self.nf_rx_ant_sep[self.nf_sep_idx]
+                    if use_linear_track and self.nf_sep_idx < len(self.config.nf_rx_ant_sep):
+                        distance = 1000 * (
+                            self.config.nf_rx_ant_sep[self.nf_sep_idx] * self.config.wl
+                            - self.config.nf_rx_ant_sep[self.nf_sep_idx - 1] * self.config.wl
+                        )
+                        distance = np.round(distance, 2)
+                        client_lintrack.move(lintrack_id=1, distance=distance)
+                        time.sleep(0.5)
+                        self.config.ant_d[0] = self.config.nf_rx_ant_sep[self.nf_sep_idx]
 
                     self.nf_sep_idx += 1
 
-                self.ant_d_m[0] = self.ant_d[0] * self.wl
+                self.config.ant_d_m = (self.config.ant_d[0] * self.config.wl,)
 
     def est_nf_param(self, h, dly_est, peaks, npaths):
         """
@@ -227,17 +231,24 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
         lr_init = 0.1
         H_gt = fft(h.copy(), axis=0)
         tx_ant_vec = (
-            self.nf_tx_ant_loc[:, :, :] - (self.nf_tx_ant_loc[0, 0, :])[None, None, :] + 0.01
+            self.config.nf_tx_ant_loc[:, :, :]
+            - (self.config.nf_tx_ant_loc[0, 0, :])[None, None, :]
+            + 0.01
         )
-        rx_ant_vec = self.nf_rx_ant_loc[:, :, :] - (self.nf_rx_ant_loc[0, 0, :])[None, None, :]
+        rx_ant_vec = (
+            self.config.nf_rx_ant_loc[:, :, :] - (self.config.nf_rx_ant_loc[0, 0, :])[None, None, :]
+        )
         phase_diff = np.angle(peaks[:n_paths_min, 0, 0, :] * np.conj(peaks[:n_paths_min, 1, 0, :]))
         # phase_diff = np.mean(phase_diff, axis=-1)
         aoa = np.zeros(phase_diff.shape)
         for m in range(phase_diff.shape[-1]):
             ant_d_m = [
-                np.linalg.norm(self.nf_rx_ant_loc[1, m, :] - self.nf_rx_ant_loc[0, m, :], axis=-1)
+                np.linalg.norm(
+                    self.config.nf_rx_ant_loc[1, m, :] - self.config.nf_rx_ant_loc[0, m, :],
+                    axis=-1,
+                )
             ]
-            aoa[:, m] = self.phase_to_aoa(phase_diff[:, m], wl=self.wl, ant_d_m=ant_d_m)
+            aoa[:, m] = self.phase_to_aoa(phase_diff[:, m], wl=self.config.wl, ant_d_m=ant_d_m)
             # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_d_m=self.ant_d_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
         path_delay = self.nf_model.abs_delay.copy()[:n_paths_min, :, None, :] * np.ones(
@@ -246,7 +257,7 @@ class NearFieldSignalUtils(SignalUtilsRfsoc):
         path_gain = peaks.copy()[:n_paths_min]
         # path_delay = None
         # path_gain = None
-        freq = self.freq_ch.copy()
+        freq = self.config.freq_ch.copy()
         self.nf_model.nf_channel_param_est(
             n_paths=n_paths_min,
             n_epochs=n_epochs,

@@ -1,6 +1,6 @@
 from parser_utils import apply_cli_overrides
 from sounder import Sounder, SounderConfig
-from sounder_configs import FR3RoboticLocalizationConfig, FR3SpectrumSweepConfig, TestConfig
+from sounder_configs import TestConfig
 
 
 def main():
