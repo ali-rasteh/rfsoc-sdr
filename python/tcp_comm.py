@@ -346,7 +346,12 @@ class TcpCommRFSoC(TcpComm):
     def _handle_receive_samples_once(self, args):
         if len(args) != 0:
             return self.config.invalid_number_of_arguments_message
-        iq_data = self.obj_rfsoc.receive_samples_once(n_frame=self.config.n_frame_rd)
+        # Support both direct RFSoC backends and proxy ClientRFSoC backends.
+        # Direct RFSoC expects n_frame, while ClientRFSoC expects mode.
+        if isinstance(self.obj_rfsoc, TcpCommRFSoC):
+            iq_data = self.obj_rfsoc.receive_samples_once(mode="once")
+        else:
+            iq_data = self.obj_rfsoc.receive_samples_once(n_frame=self.config.n_frame_rd)
         iq_data = np.array(iq_data).flatten()
         iq_data = iq_data * (2 ** (self.config.adc_bits + 1) - 1)
         re = iq_data.real.astype(np.int16)
@@ -358,7 +363,11 @@ class TcpCommRFSoC(TcpComm):
     def _handle_receive_samples_beams(self, args):
         if len(args) != 0:
             return self.config.invalid_number_of_arguments_message
-        iq_data = self.obj_rfsoc.receive_samples_beams(n_frame=self.config.n_frame_rd)
+        # Support both direct RFSoC backends and proxy ClientRFSoC backends.
+        if isinstance(self.obj_rfsoc, TcpCommRFSoC):
+            iq_data = self.obj_rfsoc.receive_samples_once(mode="beams")
+        else:
+            iq_data = self.obj_rfsoc.receive_samples_beams(n_frame=self.config.n_frame_rd)
         re = iq_data.real.astype(np.int16)
         im = iq_data.imag.astype(np.int16)
         iq_data = np.concatenate((re, im))
