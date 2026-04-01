@@ -275,8 +275,8 @@ class TestConfig(BaseConfig):
             }
 
         self.action_loop: tuple = (
-            # {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
             {"targets": [rfsoc_tx], "actions": ["transmit_signal"]},
+            {"targets": ["self"],               "actions": ["loop"], "values": "1:100:100"},
             # {"targets": ["self"],           "actions": ["wait"], "values": [1.0]},
             {
                 "targets": [rfsoc_tx],
