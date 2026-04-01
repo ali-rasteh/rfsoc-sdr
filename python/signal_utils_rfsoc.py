@@ -2541,7 +2541,7 @@ class AnimatePlot(PlotUtils):
         self.plots_initialized = True
         # anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.config.plot_configs['anim_interval'], blit=False)
         plt.ion()
-        plt.show(block=False)
+        self.show_plot(block=False)
         # self.fig.savefig(self.config.plot_configs['figs_save_path'], dpi=300)
 
 
