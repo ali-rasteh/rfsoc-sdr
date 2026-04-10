@@ -1,10 +1,10 @@
 from parser_utils import apply_cli_overrides
 from sounder import Sounder, SounderConfig
-from sounder_configs import TestConfig
+from sounder_configs import TestConfig, FR3RoboticLocalizationConfig
 
 
 def main():
-    config = TestConfig()
+    config = FR3RoboticLocalizationConfig()
     apply_cli_overrides(config, SounderConfig)
 
     # from sigcom_toolkit.base import DebugMode
