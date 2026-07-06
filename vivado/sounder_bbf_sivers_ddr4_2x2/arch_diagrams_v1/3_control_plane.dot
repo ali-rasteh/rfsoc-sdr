@@ -1,0 +1,31 @@
+digraph "control" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>Control Plane — AXI-Lite Register Access and Interrupts</b>>];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge  [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  "zynq_ultra_ps_e_0" [shape=plaintext, label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="white"><tr><td colspan="2" bgcolor="#D79B00"><font color="white" point-size="11"><b>zynq_ultra_ps_e_0  (Zynq US+ PS)</b></font></td></tr><tr><td colspan="2" port="hpm0" align="left" bgcolor="#FFE6CC"><font point-size="10">M_AXI_HPM0_FPD</font></td></tr><tr><td colspan="2" port="hpm1" align="left" bgcolor="#FFE6CC"><font point-size="10">M_AXI_HPM1_FPD</font></td></tr><tr><td colspan="2" port="hp0" align="left" bgcolor="#FFE6CC"><font point-size="10">S_AXI_HP0_FPD</font></td></tr><tr><td colspan="2" port="hp1" align="left" bgcolor="#FFE6CC"><font point-size="10">S_AXI_HP1_FPD</font></td></tr><tr><td colspan="2" port="gpio" align="left" bgcolor="#FFE6CC"><font point-size="10">emio_gpio_o[94:0]</font></td></tr><tr><td colspan="2" port="irq" align="left" bgcolor="#FFE6CC"><font point-size="10">pl_ps_irq0</font></td></tr><tr><td colspan="2" port="plclk" align="left" bgcolor="#FFE6CC"><font point-size="10">pl_clk0 (100 MHz)</font></td></tr><tr><td colspan="2" port="plrst" align="left" bgcolor="#FFE6CC"><font point-size="10">pl_resetn0</font></td></tr></table>>];
+  "ps8_axi_periph" [label="ps8_axi_periph\nAXI Interconnect (5 MI)", shape=box, fillcolor="#D5E8D4", color="#2E8B57"];
+  "irq_concat" [label="irq_concat\nxlconcat (4->1)", shape=box, fillcolor="#D5E8D4", color="#2E8B57"];
+  "dac_dma_l" [label="dac_path/axi_dma_0\nS_AXI_LITE  @0xB0002000", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "adc_dma_l" [label="adc_path/axi_dma_0\nS_AXI_LITE  @0xB000A000", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "rfdc_l" [label="usp_rf_data_converter_0\ns_axi  @0xB0040000", shape=box, fillcolor="#E1D5E7", color="#8E44AD"];
+  "flow_l" [label="adc_path/axis_flow_ctrl_0\nS00_AXI  @0xB0020000", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "clkw_l" [label="clocktreeMTS/clk_wiz_0\ns_axi_lite  @0xB0010000", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "rfdc_irq" [label="usp_rf_data_converter_0/irq", shape=box, fillcolor="#E1D5E7", color="#8E44AD"];
+  "adc_irq" [label="adc_path s2mm_introut", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "dac_irq" [label="dac_path mm2s_introut", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "clk_irq" [label="clocktreeMTS interrupt", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "zynq_ultra_ps_e_0":"hpm1" -> "ps8_axi_periph" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="HPM1", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "dac_dma_l" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M00", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "adc_dma_l" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M01", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "rfdc_l" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M02", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "flow_l" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M03", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "clkw_l" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M04", fontcolor="#2E8B57"];
+  "rfdc_irq" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="In0", fontcolor="#8E44AD"];
+  "adc_irq" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="In1", fontcolor="#8E44AD"];
+  "dac_irq" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="In2", fontcolor="#8E44AD"];
+  "clk_irq" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="In3", fontcolor="#8E44AD"];
+  "irq_concat" -> "zynq_ultra_ps_e_0":"irq" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="pl_ps_irq0", fontcolor="#8E44AD"];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Stream</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#B85450" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-MM data</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td align="right"><font color="#C99A00" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">clock</font></td></tr><tr><td bgcolor="#F8CECC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">DDR memory</font></td><td align="right"><font color="#B85450" point-size="13"><b>······</b></font></td><td align="left"><font point-size="10">reset</font></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr></table>>];
+}

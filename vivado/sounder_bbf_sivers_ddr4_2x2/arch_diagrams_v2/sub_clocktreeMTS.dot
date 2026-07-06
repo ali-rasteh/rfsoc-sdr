@@ -1,0 +1,109 @@
+digraph "complete" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>system_bd — Complete Architecture</b>>];
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  "port:vout02" [label=":vout02", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout12" [label=":vout12", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:ddr4_pl" [label=":ddr4_pl", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:sys_clk_ddr4" [label=":sys_clk_ddr4", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:ddr4_led" [label=":ddr4_led", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vin2_01" [label=":vin2_01", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout00" [label=":vout00", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout10" [label=":vout10", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vin0_01" [label=":vin0_01", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vin2_23" [label=":vin2_23", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout03" [label=":vout03", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout01" [label=":vout01", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:adc2_clk" [label=":adc2_clk", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vin0_23" [label=":vin0_23", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:adc0_clk" [label=":adc0_clk", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:lmk_clk2" [label=":lmk_clk2", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout13" [label=":vout13", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:dac0_clk" [label=":dac0_clk", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:dac1_clk" [label=":dac1_clk", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:lmk_clk1" [label=":lmk_clk1", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:sysref_in" [label=":sysref_in", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  "port:vout11" [label=":vout11", shape=cds, fillcolor="white", color="#666666", fontsize=10];
+  subgraph "cluster_clocktreeMTS" {
+    label=<<b>clocktreeMTS</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "clocktreeMTS/sync_1" [label="sync_1\nsync", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/IBUFDS_SYSREF" [label="IBUFDS_SYSREF\nutil_ds_buf", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/clk_wiz_0" [label="clk_wiz_0\nclk_wiz", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/sync_2" [label="sync_2\nsync", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/sync_3" [label="sync_3\nsync", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/IBUFDS_PL_CLK" [label="IBUFDS_PL_CLK\nutil_ds_buf", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/IBUFDS_DDR4" [label="IBUFDS_DDR4\nutil_ds_buf", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/BUFG_DDR4" [label="BUFG_DDR4\nutil_ds_buf", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/BUFG_PL_CLK" [label="BUFG_PL_CLK\nutil_ds_buf", fillcolor="#FFF2CC", color="#C99A00"];
+    "clocktreeMTS/sync_0" [label="sync_0\nsync", fillcolor="#FFF2CC", color="#C99A00"];
+  }
+  subgraph "cluster_reset_block" {
+    label=<<b>reset_block</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "reset_block/rst_adc_245M" [label="rst_adc_245M\nproc_sys_reset", fillcolor="#FFF2CC", color="#C99A00"];
+    "reset_block/clk_wiz_0" [label="clk_wiz_0\nclk_wiz", fillcolor="#FFF2CC", color="#C99A00"];
+    "reset_block/rst_ps8_100M" [label="rst_ps8_100M\nproc_sys_reset", fillcolor="#FFF2CC", color="#C99A00"];
+  }
+  "usp_rf_data_converter_0" [label="usp_rf_data_converter_0\nusp_rf_data_converter", fillcolor="#E1D5E7", color="#8E44AD"];
+  "zynq_ultra_ps_e_0" [label="zynq_ultra_ps_e_0\nzynq_ultra_ps_e", fillcolor="#FFE6CC", color="#D79B00"];
+  "irq_concat" [label="irq_concat\nxlconcat\nNUM_PORTS=4", fillcolor="#D5E8D4", color="#2E8B57"];
+  subgraph "cluster_adc_path" {
+    label=<<b>adc_path</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "adc_path/axis_flow_ctrl_0" [label="axis_flow_ctrl_0\naxis_flow_ctrl", fillcolor="#DAE8FC", color="#1F6FC4"];
+  }
+  "ddr4_0" [label="ddr4_0\nddr4\nDDR4_AxiDataWidth=512 DDR4_DataWidth=64", fillcolor="#F8CECC", color="#B85450"];
+  subgraph "cluster_dac_path" {
+    label=<<b>dac_path</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    subgraph "cluster__dac_path_mem" {
+      label=<<b>mem</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+      "dac_path/mem/axis_data_fifo_1" [label="axis_data_fifo_1\naxis_data_fifo\nFIFO_DEPTH=16 IS_ACLK_ASYNC=1", fillcolor="#DAE8FC", color="#1F6FC4"];
+    }
+  }
+  "ps8_axi_periph" [label="ps8_axi_periph\naxi_interconnect\nNUM_MI=5", fillcolor="#D5E8D4", color="#2E8B57"];
+  "dac_path/mem/axis_data_fifo_1" -> "clocktreeMTS/clk_wiz_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "dac_path/mem/axis_data_fifo_1" -> "clocktreeMTS/sync_2" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/BUFG_DDR4" -> "reset_block/clk_wiz_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/BUFG_DDR4" -> "ddr4_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "reset_block/rst_adc_245M" -> "clocktreeMTS/clk_wiz_0" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "reset_block/rst_ps8_100M" -> "clocktreeMTS/clk_wiz_0" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee];
+  "zynq_ultra_ps_e_0" -> "clocktreeMTS/clk_wiz_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "ps8_axi_periph" -> "clocktreeMTS/clk_wiz_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M04_AXI", fontcolor="#2E8B57"];
+  "clocktreeMTS/IBUFDS_SYSREF" -> "port:lmk_clk2" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/IBUFDS_PL_CLK" -> "port:lmk_clk1" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/IBUFDS_DDR4" -> "port:sys_clk_ddr4" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/BUFG_PL_CLK" -> "clocktreeMTS/clk_wiz_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/BUFG_PL_CLK" -> "clocktreeMTS/sync_3" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/BUFG_DDR4" -> "clocktreeMTS/IBUFDS_DDR4" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/BUFG_PL_CLK" -> "clocktreeMTS/IBUFDS_PL_CLK" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/IBUFDS_SYSREF" -> "clocktreeMTS/sync_3" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/clk_wiz_0" -> "clocktreeMTS/sync_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/clk_wiz_0" -> "clocktreeMTS/sync_1" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/clk_wiz_0" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/sync_0" -> "adc_path/axis_flow_ctrl_0" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/sync_2" -> "usp_rf_data_converter_0" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/sync_3" -> "clocktreeMTS/sync_2" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "clocktreeMTS/sync_0" -> "clocktreeMTS/sync_1" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/sync_0" -> "clocktreeMTS/sync_2" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS/sync_0" -> "clocktreeMTS/sync_3" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:adc0_clk" -> "usp_rf_data_converter_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:adc2_clk" -> "usp_rf_data_converter_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:dac0_clk" -> "usp_rf_data_converter_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:dac1_clk" -> "usp_rf_data_converter_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:ddr4_pl" -> "ddr4_0" [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="ddr4_pl", fontcolor="#B85450"];
+  "port:sysref_in" -> "usp_rf_data_converter_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "port:vout00" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout00", fontcolor="#1F6FC4"];
+  "port:vout01" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout01", fontcolor="#1F6FC4"];
+  "port:vout02" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout02", fontcolor="#1F6FC4"];
+  "port:vout03" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout03", fontcolor="#1F6FC4"];
+  "port:vout10" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout10", fontcolor="#1F6FC4"];
+  "port:vout11" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout11", fontcolor="#1F6FC4"];
+  "port:vout12" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout12", fontcolor="#1F6FC4"];
+  "port:vout13" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vout13", fontcolor="#1F6FC4"];
+  "port:vin0_01" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vin0_01", fontcolor="#1F6FC4"];
+  "port:vin0_23" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vin0_23", fontcolor="#1F6FC4"];
+  "port:vin2_01" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vin2_01", fontcolor="#1F6FC4"];
+  "port:vin2_23" -> "usp_rf_data_converter_0" [color="#1F6FC4", style="solid", penwidth=2.0, arrowhead=normal, xlabel="vin2_23", fontcolor="#1F6FC4"];
+  "ddr4_0" -> "port:ddr4_led" [color="#777777", style="solid", penwidth=1.0, arrowhead=normal];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Stream</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#B85450" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-MM data</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr><tr><td bgcolor="#F8CECC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Memory / DDR</font></td><td align="right"><font color="#C99A00" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">clock</font></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td align="right"><font color="#B85450" point-size="13"><b>······</b></font></td><td align="left"><font point-size="10">reset</font></td></tr></table>>];
+}

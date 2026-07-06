@@ -1,0 +1,58 @@
+digraph "clocking" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>Clocking / Synchronization Plane</b>>];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge  [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  subgraph "cluster_ext" {
+    label=<<b>External Clock Inputs</b>>; fontsize=13; style="rounded"; color="#C99A00"; bgcolor="#FFF9E6"; penwidth=1.5; margin=12;
+  "lmk1" [label="lmk_clk1", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "lmk2" [label="lmk_clk2", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "sysddr" [label="sys_clk_ddr4", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  }
+  subgraph "cluster_clocktreeMTS" {
+    label=<<b>clocktreeMTS</b>>; fontsize=13; style="rounded"; color="#C99A00"; bgcolor="#FFF6DD"; penwidth=1.5; margin=12;
+  "ibuf_pl" [label="IBUFDS_PL_CLK", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "ibuf_sysref" [label="IBUFDS_SYSREF", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "ibuf_ddr" [label="IBUFDS_DDR4", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "clkwiz" [label="clk_wiz_0 (MMCM)", shape=octagon, fillcolor="#FFF2CC", color="#C99A00"];
+  "bufg_pl" [label="BUFG_PL_CLK", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "bufg_ddr" [label="BUFG_DDR4", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "mts_sync" [label="sync_0..3\n(SYSREF CDC -> MTS)", shape=box, fillcolor="#FDF3D8", color="#C99A00"];
+  }
+  subgraph "cluster_reset_block" {
+    label=<<b>reset_block</b>>; fontsize=13; style="rounded"; color="#C99A00"; bgcolor="#FFF6DD"; penwidth=1.5; margin=12;
+  "rb_clkwiz" [label="clk_wiz_0", shape=octagon, fillcolor="#FFF2CC", color="#C99A00"];
+  "rst_ps8" [label="rst_ps8_100M\nproc_sys_reset", shape=box, fillcolor="#FFF2CC", color="#B85450"];
+  "rst_ddr4" [label="rst_ddr4_200M\nproc_sys_reset", shape=box, fillcolor="#FFF2CC", color="#B85450"];
+  "rst_adc" [label="rst_adc_245M\nproc_sys_reset", shape=box, fillcolor="#FFF2CC", color="#B85450"];
+  "blc" [label="binary_latch_counter_0\n(locked seq.)", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  }
+  "rfdc" [label="usp_rf_data_converter_0\n(axis aclk + user_sysref)", shape=box, fillcolor="#E1D5E7", color="#8E44AD"];
+  "ddr4_0" [label="ddr4_0\n(c0_sys_clk_i)", shape=box, fillcolor="#F8CECC", color="#B85450"];
+  "ps" [label="zynq_ultra_ps_e_0\n(pl_clk0 100MHz, pl_resetn0)", shape=box, fillcolor="#FFE6CC", color="#D79B00"];
+  "fabric" [label="adc_path / dac_path / ps8_axi_periph\n(aclk + aresetn fan-out)", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "lmk1" -> "ibuf_pl" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "lmk2" -> "ibuf_sysref" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "sysddr" -> "ibuf_ddr" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "ibuf_pl" -> "clkwiz" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="ref", fontcolor="#C99A00"];
+  "clkwiz" -> "bufg_pl" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clkwiz" -> "bufg_ddr" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "bufg_pl" -> "rfdc" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="rf_clk 245.76", fontcolor="#C99A00"];
+  "bufg_pl" -> "fabric" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="rf_clk", fontcolor="#C99A00"];
+  "bufg_ddr" -> "ddr4_0" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="ddr_clk 200", fontcolor="#C99A00"];
+  "ibuf_sysref" -> "mts_sync" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "mts_sync" -> "rfdc" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="user_sysref", fontcolor="#C99A00"];
+  "ddr4_0" -> "fabric" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="c0_ddr4_ui_clk", fontcolor="#C99A00"];
+  "ddr4_0" -> "blc" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="c0_ddr4_ui_clk", fontcolor="#C99A00"];
+  "ps" -> "fabric" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="pl_clk0", fontcolor="#C99A00"];
+  "ps" -> "rb_clkwiz" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="pl_clk0", fontcolor="#C99A00"];
+  "bufg_ddr" -> "rb_clkwiz" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clkwiz" -> "blc" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="locked", fontcolor="#555555"];
+  "ps" -> "rb_clkwiz" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="pl_resetn0", fontcolor="#B85450"];
+  "rst_ps8" -> "fabric" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="ps8 aresetn", fontcolor="#B85450"];
+  "rst_ddr4" -> "ddr4_0" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="ddr4 aresetn", fontcolor="#B85450"];
+  "rst_adc" -> "rfdc" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="rf aresetn", fontcolor="#B85450"];
+  "rst_ddr4" -> "fabric" [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="ddr4 aresetn", fontcolor="#B85450"];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Stream</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#B85450" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-MM data</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td align="right"><font color="#C99A00" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">clock</font></td></tr><tr><td bgcolor="#F8CECC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">DDR memory</font></td><td align="right"><font color="#B85450" point-size="13"><b>······</b></font></td><td align="left"><font point-size="10">reset</font></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr></table>>];
+}

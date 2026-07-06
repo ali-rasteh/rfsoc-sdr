@@ -1,0 +1,35 @@
+digraph "control" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>system_bd — Control Plane</b>>];
+  node [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  "irq_concat" [label="irq_concat\nxlconcat\nNUM_PORTS=4", fillcolor="#D5E8D4", color="#2E8B57"];
+  subgraph "cluster_adc_path" {
+    label=<<b>adc_path</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "adc_path/axis_flow_ctrl_0" [label="axis_flow_ctrl_0\naxis_flow_ctrl", fillcolor="#DAE8FC", color="#1F6FC4"];
+    "adc_path/axi_dma_0" [label="axi_dma_0\naxi_dma", fillcolor="#DAE8FC", color="#1F6FC4"];
+  }
+  subgraph "cluster_clocktreeMTS" {
+    label=<<b>clocktreeMTS</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "clocktreeMTS/clk_wiz_0" [label="clk_wiz_0\nclk_wiz", fillcolor="#FFF2CC", color="#C99A00"];
+  }
+  "usp_rf_data_converter_0" [label="usp_rf_data_converter_0\nusp_rf_data_converter", fillcolor="#E1D5E7", color="#8E44AD"];
+  "zynq_ultra_ps_e_0" [label="zynq_ultra_ps_e_0\nzynq_ultra_ps_e", fillcolor="#FFE6CC", color="#D79B00"];
+  "ps8_axi_periph" [label="ps8_axi_periph\naxi_interconnect\nNUM_MI=5", fillcolor="#D5E8D4", color="#2E8B57"];
+  subgraph "cluster_dac_path" {
+    label=<<b>dac_path</b>>; style="rounded"; color="#999999"; bgcolor="#FBFBFB"; fontsize=12; margin=10;
+    "dac_path/axi_dma_0" [label="axi_dma_0\naxi_dma", fillcolor="#DAE8FC", color="#1F6FC4"];
+  }
+  "ps8_axi_periph" -> "dac_path/axi_dma_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M00_AXI", fontcolor="#2E8B57"];
+  "dac_path/axi_dma_0" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "ps8_axi_periph" -> "clocktreeMTS/clk_wiz_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M04_AXI", fontcolor="#2E8B57"];
+  "clocktreeMTS/clk_wiz_0" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "ps8_axi_periph" -> "adc_path/axis_flow_ctrl_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M03_AXI", fontcolor="#2E8B57"];
+  "ps8_axi_periph" -> "adc_path/axi_dma_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M01_AXI", fontcolor="#2E8B57"];
+  "adc_path/axi_dma_0" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "ps8_axi_periph" -> "usp_rf_data_converter_0" [color="#2E8B57", style="solid", penwidth=1.4, arrowhead=normal, xlabel="M02_AXI", fontcolor="#2E8B57"];
+  "usp_rf_data_converter_0" -> "irq_concat" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "irq_concat" -> "zynq_ultra_ps_e_0" [color="#8E44AD", style="dashed", penwidth=1.3, arrowhead=vee];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td></td><td></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td></td><td></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td></td><td></td></tr></table>>];
+}
