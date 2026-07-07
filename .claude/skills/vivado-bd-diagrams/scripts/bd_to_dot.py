@@ -49,11 +49,40 @@ def port(nid,label,kind="in"):
     sh="cds" if kind=="in" else "invhouse"
     return f'  "{nid}" [label="{label}", shape={sh}, fillcolor="{C["PORT_F"]}", color="{C["PORT_L"]}", style="filled", fontsize=10];\n'
 
+# Compass point per hero-block port, keyed by the exact "node:port" ref.
+# Pins the edge to a face on the node perimeter so arrowheads never land in the
+# box interior (a splines=ortho clipping artifact on interior HTML-table cells).
+# West = left-column / slave-in ports; East = right-column / master-out ports,
+# matching the L_* HTML table layouts.
+PORT_SIDE = {
+    # usp_rf_data_converter_0 (L_rfdc)
+    "usp_rf_data_converter_0:vin":"w", "usp_rf_data_converter_0:s00":"w",
+    "usp_rf_data_converter_0:s10":"w", "usp_rf_data_converter_0:saxi":"w",
+    "usp_rf_data_converter_0:smpclk":"w", "usp_rf_data_converter_0:sysref":"w",
+    "usp_rf_data_converter_0:m00":"e", "usp_rf_data_converter_0:m20":"e",
+    "usp_rf_data_converter_0:vout":"e", "usp_rf_data_converter_0:irq":"e",
+    "usp_rf_data_converter_0:aclk":"e",
+    # zynq_ultra_ps_e_0 (L_ps; full-span rows, side = master/slave role)
+    "zynq_ultra_ps_e_0:hpm0":"e", "zynq_ultra_ps_e_0:hpm1":"e",
+    "zynq_ultra_ps_e_0:hp0":"w", "zynq_ultra_ps_e_0:hp1":"w",
+    "zynq_ultra_ps_e_0:gpio":"e", "zynq_ultra_ps_e_0:irq":"w",
+    "zynq_ultra_ps_e_0:plclk":"e", "zynq_ultra_ps_e_0:plrst":"e",
+    # ddr4_0 (L_ddr)
+    "ddr4_0:saxi":"w", "ddr4_0:sysclk":"w", "ddr4_0:calib":"w",
+    "ddr4_0:ddr":"e", "ddr4_0:uiclk":"e", "ddr4_0:arstn":"e",
+    # axi_dma hero blocks (L_dma; shared port ids on adc_dma & dac_dma)
+    "adc_dma:saxis":"w", "adc_dma:maxis":"w", "adc_dma:lite":"w",
+    "adc_dma:maxi":"e", "adc_dma:irq":"e",
+    "dac_dma:saxis":"w", "dac_dma:maxis":"w", "dac_dma:lite":"w",
+    "dac_dma:maxi":"e", "dac_dma:irq":"e",
+}
+
 def qref(x):
-    """Quote a DOT endpoint; keep node:port references as "node":"port"."""
+    """Quote a DOT endpoint; keep node:port references as "node":"port"[:compass]."""
     if ":" in x:
         n,p = x.split(":",1)
-        return f'"{n}":"{p}"'
+        comp = PORT_SIDE.get(x)
+        return f'"{n}":"{p}"' + (f':{comp}' if comp else '')
     return f'"{x}"'
 
 def _edge(a,b,color,style,pw,lbl,arrow="normal",ltail=None,lhead=None,constraint=None):
