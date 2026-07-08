@@ -1,0 +1,25 @@
+digraph "gpio_control" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>Subsystem — GPIO / Board Control (PS EMIO fan-out)</b>>];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge  [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  "ps" [label="zynq_ultra_ps_e_0\nemio_gpio_o[94:0]", shape=box, fillcolor="#FFE6CC", color="#D79B00"];
+  "xls0" [label="xlslice_0 (bit 84)", shape=box, fillcolor="#EEEEEE", color="#AAAAAA"];
+  "xls1" [label="xlslice_1 (bit 80)", shape=box, fillcolor="#EEEEEE", color="#AAAAAA"];
+  "adc_ctl" [label="clocktreeMTS/adc_control\n(xlslice bit 34)", shape=box, fillcolor="#EEEEEE", color="#AAAAAA"];
+  "dac_ctl" [label="clocktreeMTS/dac_control\n(xlslice bit 2)", shape=box, fillcolor="#EEEEEE", color="#AAAAAA"];
+  "adc_path" [label="adc_path\n(capture enable)", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "dac_path" [label="dac_path\n(playback enable)", shape=box, fillcolor="#DAE8FC", color="#1F6FC4"];
+  "lmk_rst" [label="lmk_rst", shape=invhouse, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "gpio_test" [label="gpio_test", shape=invhouse, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "ps" -> "xls0" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="[94:0]", fontcolor="#555555"];
+  "ps" -> "xls1" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal];
+  "ps" -> "adc_ctl" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="Din", fontcolor="#555555"];
+  "ps" -> "dac_ctl" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="Din", fontcolor="#555555"];
+  "xls0" -> "lmk_rst" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal];
+  "xls1" -> "gpio_test" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal];
+  "adc_ctl" -> "adc_path" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="adc_control", fontcolor="#555555"];
+  "dac_ctl" -> "dac_path" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="dac_control", fontcolor="#555555"];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Stream</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#B85450" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-MM data</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td align="right"><font color="#C99A00" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">clock</font></td></tr><tr><td bgcolor="#F8CECC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">DDR memory</font></td><td align="right"><font color="#B85450" point-size="13"><b>······</b></font></td><td align="left"><font point-size="10">reset</font></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr></table>>];
+}

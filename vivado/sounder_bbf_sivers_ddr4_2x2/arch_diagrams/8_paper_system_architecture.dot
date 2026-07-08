@@ -1,0 +1,96 @@
+digraph "paper_system_architecture" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.35, ranksep=0.5, fontname="Helvetica",
+         bgcolor="white", forcelabels=true, pack=false];
+  node  [fontname="Helvetica", fontsize=14, shape=box, style="filled,rounded",
+         penwidth=1.4, margin="0.14,0.09"];
+  edge  [fontname="Helvetica", fontsize=11, penwidth=1.4, arrowsize=0.7];
+
+  /* ---------- nodes (declared top-to-bottom per column) ---------- */
+  "rf_in"   [label="RF in\n(2 ch)",  shape=cds,      fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "rf_out"  [label="RF out\n(2 ch)", shape=invhouse, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "clk_lmx" [label="LMX RF synth\n3932.16 MHz",      shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "clk_lmk" [label="LMK clock\n122.88 MHz + SYSREF", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+
+  "rfdc" [label="RF Data Converter\n2 ADC + 2 DAC @ 3.932 GS/s\ndec/int 4x · fabric 245.76 MHz",
+          fillcolor="#E1D5E7", color="#8E44AD"];
+  "clktree" [label="Clock tree + MTS sync\nMMCM · SYSREF CDC", fillcolor="#FFF2CC", color="#C99A00"];
+
+  "rx_cap" [label="RX capture\nAXIS combiner · capture gate\nCDC + buffer FIFO", fillcolor="#DAE8FC", color="#1F6FC4"];
+  "tx_pb"  [label="TX playback\nrecirculating waveform buffer\nstream mux · async CDC FIFO", fillcolor="#DAE8FC", color="#1F6FC4"];
+
+  "dma_rx" [label="AXI DMA (RX)\nS2MM", fillcolor="#DAE8FC", color="#1F6FC4"];
+  "ctrl"   [label="AXI-Lite control\ninterconnect", fillcolor="#D5E8D4", color="#2E8B57"];
+  "dma_tx" [label="AXI DMA (TX)\nMM2S", fillcolor="#DAE8FC", color="#1F6FC4"];
+
+  "ps" [shape=plaintext, label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="5" bgcolor="white">
+    <tr><td bgcolor="#D79B00"><font color="white" point-size="14"><b>Zynq UltraScale+ PS</b></font></td></tr>
+    <tr><td port="hp0"  align="left" bgcolor="#FFE6CC"><font point-size="13">S_AXI_HP0</font></td></tr>
+    <tr><td port="hpm1" align="left" bgcolor="#FFE6CC"><font point-size="13">M_AXI_HPM1</font></td></tr>
+    <tr><td port="hpm0" align="left" bgcolor="#FFE6CC"><font point-size="13">M_AXI_HPM0</font></td></tr>
+    <tr><td port="hp1"  align="left" bgcolor="#FFE6CC"><font point-size="13">S_AXI_HP1</font></td></tr>
+    <tr><td port="ddrc" align="left" bgcolor="#FFE6CC"><font point-size="13">DDR controller</font></td></tr>
+  </table>>];
+
+  "sc"     [label="AXI\nSmartConnect", fillcolor="#F8CECC", color="#B85450"];
+  "ddr4ps" [label="DDR4 (PS)", shape=box3d, style="filled", fillcolor="#F8CECC", color="#B85450"];
+  "ddr4pl" [label="DDR4 (PL)\n4 GB", shape=box3d, style="filled", fillcolor="#F8CECC", color="#B85450"];
+
+  /* ---------- rank columns ---------- */
+  { rank=same; "rf_in"; "rf_out"; "clk_lmx"; "clk_lmk"; }
+  "clk_lmk" -> "rf_out" [style=invis];
+  "rf_out" -> "rf_in"   [style=invis];
+  "rf_in" -> "clk_lmx"  [style=invis];
+  { rank=same; "rfdc"; "clktree"; }
+  { rank=same; "rx_cap"; "tx_pb"; }
+  { rank=same; "dma_rx"; "ctrl"; "dma_tx"; }
+  { rank=same; "sc"; "ddr4ps"; }
+
+  /* ---------- analog RF ---------- */
+  "rf_in" -> "rfdc" [color="#8E44AD", style=solid, penwidth=2.0, weight=8];
+  "rfdc" -> "rf_out" [color="#8E44AD", style=solid, penwidth=2.0, constraint=false, weight=8];
+
+  /* ---------- AXI-Stream data ---------- */
+  "rfdc" -> "rx_cap" [color="#1F6FC4", style=solid, penwidth=2.0, xlabel="2x AXIS", fontcolor="#1F6FC4"];
+  "rx_cap" -> "dma_rx" [color="#1F6FC4", style=solid, penwidth=2.0];
+  "dma_tx" -> "tx_pb" [color="#1F6FC4", style=solid, penwidth=2.0, constraint=false];
+  "tx_pb" -> "rfdc" [color="#1F6FC4", style=solid, penwidth=2.0, xlabel="2x AXIS", fontcolor="#1F6FC4", constraint=false];
+
+  /* ---------- AXI-MM memory ---------- */
+  "dma_rx" -> "ps":"hp0":w [color="#B85450", style=solid, penwidth=1.7];
+  "dma_tx" -> "ps":"hp1":w [color="#B85450", style=solid, penwidth=1.7];
+  "dma_rx" -> "sc" [color="#B85450", style=solid, penwidth=1.7];
+  "dma_tx" -> "sc" [color="#B85450", style=solid, penwidth=1.7];
+  "ps":"hpm0":e -> "sc" [color="#B85450", style=solid, penwidth=1.7];
+  "sc" -> "ddr4pl" [color="#B85450", style=solid, penwidth=1.7];
+  "ps":"ddrc":e -> "ddr4ps" [color="#555555", style=solid, penwidth=1.4];
+
+  /* ---------- AXI-Lite control ---------- */
+  "ps":"hpm1":w -> "ctrl" [color="#2E8B57", style=solid, penwidth=1.4, constraint=false];
+  "ctrl" -> "rfdc"    [color="#2E8B57", style=solid, penwidth=1.4, constraint=false];
+  "ctrl" -> "rx_cap"  [color="#2E8B57", style=solid, penwidth=1.4, constraint=false];
+  "ctrl" -> "dma_rx"  [color="#2E8B57", style=solid, penwidth=1.4];
+  "ctrl" -> "dma_tx"  [color="#2E8B57", style=solid, penwidth=1.4];
+  "ctrl" -> "clktree" [color="#2E8B57", style=solid, penwidth=1.4, constraint=false];
+
+  /* ---------- clocking ---------- */
+  "clk_lmk" -> "clktree" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee];
+  "clktree" -> "rfdc" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee, xlabel="rf_clk + SYSREF", fontcolor="#C99A00"];
+  "clk_lmx" -> "rfdc" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee, xlabel="sample clk", fontcolor="#C99A00"];
+
+  /* ---------- legend ---------- */
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white">
+    <tr><td colspan="4" align="center"><font point-size="14"><b>Legend</b></font></td></tr>
+    <tr><td bgcolor="#E1D5E7" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">RF converter</font></td>
+        <td align="right"><font color="#8E44AD" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">analog RF</font></td></tr>
+    <tr><td bgcolor="#DAE8FC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Datapath</font></td>
+        <td align="right"><font color="#1F6FC4" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">AXI-Stream</font></td></tr>
+    <tr><td bgcolor="#D5E8D4" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Control</font></td>
+        <td align="right"><font color="#B85450" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">AXI-MM</font></td></tr>
+    <tr><td bgcolor="#FFF2CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Clocking</font></td>
+        <td align="right"><font color="#2E8B57" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">AXI-Lite</font></td></tr>
+    <tr><td bgcolor="#F8CECC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Memory</font></td>
+        <td align="right"><font color="#C99A00" point-size="15"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="13">clock / sync</font></td></tr>
+    <tr><td bgcolor="#FFE6CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Processor</font></td>
+        <td> </td><td> </td></tr>
+  </table>>];
+}

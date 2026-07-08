@@ -1,0 +1,104 @@
+digraph "paper_clocking_sync" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.35, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", forcelabels=true, pack=false];
+  node  [fontname="Helvetica", fontsize=14, shape=box, style="filled,rounded",
+         penwidth=1.4, margin="0.14,0.09"];
+  edge  [fontname="Helvetica", fontsize=11, penwidth=1.3, arrowsize=0.7];
+
+  /* ---------- external clock / sync inputs ---------- */
+  "x_sysref" [label="sysref_in\n(analog SYSREF)",  shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "x_lmx"    [label="ADC / DAC tile clocks\n3932.16 MHz (LMX)", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "x_lmk2"   [label="lmk_clk2\nSYSREF",            shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "x_lmk1"   [label="lmk_clk1\n122.88 MHz",        shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "x_ddr"    [label="sys_clk_ddr4\n200 MHz",       shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "ps"       [label="Zynq UltraScale+ PS\npl_clk0 100 MHz · pl_resetn0", fillcolor="#FFE6CC", color="#D79B00"];
+
+  { rank=same; "x_sysref"; "x_lmx"; "x_lmk2"; "x_lmk1"; "x_ddr"; "ps"; }
+  "x_lmx" -> "x_sysref" [style=invis];
+  "x_sysref" -> "x_lmk2" [style=invis];
+  "x_lmk2" -> "x_lmk1"  [style=invis];
+  "x_lmk1" -> "x_ddr"   [style=invis];
+  "x_ddr" -> "ps"       [style=invis];
+
+  /* ---------- clock tree ---------- */
+  subgraph "cluster_clktree" {
+    label=<<b>Clock tree (clocktreeMTS)</b>>; fontsize=16; style="rounded"; color="#C99A00"; bgcolor="#FFF9E6"; penwidth=1.5; margin=10;
+    "buf_sr"  [label="IBUFDS",        fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
+    "buf_pl"  [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
+    "buf_ddr" [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
+    "cdc"     [label="SYSREF CDC &#8594; MTS\n2-stage sync\n122.88 &#8594; 245.76 MHz", fillcolor="#FDF3D8", color="#C99A00"];
+    "mmcm"    [label="MMCM\n122.88 &#8594; 245.76 MHz", shape=octagon, style="filled", fillcolor="#FFF2CC", color="#C99A00"];
+  }
+
+  /* ---------- DDR4 controller (ui_clk source) ---------- */
+  "ddr4" [label="DDR4 controller", fillcolor="#F8CECC", color="#B85450"];
+
+  /* ---------- reset generation ---------- */
+  subgraph "cluster_rst" {
+    label=<<b>Reset generation (reset_block)</b>>; fontsize=16; style="rounded"; color="#B85450"; bgcolor="#FDF1F0"; penwidth=1.5; margin=10;
+    "rst_rf"  [label="proc_sys_reset\n@ 245.76 MHz", fillcolor="#FFF2CC", color="#B85450", fontsize=13];
+    "rst_ddr" [label="proc_sys_reset\n@ ui_clk",     fillcolor="#FFF2CC", color="#B85450", fontsize=13];
+    "rst_ps8" [label="proc_sys_reset\n@ 100 MHz",    fillcolor="#FFF2CC", color="#B85450", fontsize=13];
+    "srgen"   [label="DDR4 sys_rst\n(lock monitor)", fillcolor="#FFF2CC", color="#B85450", fontsize=13];
+  }
+
+  /* ---------- clock sinks (right column) ---------- */
+  "rfdc"     [label="RF Data Converter\nADC / DAC tiles @ 3.932 GS/s",   fillcolor="#E1D5E7", color="#8E44AD"];
+  "dom_rf"   [label="RX / TX datapath front\ncombiner · gate · mux · FIFOs\n(245.76 MHz domain)", fillcolor="#DAE8FC", color="#1F6FC4"];
+  "dom_ui"   [label="DMA · SmartConnect\nPS HP + DDR4 S_AXI\n(ui_clk domain)",                    fillcolor="#DAE8FC", color="#1F6FC4"];
+  "dom_lite" [label="AXI-Lite control\ninterconnect + registers\n(100 MHz domain)",               fillcolor="#D5E8D4", color="#2E8B57"];
+
+  { rank=same; "rfdc"; "dom_rf"; "dom_ui"; "dom_lite"; }
+
+  /* ---------- clock distribution ---------- */
+  "x_lmk1" -> "buf_pl" [color="#C99A00", style=dashed, arrowhead=vee];
+  "buf_pl" -> "mmcm"   [color="#C99A00", style=dashed, arrowhead=vee];
+  "mmcm" -> "rfdc"   [color="#C99A00", style=dashed, arrowhead=vee, xlabel="\n\nrf_clk", fontcolor="#C99A00"];
+  "mmcm" -> "dom_rf" [color="#C99A00", style=dashed, arrowhead=vee, xlabel="rf_clk", fontcolor="#C99A00"];
+  "mmcm" -> "rst_rf" [color="#C99A00", style=dashed, arrowhead=vee];
+
+  "x_lmk2" -> "buf_sr" [color="#C99A00", style=dashed, arrowhead=vee];
+  "buf_sr" -> "cdc"    [color="#C99A00", style=dashed, arrowhead=vee];
+  "cdc" -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee];
+  "x_sysref" -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3];
+  "x_lmx"    -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3];
+
+  "x_ddr"   -> "buf_ddr" [color="#C99A00", style=dashed, arrowhead=vee];
+  "buf_ddr" -> "ddr4"  [color="#C99A00", style=dashed, arrowhead=vee];
+  "buf_ddr" -> "srgen" [color="#C99A00", style=dashed, arrowhead=vee];
+  "ddr4" -> "dom_ui"  [color="#C99A00", style=dashed, arrowhead=vee, xlabel="ui_clk", fontcolor="#C99A00"];
+  "ddr4" -> "rst_ddr" [color="#C99A00", style=dashed, arrowhead=vee];
+
+  "ps" -> "dom_lite" [color="#C99A00", style=dashed, arrowhead=vee, xlabel="pl_clk0", fontcolor="#C99A00"];
+  "ps" -> "rst_ps8"  [color="#C99A00", style=dashed, arrowhead=vee];
+
+  /* ---------- datapath clock-domain crossing ---------- */
+  "dom_rf" -> "dom_ui" [dir=both, color="#1F6FC4", style=solid, penwidth=2.0,
+                        xlabel="AXIS CDC\nclk-conv (RX)\nasync FIFO (TX)", fontcolor="#1F6FC4"];
+
+  /* ---------- resets ---------- */
+  "ps" -> "rst_ps8" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="pl_resetn0", fontcolor="#B85450"];
+  "ps" -> "rst_rf"  [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee];
+  "mmcm" -> "rst_rf" [color="#888888", style=solid, penwidth=1.1, arrowhead=normal, xlabel="locked", fontcolor="#666666"];
+  "ddr4" -> "rst_ddr" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="sync_rst", fontcolor="#B85450"];
+  "srgen" -> "ddr4" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="sys_rst", fontcolor="#B85450", constraint=false];
+  "rst_ps8" -> "dom_lite" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="aresetn", fontcolor="#B85450"];
+  "rst_ddr" -> "dom_ui"   [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="aresetn", fontcolor="#B85450"];
+  "rst_rf"  -> "dom_rf"   [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="aresetn", fontcolor="#B85450"];
+  "rst_rf"  -> "rfdc"     [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee];
+
+  /* ---------- legend ---------- */
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white">
+    <tr><td colspan="4" align="center"><font point-size="14"><b>Legend</b></font></td></tr>
+    <tr><td bgcolor="#FFF2CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Clock / reset gen</font></td>
+        <td align="right"><font color="#C99A00" point-size="15"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="13">clock / sync</font></td></tr>
+    <tr><td bgcolor="#DAE8FC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Datapath domain</font></td>
+        <td align="right"><font color="#B85450" point-size="15"><b>&#183;&#183;&#183;&#183;&#183;</b></font></td><td align="left"><font point-size="13">reset</font></td></tr>
+    <tr><td bgcolor="#E1D5E7" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">RF converter</font></td>
+        <td align="right"><font color="#1F6FC4" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">AXIS CDC</font></td></tr>
+    <tr><td bgcolor="#F8CECC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Memory</font></td>
+        <td align="right"><font color="#888888" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">status</font></td></tr>
+    <tr><td bgcolor="#FFE6CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Processor</font></td>
+        <td> </td><td> </td></tr>
+  </table>>];
+}

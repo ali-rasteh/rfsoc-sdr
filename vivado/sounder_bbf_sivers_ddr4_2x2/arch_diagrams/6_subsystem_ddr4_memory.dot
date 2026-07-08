@@ -1,0 +1,28 @@
+digraph "ddr4_memory" {
+  graph [rankdir=LR, splines=ortho, nodesep=0.32, ranksep=0.55, fontname="Helvetica",
+         bgcolor="white", compound=true, labelloc="t", fontsize=20, forcelabels=true,
+         pack=false, label=<<b>Subsystem — DDR4 Memory</b>>];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="filled,rounded", penwidth=1.3];
+  edge  [fontname="Helvetica", fontsize=9, penwidth=1.4, arrowsize=0.7];
+  "adc_sc" [label="adc_path/smartconnect_0\n(M01 PL_MEM_AXI)", shape=box, fillcolor="#F8CECC", color="#B85450"];
+  "dac_sc" [label="dac_path/smartconnect_0\n(M01 PL_MEM_AXI)", shape=box, fillcolor="#F8CECC", color="#B85450"];
+  "ps" [label="zynq_ultra_ps_e_0\n(M_AXI_HPM0_FPD)", shape=box, fillcolor="#FFE6CC", color="#D79B00"];
+  "smartconnect_0" [label="smartconnect_0 (root)\nSmartConnect 3 SI -> 1 M", shape=box, fillcolor="#F8CECC", color="#B85450"];
+  "ddr4_0" [shape=plaintext, label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="4" bgcolor="white"><tr><td colspan="2" bgcolor="#B85450"><font color="white" point-size="11"><b>ddr4_0  (DDR4 ctrl 2.2)</b></font></td></tr><tr><td port="saxi" align="left" bgcolor="#F8CECC"><font point-size="10">C0_DDR4_S_AXI (512b)</font></td><td port="ddr" align="right" bgcolor="#F8CECC"><font point-size="10">C0_DDR4 (ddr4_pl)</font></td></tr><tr><td port="sysclk" align="left" bgcolor="#F8CECC"><font point-size="10">c0_sys_clk_i</font></td><td port="uiclk" align="right" bgcolor="#F8CECC"><font point-size="10">c0_ddr4_ui_clk</font></td></tr><tr><td port="calib" align="left" bgcolor="#F8CECC"><font point-size="10">c0_init_calib_complete</font></td><td port="arstn" align="right" bgcolor="#F8CECC"><font point-size="10">c0_ddr4_aresetn</font></td></tr></table>>];
+  "ddr4pl" [label="ddr4_pl (external DRAM)", shape=invhouse, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "sysddr" [label="sys_clk_ddr4", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "led" [label="ddr4_led", shape=invhouse, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=10];
+  "clocktreeMTS" [label="clocktreeMTS\n(ddr_clk)", shape=box, fillcolor="#FFF2CC", color="#C99A00"];
+  "reset_block" [label="reset_block\n(sys_rst, c0_ddr4_aresetn)", shape=box, fillcolor="#FFF2CC", color="#B85450"];
+  "adc_sc" -> "smartconnect_0" [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="S01_AXI", fontcolor="#B85450"];
+  "dac_sc" -> "smartconnect_0" [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="S02_AXI", fontcolor="#B85450"];
+  "ps" -> "smartconnect_0" [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="S00_AXI HPM0", fontcolor="#B85450"];
+  "smartconnect_0" -> "ddr4_0":"saxi":w [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="M00 C0_DDR4_S_AXI", fontcolor="#B85450"];
+  "ddr4_0":"ddr":e -> "ddr4pl" [color="#B85450", style="solid", penwidth=1.7, arrowhead=normal, xlabel="C0_DDR4", fontcolor="#B85450"];
+  "sysddr" -> "clocktreeMTS" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee];
+  "clocktreeMTS" -> "ddr4_0":"sysclk":w [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="c0_sys_clk_i", fontcolor="#C99A00"];
+  "ddr4_0":"uiclk":e -> "reset_block" [color="#C99A00", style="dashed", penwidth=1.3, arrowhead=vee, xlabel="c0_ddr4_ui_clk", fontcolor="#C99A00"];
+  "reset_block" -> "ddr4_0":"arstn":e [color="#B85450", style="dotted", penwidth=1.4, arrowhead=vee, xlabel="c0_ddr4_aresetn / sys_rst", fontcolor="#B85450"];
+  "ddr4_0":"calib":w -> "led" [color="#555555", style="solid", penwidth=1.1, arrowhead=normal, xlabel="init_calib_complete", fontcolor="#555555"];
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white"><tr><td colspan="4" align="center"><font point-size="12"><b>Legend</b></font></td></tr><tr><td bgcolor="#DAE8FC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Data plane</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Stream</font></td></tr><tr><td bgcolor="#D5E8D4" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Control plane</font></td><td align="right"><font color="#B85450" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-MM data</font></td></tr><tr><td bgcolor="#FFF2CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Clocking / sync</font></td><td align="right"><font color="#2E8B57" point-size="13"><b>———</b></font></td><td align="left"><font point-size="10">AXI-Lite ctrl</font></td></tr><tr><td bgcolor="#E1D5E7" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">RF front-end</font></td><td align="right"><font color="#C99A00" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">clock</font></td></tr><tr><td bgcolor="#F8CECC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">DDR memory</font></td><td align="right"><font color="#B85450" point-size="13"><b>······</b></font></td><td align="left"><font point-size="10">reset</font></td></tr><tr><td bgcolor="#FFE6CC" width="26"><font point-size="4"> </font></td><td align="left"><font point-size="10">Processor system</font></td><td align="right"><font color="#8E44AD" point-size="13"><b>– – –</b></font></td><td align="left"><font point-size="10">interrupt</font></td></tr></table>>];
+}
