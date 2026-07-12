@@ -1,16 +1,16 @@
 digraph "paper_clocking_sync" {
   graph [rankdir=LR, splines=ortho, nodesep=0.35, ranksep=0.55, fontname="Helvetica",
          bgcolor="white", forcelabels=true, pack=false];
-  node  [fontname="Helvetica", fontsize=14, shape=box, style="filled,rounded",
+  node  [fontname="Helvetica", fontsize=16, shape=box, style="filled,rounded",
          penwidth=1.4, margin="0.14,0.09"];
-  edge  [fontname="Helvetica", fontsize=11, penwidth=1.3, arrowsize=0.7];
+  edge  [fontname="Helvetica", fontsize=16, penwidth=1.3, arrowsize=0.7];
 
   /* ---------- external clock / sync inputs ---------- */
-  "x_sysref" [label="sysref_in\n(analog SYSREF)",  shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
-  "x_lmx"    [label="ADC / DAC tile clocks\n3932.16 MHz (LMX)", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
-  "x_lmk2"   [label="lmk_clk2\nSYSREF",            shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
-  "x_lmk1"   [label="lmk_clk1\n122.88 MHz",        shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
-  "x_ddr"    [label="sys_clk_ddr4\n200 MHz",       shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=13];
+  "x_sysref" [label="sysref_in\n(analog SYSREF)",  shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmx"    [label="ADC / DAC tile clocks\n3932.16 MHz (LMX)", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmk2"   [label="lmk_clk2\nSYSREF",            shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmk1"   [label="lmk_clk1\n122.88 MHz",        shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_ddr"    [label="sys_clk_ddr4\n200 MHz",       shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
   "ps"       [label="Zynq UltraScale+ PS\npl_clk0 100 MHz · pl_resetn0", fillcolor="#FFE6CC", color="#D79B00"];
 
   { rank=same; "x_sysref"; "x_lmx"; "x_lmk2"; "x_lmk1"; "x_ddr"; "ps"; }
@@ -23,9 +23,9 @@ digraph "paper_clocking_sync" {
   /* ---------- clock tree ---------- */
   subgraph "cluster_clktree" {
     label=<<b>Clock tree (clocktreeMTS)</b>>; fontsize=16; style="rounded"; color="#C99A00"; bgcolor="#FFF9E6"; penwidth=1.5; margin=10;
-    "buf_sr"  [label="IBUFDS",        fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
-    "buf_pl"  [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
-    "buf_ddr" [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=13];
+    "buf_sr"  [label="IBUFDS",        fillcolor="#FFF2CC", color="#C99A00", fontsize=16];
+    "buf_pl"  [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=16];
+    "buf_ddr" [label="IBUFDS + BUFG", fillcolor="#FFF2CC", color="#C99A00", fontsize=16];
     "cdc"     [label="SYSREF CDC &#8594; MTS\n2-stage sync\n122.88 &#8594; 245.76 MHz", fillcolor="#FDF3D8", color="#C99A00"];
     "mmcm"    [label="MMCM\n122.88 &#8594; 245.76 MHz", shape=octagon, style="filled", fillcolor="#FFF2CC", color="#C99A00"];
   }
@@ -36,10 +36,10 @@ digraph "paper_clocking_sync" {
   /* ---------- reset generation ---------- */
   subgraph "cluster_rst" {
     label=<<b>Reset generation (reset_block)</b>>; fontsize=16; style="rounded"; color="#B85450"; bgcolor="#FDF1F0"; penwidth=1.5; margin=10;
-    "rst_rf"  [label="proc_sys_reset\n@ 245.76 MHz", fillcolor="#FFF2CC", color="#B85450", fontsize=13];
-    "rst_ddr" [label="proc_sys_reset\n@ ui_clk",     fillcolor="#FFF2CC", color="#B85450", fontsize=13];
-    "rst_ps8" [label="proc_sys_reset\n@ 100 MHz",    fillcolor="#FFF2CC", color="#B85450", fontsize=13];
-    "srgen"   [label="DDR4 sys_rst\n(lock monitor)", fillcolor="#FFF2CC", color="#B85450", fontsize=13];
+    "rst_rf"  [label="proc_sys_reset\n@ 245.76 MHz", fillcolor="#FFF2CC", color="#B85450", fontsize=16];
+    "rst_ddr" [label="proc_sys_reset\n@ ui_clk",     fillcolor="#FFF2CC", color="#B85450", fontsize=16];
+    "rst_ps8" [label="proc_sys_reset\n@ 100 MHz",    fillcolor="#FFF2CC", color="#B85450", fontsize=16];
+    "srgen"   [label="DDR4 sys_rst\n(lock monitor)", fillcolor="#FFF2CC", color="#B85450", fontsize=16];
   }
 
   /* ---------- clock sinks (right column) ---------- */
@@ -90,15 +90,15 @@ digraph "paper_clocking_sync" {
   /* ---------- legend ---------- */
   "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white">
     <tr><td colspan="4" align="center"><font point-size="14"><b>Legend</b></font></td></tr>
-    <tr><td bgcolor="#FFF2CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Clock / reset gen</font></td>
-        <td align="right"><font color="#C99A00" point-size="15"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="13">clock / sync</font></td></tr>
-    <tr><td bgcolor="#DAE8FC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Datapath domain</font></td>
-        <td align="right"><font color="#B85450" point-size="15"><b>&#183;&#183;&#183;&#183;&#183;</b></font></td><td align="left"><font point-size="13">reset</font></td></tr>
-    <tr><td bgcolor="#E1D5E7" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">RF converter</font></td>
-        <td align="right"><font color="#1F6FC4" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">AXIS CDC</font></td></tr>
-    <tr><td bgcolor="#F8CECC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Memory</font></td>
-        <td align="right"><font color="#888888" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="13">status</font></td></tr>
-    <tr><td bgcolor="#FFE6CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="13">Processor</font></td>
+    <tr><td bgcolor="#FFF2CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Clock / reset gen</font></td>
+        <td align="right"><font color="#C99A00" point-size="15"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="16">clock / sync</font></td></tr>
+    <tr><td bgcolor="#DAE8FC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Datapath domain</font></td>
+        <td align="right"><font color="#B85450" point-size="15"><b>&#183;&#183;&#183;&#183;&#183;</b></font></td><td align="left"><font point-size="16">reset</font></td></tr>
+    <tr><td bgcolor="#E1D5E7" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">RF converter</font></td>
+        <td align="right"><font color="#1F6FC4" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">AXIS CDC</font></td></tr>
+    <tr><td bgcolor="#F8CECC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Memory</font></td>
+        <td align="right"><font color="#888888" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">status</font></td></tr>
+    <tr><td bgcolor="#FFE6CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Processor</font></td>
         <td> </td><td> </td></tr>
   </table>>];
 }
