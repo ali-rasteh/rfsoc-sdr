@@ -45,7 +45,12 @@ digraph "paper_system_architecture" {
   "clk_lmx" -> "legend" [style=invis];
   { rank=same; "rfdc"; "clktree"; }
   { rank=same; "rx_cap"; "tx_pb"; }
-  { rank=same; "dma_rx"; "ctrl"; "dma_tx"; }
+  /* nudge ctrl clear of dma_rx: without the extra separation the PS -> ctrl arrow has no
+     room for a riser and its arrowhead lands on top of its own horizontal approach */
+  { rank=same; "ctrl"; "ctrlgap"; "dma_rx"; "dma_tx"; }
+  "ctrlgap" [shape=box, style=invis, label="", width=0.02, height=0.02, fixedsize=true];
+  "ctrl" -> "ctrlgap"   [style=invis];
+  "ctrlgap" -> "dma_rx" [style=invis];
   { rank=same; "sc"; "ddr4ps"; }
 
   /* ---------- analog RF ---------- */
@@ -84,19 +89,14 @@ digraph "paper_system_architecture" {
                        xlabel=<<table border="0" cellborder="0" cellspacing="0" cellpadding="1" bgcolor="white"><tr><td><font color="#C99A00" point-size="16">sample clk</font></td></tr></table>>];
 
   /* ---------- legend ---------- */
-  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="4" cellpadding="2" bgcolor="white">
-    <tr><td colspan="4" align="center"><font point-size="14"><b>Legend</b></font></td></tr>
-    <tr><td bgcolor="#E1D5E7" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">RF converter</font></td>
-        <td align="right"><font color="#8E44AD" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">analog RF</font></td></tr>
-    <tr><td bgcolor="#DAE8FC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Datapath</font></td>
-        <td align="right"><font color="#1F6FC4" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">AXI-Stream</font></td></tr>
-    <tr><td bgcolor="#D5E8D4" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Control</font></td>
-        <td align="right"><font color="#B85450" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">AXI-MM</font></td></tr>
-    <tr><td bgcolor="#FFF2CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Clocking</font></td>
-        <td align="right"><font color="#2E8B57" point-size="15"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="16">AXI-Lite</font></td></tr>
-    <tr><td bgcolor="#F8CECC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Memory</font></td>
-        <td align="right"><font color="#C99A00" point-size="15"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="16">clock / sync</font></td></tr>
-    <tr><td bgcolor="#FFE6CC" width="24"><font point-size="4"> </font></td><td align="left"><font point-size="16">Processor</font></td>
-        <td> </td><td> </td></tr>
+  /* wide-and-short: 3 swatch/label pairs per row, fills then line classes.
+     Legend text is 14pt (vs 16pt for diagram nodes) so the wider table does not
+     push the whole figure wide enough to drop node text below ~5pt in print. */
+  "legend" [shape=plaintext, margin=0, label=<<table border="1" color="#777777" cellborder="0" cellspacing="2" cellpadding="1" bgcolor="white">
+    <tr><td colspan="6" align="center"><font point-size="14"><b>Legend</b></font></td></tr>
+    <tr><td bgcolor="#E1D5E7" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">RF converter</font></td><td bgcolor="#DAE8FC" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">Datapath</font></td><td bgcolor="#D5E8D4" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">Control</font></td></tr>
+    <tr><td bgcolor="#FFF2CC" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">Clocking</font></td><td bgcolor="#F8CECC" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">Memory</font></td><td bgcolor="#FFE6CC" width="18"><font point-size="4"> </font></td><td align="left"><font point-size="14">Processor</font></td></tr>
+    <tr><td align="right"><font color="#8E44AD" point-size="13"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="14">analog RF</font></td><td align="right"><font color="#1F6FC4" point-size="13"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="14">AXI-Stream</font></td><td align="right"><font color="#B85450" point-size="13"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="14">AXI-MM</font></td></tr>
+    <tr><td align="right"><font color="#2E8B57" point-size="13"><b>&#8213;&#8213;</b></font></td><td align="left"><font point-size="14">AXI-Lite</font></td><td align="right"><font color="#C99A00" point-size="13"><b>&#8211; &#8211;</b></font></td><td align="left"><font point-size="14">clock / sync</font></td><td> </td><td> </td></tr>
   </table>>];
 }
