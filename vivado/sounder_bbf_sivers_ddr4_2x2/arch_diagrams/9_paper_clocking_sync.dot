@@ -6,11 +6,12 @@ digraph "paper_clocking_sync" {
   edge  [fontname="Helvetica", fontsize=16, penwidth=1.3, arrowsize=0.7];
 
   /* ---------- external clock / sync inputs ---------- */
-  "x_sysref" [label="sysref_in\n(analog SYSREF)",  shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
-  "x_lmx"    [label="ADC / DAC tile clocks\n3932.16 MHz (LMX)", shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
-  "x_lmk2"   [label="lmk_clk2\nSYSREF",            shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
-  "x_lmk1"   [label="lmk_clk1\n122.88 MHz",        shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
-  "x_ddr"    [label="sys_clk_ddr4\n200 MHz",       shape=cds, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  /* external ports: plain square-cornered white boxes (distinct from the rounded fabric blocks) */
+  "x_sysref" [label="sysref_in\n(analog SYSREF)",  shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmx"    [label="ADC / DAC tile clocks\n3932.16 MHz (LMX)", shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmk2"   [label="lmk_clk2\nSYSREF",            shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_lmk1"   [label="lmk_clk1\n122.88 MHz",        shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
+  "x_ddr"    [label="sys_clk_ddr4\n200 MHz",       shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
   "ps"       [label="Zynq UltraScale+ PS\npl_clk0 100 MHz · pl_resetn0", fillcolor="#FFE6CC", color="#D79B00"];
 
   { rank=same; "x_sysref"; "x_lmx"; "x_lmk2"; "x_lmk1"; "x_ddr"; "ps"; }
@@ -48,25 +49,37 @@ digraph "paper_clocking_sync" {
   "dom_ui"   [label="DMA · SmartConnect\nPS HP + DDR4 S_AXI\n(ui_clk domain)",                    fillcolor="#DAE8FC", color="#1F6FC4"];
   "dom_lite" [label="AXI-Lite control\ninterconnect + registers\n(100 MHz domain)",               fillcolor="#D5E8D4", color="#2E8B57"];
 
-  { rank=same; "rfdc"; "dom_rf"; "dom_ui"; "dom_lite"; }
+  /* legend rides in the gap between the RFDC and the datapath sinks (no extra canvas) */
+  { rank=same; "rfdc"; "legend"; "dom_rf"; "cdcgap"; "dom_ui"; "dom_lite"; }
+  "rfdc"   -> "legend" [style=invis];
+  "legend" -> "dom_rf" [style=invis];
+  /* spacer: keeps the 3-line AXIS CDC xlabel clear of the ui_clk edge */
+  "cdcgap" [shape=box, style=invis, label="", width=0.02, height=0.62, fixedsize=true];
+  "dom_rf" -> "cdcgap" [style=invis];
+  "cdcgap" -> "dom_ui" [style=invis];
 
   /* ---------- clock distribution ---------- */
-  "x_lmk1" -> "buf_pl" [color="#C99A00", style=dashed, arrowhead=vee];
+  "x_lmk1" -> "buf_pl" [color="#C99A00", style=dashed, arrowhead=vee, tailport=e];
   "buf_pl" -> "mmcm"   [color="#C99A00", style=dashed, arrowhead=vee];
   "mmcm" -> "rfdc"   [color="#C99A00", style=dashed, arrowhead=vee, xlabel="\n\nrf_clk", fontcolor="#C99A00"];
-  "mmcm" -> "dom_rf" [color="#C99A00", style=dashed, arrowhead=vee, xlabel="rf_clk", fontcolor="#C99A00"];
+  /* rf_clk / ui_clk labels land on their own dashed run inside the reset cluster:
+     an opaque cluster-tinted label box breaks the line behind the text */
+  "mmcm" -> "dom_rf" [color="#C99A00", style=dashed, arrowhead=vee,
+                      xlabel=<<table border="0" cellborder="0" cellspacing="0" cellpadding="1" bgcolor="#FDF1F0"><tr><td><font color="#C99A00" point-size="16">rf_clk</font></td></tr></table>>];
   "mmcm" -> "rst_rf" [color="#C99A00", style=dashed, arrowhead=vee];
 
-  "x_lmk2" -> "buf_sr" [color="#C99A00", style=dashed, arrowhead=vee];
+  "x_lmk2" -> "buf_sr" [color="#C99A00", style=dashed, arrowhead=vee, tailport=e];
   "buf_sr" -> "cdc"    [color="#C99A00", style=dashed, arrowhead=vee];
   "cdc" -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee];
-  "x_sysref" -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3];
-  "x_lmx"    -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3];
+  "x_sysref" -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3, tailport=e];
+  /* x_lmx sits above the RFDC, so it leaves downward; tailport=e would start the run inside the box */
+  "x_lmx"    -> "rfdc" [color="#C99A00", style=dashed, arrowhead=vee, weight=3, tailport=s];
 
-  "x_ddr"   -> "buf_ddr" [color="#C99A00", style=dashed, arrowhead=vee];
+  "x_ddr"   -> "buf_ddr" [color="#C99A00", style=dashed, arrowhead=vee, tailport=e];
   "buf_ddr" -> "ddr4"  [color="#C99A00", style=dashed, arrowhead=vee];
   "buf_ddr" -> "srgen" [color="#C99A00", style=dashed, arrowhead=vee];
-  "ddr4" -> "dom_ui"  [color="#C99A00", style=dashed, arrowhead=vee, xlabel="ui_clk", fontcolor="#C99A00"];
+  "ddr4" -> "dom_ui"  [color="#C99A00", style=dashed, arrowhead=vee,
+                       xlabel=<<table border="0" cellborder="0" cellspacing="0" cellpadding="1" bgcolor="#FDF1F0"><tr><td><font color="#C99A00" point-size="16">ui_clk</font></td></tr></table>>];
   "ddr4" -> "rst_ddr" [color="#C99A00", style=dashed, arrowhead=vee];
 
   "ps" -> "dom_lite" [color="#C99A00", style=dashed, arrowhead=vee, xlabel="pl_clk0", fontcolor="#C99A00"];
@@ -79,7 +92,8 @@ digraph "paper_clocking_sync" {
   /* ---------- resets ---------- */
   "ps" -> "rst_ps8" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="pl_resetn0", fontcolor="#B85450"];
   "ps" -> "rst_rf"  [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee];
-  "mmcm" -> "rst_rf" [color="#888888", style=solid, penwidth=1.1, arrowhead=normal, xlabel="locked", fontcolor="#666666"];
+  /* leading newline drops the label below the clock edge bundled alongside this one */
+  "mmcm" -> "rst_rf" [color="#888888", style=solid, penwidth=1.1, arrowhead=normal, xlabel="\nlocked", fontcolor="#666666"];
   "ddr4" -> "rst_ddr" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="sync_rst", fontcolor="#B85450"];
   "srgen" -> "ddr4" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="sys_rst", fontcolor="#B85450", constraint=false];
   "rst_ps8" -> "dom_lite" [color="#B85450", style=dotted, penwidth=1.4, arrowhead=vee, xlabel="aresetn", fontcolor="#B85450"];
