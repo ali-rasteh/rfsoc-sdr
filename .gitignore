@@ -179,3 +179,4 @@ python/other
 *.zip
 python/config/config.json
 .vscode/
+**/arch_diagrams/Images/
