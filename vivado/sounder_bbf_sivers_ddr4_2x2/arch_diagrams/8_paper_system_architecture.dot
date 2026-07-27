@@ -21,7 +21,11 @@ digraph "paper_system_architecture" {
   "clk_lmx" [label="LMX RF synth\n3932.16 MHz",      shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
   "clk_lmk" [label="LMK clock\n122.88 MHz + SYSREF", shape=box, fillcolor="#FFFFFF", color="#666666", style="filled", fontsize=16];
 
-  "rfdc" [label="RF Data Converter\n2 ADC + 2 DAC @ 3.932 GS/s\ndec/int 4x · fabric 245.76 MHz",
+  /* height=1.1 (taller than the 3 text lines need) so the west face reaches both rf_in and
+     rf_out: with a shorter box the rfdc -> rf_out edge cannot leave at rf_out's height and
+     the ortho router bends it up and clips it onto rf_out's bottom-right corner */
+  "rfdc" [height=1.1,
+          label="RF Data Converter\n2 ADC + 2 DAC @ 3.932 GS/s\ndec/int 4x · fabric 245.76 MHz",
           fillcolor="#E1D5E7", color="#8E44AD"];
   "clktree" [label="Clock tree + MTS sync\nMMCM · SYSREF CDC", fillcolor="#FFF2CC", color="#C99A00"];
 
@@ -46,10 +50,17 @@ digraph "paper_system_architecture" {
   "ddr4pl" [label="DDR4 (PL)\n4 GB", shape=box3d, style="filled", fillcolor="#F8CECC", color="#B85450"];
 
   /* ---------- rank columns ---------- */
-  { rank=same; "rf_in"; "rf_out"; "clk_lmx"; "clk_lmk"; }
+  { rank=same; "rf_in"; "rf_out"; "clk_lmx"; "clk_lmk"; "clkgap"; }
   "clk_lmk" -> "rf_out" [style=invis];
   "rf_out" -> "rf_in"   [style=invis];
-  "rf_in" -> "clk_lmx"  [style=invis];
+  /* small spacer under rf_in: it opens the pocket that the "sample clk" xlabel drops into,
+     otherwise the label placer parks the text on the clk_lmx box and its own riser */
+  "clkgap" [shape=box, style=invis, label="", width=0.02, height=0.15, fixedsize=true];
+  "rf_in" -> "clkgap"   [style=invis];
+  "clkgap" -> "clk_lmx" [style=invis];
+  /* rfdc sits at the median of its constrained neighbours; without this it locks onto rf_in
+     alone and its west face never rises to rf_out. Invisible, so it only moves rfdc. */
+  "rf_out" -> "rfdc" [style=invis, weight=8];
   { rank=same; "rfdc"; "clktree"; }
   { rank=same; "rx_cap"; "tx_pb"; }
   /* nudge ctrl clear of dma_rx: without the extra separation the PS -> ctrl arrow has no
@@ -91,7 +102,8 @@ digraph "paper_system_architecture" {
   "clk_lmk" -> "clktree" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee];
   /* leading newline keeps this label off the analog RF run into rf_out */
   "clktree" -> "rfdc" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee, xlabel="\nrf_clk + SYSREF", fontcolor="#C99A00"];
-  /* this label lands on its own vertical stub: opaque box breaks the line behind the text */
+  /* the label now lands in the free pocket right of its own riser (see "clkgap"), so the table
+     stays transparent: an opaque box here would punch a hole in the riser and the clk_lmx border */
   "clk_lmx" -> "rfdc" [color="#C99A00", style=dashed, penwidth=1.3, arrowhead=vee,
-                       xlabel=<<table border="0" cellborder="0" cellspacing="0" cellpadding="1" bgcolor="white"><tr><td><font color="#C99A00" point-size="16">sample clk</font></td></tr></table>>];
+                       xlabel=<<table border="0" cellborder="0" cellspacing="0" cellpadding="1"><tr><td><font color="#C99A00" point-size="16">sample clk</font></td></tr></table>>];
 }
