@@ -107,3 +107,4 @@ An optional fourth rate, 5898.24 MHz (R = 6), keeps more carriers in zone 1. It 
 ## Reference
 
 - RFSoC 4x2 clocking (separate ADC and DAC LMX2594): <https://casper-tutorials.readthedocs.io/en/latest/tutorials/rfsoc/platforms/rfsoc4x2.html>
+- Prior art in open-source RFSoC projects (none does this; reusable pieces listed): [prior_art.md](prior_art.md)
